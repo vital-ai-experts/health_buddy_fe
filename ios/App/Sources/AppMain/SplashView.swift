@@ -53,19 +53,12 @@ struct SplashView: View {
                         .scaleEffect(pulseScale)
                         .opacity(2.0 - pulseScale)
 
-                    // 主图标 - 心形，使用珊瑚色匹配 Logo
-                    Image(systemName: "heart.circle.fill")
-                        .font(.system(size: 100))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.98, green: 0.55, blue: 0.50), // 珊瑚色
-                                    Color(red: 0.95, green: 0.48, blue: 0.45)  // 稍深的珊瑚色
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    // 主图标 - App Logo
+                    Image("LaunchLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 26))
                         .shadow(color: Color(red: 0.35, green: 0.73, blue: 0.50).opacity(0.4), radius: 20, x: 0, y: 10)
                         .scaleEffect(logoScale)
                         .scaleEffect(heartbeatAnimation ? 1.05 : 1.0)

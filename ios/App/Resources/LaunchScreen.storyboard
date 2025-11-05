@@ -19,9 +19,8 @@
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                                 <color key="backgroundColor" red="0.75" green="0.92000000000000004" blue="0.82000000000000006" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </view>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="heart.circle.fill" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="logo-imageview">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchLogo" translatesAutoresizingMaskIntoConstraints="NO" id="logo-imageview">
                                 <rect key="frame" x="146.66666666666666" y="326" width="100" height="100"/>
-                                <color key="tintColor" red="0.97999999999999998" green="0.55000000000000004" blue="0.5" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="100" id="logo-height"/>
                                     <constraint firstAttribute="width" constant="100" id="logo-width"/>
@@ -57,6 +56,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="heart.circle.fill" catalog="system" width="128" height="121"/>
+        <image name="LaunchLogo" width="1024" height="1024"/>
     </resources>
 </document>
