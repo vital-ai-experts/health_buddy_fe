@@ -1,0 +1,8 @@
+// 签名配置（入库）。如需本地覆盖，在同目录创建 Signing.local.xcconfig
+
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = ABCDE12345
+PROVISIONING_PROFILE_SPECIFIER =
+
+// 可选引入（放在末尾，确保本地覆盖优先生效）
+#include? "Signing.local.xcconfig"

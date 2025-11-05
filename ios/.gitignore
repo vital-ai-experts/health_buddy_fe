@@ -1,0 +1,69 @@
+# Xcode
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## Build generated
+build/
+.build/
+.build checkouts/
+DerivedData/
+
+## Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcuserstate
+project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+
+## User-specific files
+*.xccheckout
+
+## compatibility with Xcode 8 and earlier
+*.moved-aside
+
+## Compiled binary addons
+*.dSYM.zip
+*.dSYM
+
+## Crash Reporter
+*.crash
+
+## CocoaPods
+# CocoaPods - Only make it visible to team members
+# CocoaPods support
+Podfile.lock
+Pods/
+Carthage/Build/
+
+## fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+
+## Bundle configuration
+*.mode1v3
+*.mode2v3
+
+## Version control
+*.xccheckout
+
+## SPM build files
+.build/
+.swiftpm/
+
+## PlayAnything specific
+
+# XcodeGen 生成工程不入库
+*.xcodeproj/
+# 本地配置覆盖文件不入库
+*.local.xcconfig

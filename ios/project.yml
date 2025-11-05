@@ -1,0 +1,66 @@
+name: HealthBuddy
+options:
+  minimumXcodeGenVersion: 2.41.0
+  configFiles:
+    Debug: Configs/Debug.xcconfig
+    Release: Configs/Release.xcconfig
+fileGroups:
+  - App/Sources
+  - App/Resources
+targetTemplates:
+  BaseAppTarget:
+    platform: iOS
+    deploymentTarget: '17.0'
+    type: application
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+packages:
+  LibraryServiceLoader:
+    path: Packages/Library/ServiceLoader
+  LibraryThemeKit:
+    path: Packages/Library/ThemeKit
+  DomainHealth:
+    path: Packages/Domain/Health
+  FeatureHealthKitApi:
+    path: Packages/Feature/HealthKit/FeatureHealthKitApi
+  FeatureHealthKitImpl:
+    path: Packages/Feature/HealthKit/FeatureHealthKitImpl
+targets:
+  HealthBuddy:
+    templates: [BaseAppTarget]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.high.HealthBuddy
+      CODE_SIGN_ENTITLEMENTS: App/HealthBuddy.entitlements
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      INFOPLIST_FILE: App/Resources/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+    sources:
+      - path: App/Sources
+      - path: App/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: App/Resources/en.lproj
+        buildPhase: resources
+      - path: App/Resources/LaunchScreen.storyboard
+        buildPhase: resources
+    resources: []
+    dependencies:
+      - package: LibraryServiceLoader
+        product: LibraryServiceLoader
+      - package: LibraryThemeKit
+        product: ThemeKit
+      - package: DomainHealth
+        product: DomainHealth
+      - package: FeatureHealthKitApi
+        product: FeatureHealthKitApi
+      - package: FeatureHealthKitImpl
+        product: FeatureHealthKitImpl
+schemes:
+  HealthBuddy:
+    build:
+      targets:
+        HealthBuddy: all
+    run:
+      config: Debug
+    archive:
+      config: Release
