@@ -1,6 +1,6 @@
 import Foundation
 
-/// Mock Onboarding 服务实现（用于 Demo）
+/// Mock Onboarding 服务实现（用于测试和开发）
 public class MockOnboardingService: OnboardingService {
     private var currentStep = 0
     private let sessionId = UUID().uuidString

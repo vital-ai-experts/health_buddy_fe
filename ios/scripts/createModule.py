@@ -67,16 +67,14 @@ let package = Package(
     products: [ .library(name: "{feature_name}Impl", targets: ["{feature_name}Impl"]) ],
     dependencies: [
         .package(name: "{feature_name}Api", path: "../{feature_name}Api"),
-        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
-        .package(name: "LibraryDemoRegistry", path: "../../../Library/DemoRegistry")
+        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader")
     ],
     targets: [
         .target(
             name: "{feature_name}Impl",
             dependencies: [
                 .product(name: "{feature_name}Api", package: "{feature_name}Api"),
-                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
-                .product(name: "LibraryDemoRegistry", package: "LibraryDemoRegistry")
+                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader")
             ],
             path: "Sources"
         )
@@ -86,7 +84,6 @@ let package = Package(
     impl_src_module = os.path.join(impl_pkg, 'Sources', f'{feature_name}Impl')
     impl_module_swift = f"""import SwiftUI
 import LibraryServiceLoader
-import LibraryDemoRegistry
 import {feature_name}Api
 
 struct {module}FeatureView: View {{
@@ -104,17 +101,6 @@ public enum {module}FeatureModule {{
     public static func register(in manager: ServiceManager = .shared) {{
         // Register builder to ServiceManager
         manager.register({feature_name}Buildable.self) {{ {module}FeatureBuilder() }}
-
-        // Register demo to DemoRegistry
-        let demoItem = DemoItem(
-            id: "{module.lower()}",
-            title: "{module} Demo",
-            description: "Demo description",
-            category: .uiComponents,
-            iconName: "star.fill",
-            buildView: {{ AnyView({module}FeatureView()) }}
-        )
-        DemoRegistry.shared.register(demoItem)
     }}
 }}
 """

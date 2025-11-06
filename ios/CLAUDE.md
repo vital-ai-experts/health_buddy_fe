@@ -195,8 +195,8 @@ After creating modules:
    - If authenticated → show MainTabView
    - If not authenticated → show AccountLandingView
 4. **Main Interface**: TabView with three tabs:
-   - AI Assistant (ChatDemoView)
-   - Health (HealthKitDemoView)
+   - AI Assistant (Chat Tab)
+   - Health (HealthKit Tab)
    - Profile (ProfileView with user info and logout)
 5. **Data Persistence**: Uses SwiftData with models defined in Domain layer
 

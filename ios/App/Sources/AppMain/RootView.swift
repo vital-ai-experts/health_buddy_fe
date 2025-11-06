@@ -150,7 +150,7 @@ private struct PreviewHealthKitFeature: FeatureHealthKitBuildable {
         AnyView(Text("Dashboard Preview"))
     }
 
-    func makeHealthKitDemoView() -> AnyView {
+    func makeHealthKitTabView() -> AnyView {
         AnyView(Text("HealthKit Preview"))
     }
 }
@@ -178,8 +178,8 @@ private struct PreviewChatFeature: FeatureChatBuildable {
         AnyView(Text("Chat Preview"))
     }
     
-    func makeChatDemoView() -> AnyView {
-        AnyView(Text("Chat Demo Preview"))
+    func makeChatTabView() -> AnyView {
+        AnyView(Text("Chat Tab Preview"))
     }
 }
 
@@ -236,13 +236,13 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             // AI助手Tab
-            chatFeature.makeChatDemoView()
+            chatFeature.makeChatTabView()
                 .tabItem {
                     Label("AI助手", systemImage: "message.fill")
                 }
             
             // 健康数据Tab
-            healthKitFeature.makeHealthKitDemoView()
+            healthKitFeature.makeHealthKitTabView()
                 .tabItem {
                     Label("健康", systemImage: "heart.fill")
                 }

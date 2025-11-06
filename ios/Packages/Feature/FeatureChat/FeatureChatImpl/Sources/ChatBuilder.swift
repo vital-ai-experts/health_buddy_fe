@@ -13,7 +13,7 @@ public final class ChatBuilder: FeatureChatBuildable {
         AnyView(ChatView(conversationId: conversationId))
     }
 
-    public func makeChatDemoView() -> AnyView {
+    public func makeChatTabView() -> AnyView {
         AnyView(ConversationListView())
     }
 }

@@ -13,8 +13,8 @@ public struct HealthKitBuilder: FeatureHealthKitBuildable {
         AnyView(DashboardFeatureView())
     }
 
-    public func makeHealthKitDemoView() -> AnyView {
-        AnyView(HealthKitDemoCoordinator())
+    public func makeHealthKitTabView() -> AnyView {
+        AnyView(HealthKitCoordinator())
     }
 }
 

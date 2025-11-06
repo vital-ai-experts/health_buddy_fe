@@ -8,6 +8,6 @@ public protocol FeatureChatBuildable {
     /// Build the chat view for a specific conversation
     func makeChatView(conversationId: String?) -> AnyView
 
-    /// Build the main chat demo view (includes list and navigation)
-    func makeChatDemoView() -> AnyView
+    /// Build the chat tab view for MainTabView
+    func makeChatTabView() -> AnyView
 }

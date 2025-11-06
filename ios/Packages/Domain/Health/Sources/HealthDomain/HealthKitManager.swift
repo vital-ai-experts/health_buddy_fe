@@ -459,7 +459,7 @@ private extension HealthKitManager {
     }
 
     func makeError(_ msg: String) -> NSError {
-        NSError(domain: "HealthKitDemo", code: -1, userInfo: [NSLocalizedDescriptionKey: msg])
+        NSError(domain: "HealthKit", code: -1, userInfo: [NSLocalizedDescriptionKey: msg])
     }
 }
 
