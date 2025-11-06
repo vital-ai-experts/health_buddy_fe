@@ -4,61 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HealthBuddy is a modular iOS demo collection platform built with SwiftUI and Swift Package Manager (SPM). The project uses XcodeGen for project generation and follows a clean architecture pattern with strict layer separation.
+HealthBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The project uses XcodeGen for project generation and follows a clean architecture pattern with strict layer separation.
 
-The app serves as a showcase for various iOS features and functionalities. Currently includes:
-- **HealthKit Demo**: Health data tracking and visualization
+The app integrates AI-powered health assistant with HealthKit data tracking. Core features:
+- **AI Health Assistant**: LLM-based conversational health advice
+- **HealthKit Integration**: Health data tracking and visualization
+- **Account System**: User registration, login, and profile management
 
-There is one app target: `HealthBuddy`, sharing the unified codebase.
+There is one app target: `HealthBuddy`.
 
 ## Current Module Structure
 
-After simplification (October 2025), the project structure is:
-
 ```
 Packages/
-├── Domain/
-│   └── Health/
-│       ├── Package.swift
-│       └── Sources/HealthDomain/
-│           ├── HealthDomainBootstrap.swift    # Domain service registration
-│           ├── HealthDataModels.swift         # SwiftData models
-│           ├── HealthKitManager.swift         # HealthKit wrapper
-│           └── ServiceContracts.swift         # Service protocols
+├── Feature/                               # Feature Layer
+│   └── FeatureAccount/                   # Example: Account feature
+│       ├── FeatureAccountApi/            # API protocols
+│       │   └── Sources/FeatureAccountApi/
+│       │       └── FeatureAccountApi.swift
+│       └── FeatureAccountImpl/           # Implementation
+│           └── Sources/
+│               ├── AccountModule.swift   # Module registration
+│               ├── AccountBuilder.swift  # Builder implementation
+│               └── Views...              # SwiftUI views
 │
-├── Feature/
-│   ├── DemoList/
-│   │   ├── FeatureDemoListApi/               # API protocols
-│   │   └── FeatureDemoListImpl/              # Demo list implementation
-│   └── HealthKit/                            # Unified HealthKit feature
-│       ├── FeatureHealthKitApi/
-│       │   └── Sources/FeatureHealthKitApi/
-│       │       └── FeatureHealthKitAPI.swift  # Builder protocol
-│       └── FeatureHealthKitImpl/
-│           └── Sources/FeatureHealthKitImpl/
-│               ├── HealthKitModule.swift       # Module registration
-│               ├── HealthKitBuilder.swift      # Builder implementation
-│               ├── HealthKitDemoCoordinator.swift
-│               ├── AuthorizationFeatureView.swift
-│               ├── DashboardFeatureView.swift
-│               ├── CareKitChartView.swift
-│               └── CustomChartStyle.swift
+├── Domain/                               # Domain Layer
+│   └── DomainAuth/                       # Example: Auth domain
+│       └── Sources/DomainAuth/
+│           ├── AuthDomainBootstrap.swift # Service registration
+│           ├── AuthenticationService.swift
+│           └── User.swift                # Domain models
 │
-└── Library/
-    ├── ServiceLoader/
-    │   └── Sources/ServiceLoader/
-    │       └── ServiceManager.swift           # Service locator
-    └── DemoRegistry/
-        └── Sources/LibraryDemoregistry/
-            ├── DemoRegistry.swift             # Demo registry
-            ├── DemoItem.swift                 # Demo item model
-            └── DemoCategory.swift             # Demo categories
-```
+└── Library/                              # Library Layer
+    └── ServiceLoader/                    # Example: Service locator
+        └── Sources/ServiceLoader/
+            └── ServiceManager.swift
 
-### Key Changes from Previous Version
-- **Merged**: `FeatureAuthorization` + `FeatureDashboard` → `FeatureHealthKit`
-- **Merged**: `LibraryHealthKit` → `DomainHealth`
-- **Unified**: HealthKit functionality now consolidated in single Feature module
+Note: Project has 3 features (Account/Chat/HealthKit),
+      3 domains (Auth/Chat/Health), and 3 libraries (ServiceLoader/Networking/ThemeKit)
+```
 
 ## Build and Project Generation
 
@@ -100,45 +84,55 @@ App → Feature (impl) → Feature (api) → Domain → Library
 ### Layer Responsibilities
 
 **App** (`App/Sources/`)
-- App entry point (`HealthBuddyApp.swift`)
-- Composition root (`AppComposition.swift`) - registers all feature implementations
-- Root navigation (`RootView.swift`)
+- App entry point (`AppMain/HealthBuddyApp.swift`)
+- Composition root (`Composition/AppComposition.swift`) - registers all domain services and feature builders
+- Root navigation (`AppMain/RootView.swift`) - handles splash, auth flow, and main TabView
+- Main TabView with three tabs: AI Assistant, Health, Profile
 - Only layer allowed to depend on Feature `impl` modules
 
 **Feature** (`Packages/Feature/`)
 - Each feature has two separate directories: `Feature[Name]Api` and `Feature[Name]Impl`
-- **Important**: Directory names must match the package name exactly (e.g., `FeatureAuthorizationApi`, not just `api`)
-- `Feature[Name]Api` packages: Protocol definitions only (e.g., `FeatureAuthorizationBuildable`)
+- **Important**: Directory names must match the package name exactly (e.g., `FeatureAccountApi`, not just `api`)
+- `Feature[Name]Api` packages: Protocol definitions only (e.g., `FeatureAccountBuildable`)
 - `Feature[Name]Impl` packages: Concrete implementations, ViewModels, Views, and business logic
 - Features can only depend on other Feature `Api` modules (never `Impl`)
 - Current features:
-  - **DemoList**: Main demo list UI with search and categorization
-  - **HealthKit**: Comprehensive Health data tracking and visualization (includes authorization, dashboard, and demo coordinator)
+  - **FeatureAccount**: User registration, login, account landing page
+  - **FeatureChat**: AI chat interface, conversation management
+  - **FeatureHealthKit**: HealthKit authorization, dashboard, data visualization
 
 **Domain** (`Packages/Domain/`)
 - Core business logic and cross-feature domain services
-- Example: `HealthDomain` - contains `AuthorizationService`, `HealthDataService`, and `HealthKitManager`
+- Examples:
+  - `DomainHealth` - contains `AuthorizationService`, `HealthDataService`, and `HealthKitManager`
+  - `DomainAuth` - contains `AuthenticationService` and `User` model
+  - `DomainChat` - contains `ChatService` for AI conversations
 - Bootstrap modules configure and register domain services into `ServiceManager`
-- Integrates HealthKit framework directly (no separate LibraryHealthKit module)
+- Integrates system frameworks directly (e.g., HealthKit in DomainHealth)
 
 **Library** (`Packages/Library/`)
 - Business-agnostic utilities and wrappers
 - Examples:
   - `ServiceLoader`: Thread-safe service locator (`ServiceManager`)
-  - `DemoRegistry`: Demo registration system with `DemoRegistry`, `DemoItem`, and `DemoCategory`
+  - `Networking`: HTTP client wrapper for API calls
+  - `ThemeKit`: App-wide theming and styling
 
 ### Dependency Injection Pattern
 
 The app uses a custom service locator pattern (`ServiceManager` from `LibraryServiceLoader`):
 
 1. **Registration** happens in bootstrap modules during app launch:
-   - `HealthDomainBootstrap.configure()` - registers domain services
-   - `HealthKitModule.register()` - registers feature builder and demo
+   - `HealthDomainBootstrap.configure()` - registers health domain services
+   - `AuthDomainBootstrap.configure()` - registers authentication services
+   - `ChatDomainBootstrap.configure()` - registers chat services
+   - `HealthKitModule.register()` - registers HealthKit feature builder
+   - `AccountModule.register()` - registers account feature builder
+   - `ChatModule.register()` - registers chat feature builder
    - All called from `AppComposition.bootstrap()` in `HealthBuddyApp.init()`
 
 2. **Resolution** happens at view initialization or in constructors:
    ```swift
-   let service = ServiceManager.shared.resolve(AuthorizationService.self)
+   let service = ServiceManager.shared.resolve(AuthenticationService.self)
    ```
 
 3. **Protocol-based contracts**: Features depend on protocols (from api modules), not concrete implementations
@@ -163,13 +157,18 @@ After creating modules:
 2. Update `project.yml` to add the new package and dependencies
 3. Run `scripts/generate_project.sh` to regenerate the Xcode project
 
-## Data Flow
+## App Flow
 
-1. **App Launch**: `HealthBuddyApp` → `AppComposition.bootstrap()` registers all services and demos
-2. **Navigation**: `RootView` follows the route: `.splash` → `.demoList` → `.demo(demoId)`
-3. **Demo Display**: Demos are built dynamically via `DemoRegistry.shared.getDemo(by:)?.buildView()`
-4. **Feature Display**: Features expose views via builder protocols (e.g., `makeAuthorizationView()`)
-5. **Data Persistence**: Uses SwiftData with models defined in Domain layer (`HealthSection`, `HealthRow`)
+1. **App Launch**: `HealthBuddyApp.init()` → `AppComposition.bootstrap()` registers all services
+2. **Splash Screen**: Shows for 1.5 seconds while checking authentication
+3. **Authentication Check**:
+   - If authenticated → show MainTabView
+   - If not authenticated → show AccountLandingView
+4. **Main Interface**: TabView with three tabs:
+   - AI Assistant (ChatDemoView)
+   - Health (HealthKitDemoView)
+   - Profile (ProfileView with user info and logout)
+5. **Data Persistence**: Uses SwiftData with models defined in Domain layer
 
 ## HealthKit Integration
 
@@ -179,7 +178,6 @@ After creating modules:
   - `NSHealthUpdateUsageDescription`
 - Authorization flow handled by `FeatureHealthKit` → `DomainHealth` → HealthKit framework
 - HealthKit framework is directly linked in `DomainHealth` module
-- No separate LibraryHealthKit module (simplified architecture)
 
 ## Important Patterns
 
@@ -188,19 +186,8 @@ Each feature `impl` module exports a registration function:
 ```swift
 public enum FeatureModule {
     public static func register(in manager: ServiceManager = .shared) {
-        // 1. Register builder to ServiceManager
+        // Register builder to ServiceManager
         manager.register(FeatureBuildable.self) { FeatureBuilder() }
-
-        // 2. Register demo to DemoRegistry (for demo features)
-        let demoItem = DemoItem(
-            id: "demo-id",
-            title: "Demo Title",
-            description: "Demo description",
-            category: .systemFrameworks,
-            iconName: "heart.fill",
-            buildView: { AnyView(DemoView()) }
-        )
-        DemoRegistry.shared.register(demoItem)
     }
 }
 ```
@@ -208,10 +195,10 @@ public enum FeatureModule {
 ### Feature Builder Pattern
 Features expose views via builder protocols:
 ```swift
-public protocol FeatureHealthKitBuildable {
-    func makeAuthorizationView(onAuthorized: @escaping () -> Void) -> AnyView
-    func makeDashboardView() -> AnyView
-    func makeHealthKitDemoView() -> AnyView
+public protocol FeatureAccountBuildable {
+    func makeLoginView(onLoginSuccess: @escaping () -> Void) -> AnyView
+    func makeRegisterView(onRegisterSuccess: @escaping () -> Void) -> AnyView
+    func makeAccountLandingView(onSuccess: @escaping () -> Void) -> AnyView
 }
 ```
 
@@ -220,29 +207,8 @@ Domain modules export a `configure()` function that registers services:
 ```swift
 public enum DomainBootstrap {
     public static func configure(manager: ServiceManager = .shared) {
-        // register services
-    }
-}
-```
-
-### Demo Registration Pattern
-Demo features register themselves to both ServiceManager and DemoRegistry:
-```swift
-public enum HealthKitModule {
-    public static func register(in manager: ServiceManager = .shared) {
-        // 1. Register builder to ServiceManager
-        manager.register(FeatureHealthKitBuildable.self) { HealthKitBuilder() }
-
-        // 2. Register demo item to DemoRegistry
-        let demoItem = DemoItem(
-            id: "healthkit-demo",
-            title: "HealthKit Demo",
-            description: "Health data tracking and visualization",
-            category: .systemFrameworks,
-            iconName: "heart.fill",
-            buildView: { AnyView(HealthKitDemoCoordinator()) }
-        )
-        DemoRegistry.shared.register(demoItem)
+        // register domain services
+        manager.register(SomeService.self) { SomeServiceImpl() }
     }
 }
 ```
@@ -250,63 +216,53 @@ public enum HealthKitModule {
 ## File Naming Conventions
 
 - Feature API protocols: `Feature[Name]Api.swift`, containing `Feature[Name]Buildable`
-- Feature modules: `Feature[Name]Module.swift` for registration
+- Feature modules: `[Name]Module.swift` for registration
+- Feature builders: `[Name]Builder.swift` for builder implementation
 - Domain bootstraps: `[Domain]Bootstrap.swift`
-- Service contracts: `ServiceContracts.swift` in Domain modules
-- Data models: `[Domain]DataModels.swift` or descriptive names
+- Service contracts: `ServiceContracts.swift` or descriptive service names
+- Data models: `[Domain]DataModels.swift` or descriptive model names
 
-## Common Tasks
+## Adding a New Feature
 
-### Adding a New Demo Feature
-
-**Step 1: Create the Feature Module**
+### Step 1: Create the Feature Module
 ```bash
-scripts/createModule.py -f YourDemo
+scripts/createModule.py -f YourFeature
 ```
 
 This creates:
-- `Packages/Feature/Yourdemo/FeatureYourdemoApi/` - API definitions
-- `Packages/Feature/Yourdemo/FeatureYourdemoImpl/` - Implementation
+- `Packages/Feature/YourFeature/FeatureYourFeatureApi/` - API definitions
+- `Packages/Feature/YourFeature/FeatureYourFeatureImpl/` - Implementation
 
-**Step 2: Rename Directories (Important!)**
-```bash
-cd Packages/Feature/Yourdemo
-mv api FeatureYourdemoApi
-mv impl FeatureYourdemoImpl
-```
+### Step 2: Update Package.swift Files
 
-**Step 3: Update Package.swift Files**
-
-In `FeatureYourdemoApi/Package.swift`:
+In `FeatureYourFeatureApi/Package.swift`:
 ```swift
 let package = Package(
-    name: "FeatureYourdemoApi",  // Must match directory name!
+    name: "FeatureYourFeatureApi",
     platforms: [ .iOS(.v17) ],
-    products: [ .library(name: "FeatureYourdemoApi", targets: ["FeatureYourdemoApi"]) ],
+    products: [ .library(name: "FeatureYourFeatureApi", targets: ["FeatureYourFeatureApi"]) ],
     targets: [
-        .target(name: "FeatureYourdemoApi", path: "Sources")
+        .target(name: "FeatureYourFeatureApi", path: "Sources")
     ]
 )
 ```
 
-In `FeatureYourdemoImpl/Package.swift`:
+In `FeatureYourFeatureImpl/Package.swift`:
 ```swift
 let package = Package(
-    name: "FeatureYourdemoImpl",
+    name: "FeatureYourFeatureImpl",
     platforms: [ .iOS(.v17) ],
-    products: [ .library(name: "FeatureYourdemoImpl", targets: ["FeatureYourdemoImpl"]) ],
+    products: [ .library(name: "FeatureYourFeatureImpl", targets: ["FeatureYourFeatureImpl"]) ],
     dependencies: [
-        .package(name: "FeatureYourdemoApi", path: "../FeatureYourdemoApi"),
-        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
-        .package(name: "LibraryDemoRegistry", path: "../../../Library/DemoRegistry")
+        .package(name: "FeatureYourFeatureApi", path: "../FeatureYourFeatureApi"),
+        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader")
     ],
     targets: [
         .target(
-            name: "FeatureYourdemoImpl",
+            name: "FeatureYourFeatureImpl",
             dependencies: [
-                .product(name: "FeatureYourdemoApi", package: "FeatureYourdemoApi"),
-                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
-                .product(name: "LibraryDemoRegistry", package: "LibraryDemoRegistry")
+                .product(name: "FeatureYourFeatureApi", package: "FeatureYourFeatureApi"),
+                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader")
             ],
             path: "Sources"
         )
@@ -314,152 +270,126 @@ let package = Package(
 )
 ```
 
-**Step 4: Implement Your Demo**
+### Step 3: Define API Protocol
 
-Create your view in `FeatureYourdemoImpl/Sources/`:
+In `FeatureYourFeatureApi/Sources/FeatureYourFeatureApi.swift`:
 ```swift
 import SwiftUI
 
-struct YourDemoView: View {
-    var body: some View {
-        Text("Your Demo Content")
+public protocol FeatureYourFeatureBuildable {
+    func makeYourFeatureView() -> AnyView
+}
+```
+
+### Step 4: Implement Builder
+
+In `FeatureYourFeatureImpl/Sources/YourFeatureBuilder.swift`:
+```swift
+import SwiftUI
+import FeatureYourFeatureApi
+
+public struct YourFeatureBuilder: FeatureYourFeatureBuildable {
+    public init() {}
+
+    public func makeYourFeatureView() -> AnyView {
+        AnyView(YourFeatureView())
     }
 }
 ```
 
-**Step 5: Create Module Registration**
+### Step 5: Create Module Registration
 
-In `FeatureYourdemoImpl/Sources/YourDemoModule.swift`:
+In `FeatureYourFeatureImpl/Sources/YourFeatureModule.swift`:
 ```swift
-import SwiftUI
 import LibraryServiceLoader
-import LibraryDemoRegistry
-import FeatureYourdemoApi
+import FeatureYourFeatureApi
 
-public enum YourDemoModule {
+public enum YourFeatureModule {
     public static func register(in manager: ServiceManager = .shared) {
-        // Register demo to DemoRegistry
-        let demoItem = DemoItem(
-            id: "your-demo",
-            title: "Your Demo",
-            description: "Description of your demo",
-            category: .uiComponents,  // Choose appropriate category
-            iconName: "star.fill",     // SF Symbol name
-            buildView: { AnyView(YourDemoView()) }
-        )
-        DemoRegistry.shared.register(demoItem)
+        manager.register(FeatureYourFeatureBuildable.self) { YourFeatureBuilder() }
     }
 }
 ```
 
-**Step 6: Update project.yml**
+### Step 6: Update project.yml
 
 Add your packages to `project.yml`:
 ```yaml
 packages:
   # ... existing packages ...
-  FeatureYourdemoApi:
-    path: Packages/Feature/Yourdemo/FeatureYourdemoApi
-  FeatureYourdemoImpl:
-    path: Packages/Feature/Yourdemo/FeatureYourdemoImpl
+  FeatureYourFeatureApi:
+    path: Packages/Feature/YourFeature/FeatureYourFeatureApi
+  FeatureYourFeatureImpl:
+    path: Packages/Feature/YourFeature/FeatureYourFeatureImpl
 
 targets:
   HealthBuddy:
     dependencies:
       # ... existing dependencies ...
-      - package: FeatureYourdemoApi
-        product: FeatureYourdemoApi
-      - package: FeatureYourdemoImpl
-        product: FeatureYourdemoImpl
+      - package: FeatureYourFeatureApi
+        product: FeatureYourFeatureApi
+      - package: FeatureYourFeatureImpl
+        product: FeatureYourFeatureImpl
 ```
 
-**Step 7: Register in AppComposition**
+### Step 7: Register in AppComposition
 
 In `App/Sources/Composition/AppComposition.swift`:
 ```swift
-import FeatureYourdemoImpl  // Add import
+import FeatureYourFeatureImpl  // Add import
 
 enum AppComposition {
     @MainActor
     static func bootstrap() {
         // 1. Configure domain services
         HealthDomainBootstrap.configure()
+        AuthDomainBootstrap.configure()
+        ChatDomainBootstrap.configure()
 
         // 2. Register features
-        DemoListFeatureModule.register()
-        YourDemoModule.register()  // Add this line
+        HealthKitModule.register()
+        AccountModule.register()
+        ChatModule.register()
+        YourFeatureModule.register()  // Add this line
     }
 }
 ```
 
-**Step 8: Regenerate and Build**
+### Step 8: Regenerate and Build
 ```bash
 scripts/generate_project.sh
 scripts/build.sh
 ```
 
-### Important Package Naming Rules
+## Important Package Naming Rules
 
 **Critical**: Package names, product names, and directory names must be consistent:
 
 ✅ **Correct:**
-- Directory: `FeatureYourdemoApi`
-- Package name: `FeatureYourdemoApi`
-- Product name: `FeatureYourdemoApi`
-- Target name: `FeatureYourdemoApi`
+- Directory: `FeatureYourFeatureApi`
+- Package name: `FeatureYourFeatureApi`
+- Product name: `FeatureYourFeatureApi`
+- Target name: `FeatureYourFeatureApi`
 
 ❌ **Wrong (causes build errors):**
 - Directory: `api`
-- Package name: `YourdemoFeatureAPI`
-- Product name: `FeatureYourdemoApi`
+- Package name: `YourFeatureAPI`
+- Product name: `FeatureYourFeatureApi`
 
 **Import Statement Rules:**
-- Domain modules: Use `DomainXxx` (e.g., `import DomainHealth`, NOT `import HealthDomain`)
-- Library modules: Use `LibraryXxx` (e.g., `import LibraryServiceLoader`, NOT `import ServiceLoader`)
+- Domain modules: Use `DomainXxx` (e.g., `import DomainHealth`, `import DomainAuth`)
+  - Exception: Health domain uses `HealthDomain` as source directory name but imports as `DomainHealth`
+- Library modules: Use `LibraryXxx` (e.g., `import LibraryServiceLoader`, `import LibraryNetworking`)
 - Feature modules: Use `FeatureXxxApi` or `FeatureXxxImpl`
 
-### Adding a new Feature dependency
-1. Add to Feature's `Package.swift` dependencies with correct package names
-2. Import in Swift files: `import DomainXxx` or `import LibraryXxx`
-3. Run `scripts/generate_project.sh`
+## Adding a Domain Service
 
-### Modifying Package Dependencies
+1. Create the service protocol and implementation in the Domain module
+2. Add registration to `[Domain]Bootstrap.configure()`
+3. Import and use via `ServiceManager.shared.resolve(YourService.self)`
+
+## Modifying Package Dependencies
+
 1. Edit the module's `Package.swift` file directly
 2. Update `project.yml` if adding/removing packages from App target
 3. Run `scripts/generate_project.sh` to apply changes
-
-## Recent Refactoring (October 2025)
-
-### Simplification Summary
-The project underwent a major refactoring to simplify the module structure:
-
-**Before (8 health-related packages):**
-- FeatureAuthorization (API + Impl)
-- FeatureDashboard (API + Impl)
-- FeatureHealthKitDemo (API + Impl)
-- LibraryHealthKit
-
-**After (2 packages):**
-- DomainHealth (includes HealthKitManager)
-- FeatureHealthKit (unified API + Impl)
-
-### Benefits
-- ✅ Reduced dependencies between modules
-- ✅ Simplified dependency graph
-- ✅ Improved build times
-- ✅ Better maintainability
-- ✅ All features preserved and working
-
-### Module Migration
-- Authorization logic moved to `FeatureHealthKit/AuthorizationFeatureView.swift`
-- Dashboard logic moved to `FeatureHealthKit/DashboardFeatureView.swift`
-- HealthKitManager moved from `Library/HealthKit` to `Domain/Health`
-- All features consolidated under unified `HealthKitModule`
-
-### Build Verification
-All changes have been verified with clean builds:
-```bash
-scripts/build.sh --clean  # ✅ Build succeeds
-```
-
-See commit `3cb9b42` for complete refactoring details.

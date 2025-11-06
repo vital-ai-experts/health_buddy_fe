@@ -8,7 +8,7 @@ public final class APIClient {
     private let session: URLSession
     private var authToken: String?
 
-    public init(baseURL: String = "https://vital.ninimu.com/api/v1") {
+    public init(baseURL: String = "https://fapi.ninimu.com/api/v1") {
         self.baseURL = URL(string: baseURL)!
 
         let configuration = URLSessionConfiguration.default

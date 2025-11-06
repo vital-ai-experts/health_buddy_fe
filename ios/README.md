@@ -1,16 +1,17 @@
 # HealthBuddy
 
-一个基于 HealthKit 的 iOS 健康数据追踪应用，采用 SwiftUI 和模块化架构构建。
+一个集成 AI 健康助手的智能健康管理应用，采用 SwiftUI 和模块化架构构建。
 
 ## 项目简介
 
-HealthBuddy 专注于提供简洁直观的健康数据管理体验，包含健康数据授权、数据追踪和可视化展示等功能。
+HealthBuddy 是一款智能健康管理应用，通过 AI 助手为用户提供个性化的健康建议，并整合 HealthKit 进行全面的健康数据追踪与分析。
 
 ### 核心功能
 
-- **健康数据授权**: 引导用户完成 HealthKit 权限授权
-- **数据追踪**: 支持步数、睡眠、心率等多种健康指标
+- **AI 健康助手**: 基于大语言模型的智能对话，提供个性化健康咨询
+- **健康数据追踪**: 集成 HealthKit，追踪步数、睡眠、心率等多种健康指标
 - **数据可视化**: 使用 CareKit 图表展示健康数据趋势
+- **账户系统**: 完整的用户注册、登录、个人资料管理
 - **本地持久化**: 使用 SwiftData 存储健康数据记录
 
 ### 技术栈
@@ -20,6 +21,7 @@ HealthBuddy 专注于提供简洁直观的健康数据管理体验，包含健�
 - **依赖管理**: Swift Package Manager (SPM)
 - **项目生成**: XcodeGen
 - **健康数据**: HealthKit + CareKit
+- **网络通信**: URLSession + Async/Await
 
 ## 环境要求
 
@@ -44,18 +46,21 @@ open HealthBuddy.xcodeproj
 
 ```
 HealthBuddy/
-├── App/                    # 应用层：入口、导航、依赖配置
-├── Packages/               # SPM 包
-│   ├── Feature/           # 功能层：业务功能模块
-│   │   └── HealthKit/     # HealthKit 功能（Api + Impl）
-│   ├── Domain/            # 领域层：核心业务逻辑
-│   │   └── Health/        # 健康领域服务
-│   └── Library/           # 工具层：基础组件
-│       ├── ServiceLoader/ # 依赖注入
-│       └── ThemeKit/      # 主题管理
-├── scripts/               # 自动化脚本
-├── project.yml            # XcodeGen 配置
-└── modularization.md      # 模块化架构文档
+├── App/                       # 应用层
+│   ├── Sources/
+│   │   ├── AppMain/          # 应用入口、根视图
+│   │   └── Composition/      # 依赖注入配置
+│   └── Resources/            # 资源文件
+├── Packages/                  # SPM 包
+│   ├── Feature/              # 功能层 (Account/Chat/HealthKit)
+│   │   └── FeatureAccount/   # 示例：账户功能
+│   │       ├── FeatureAccountApi/      # API 协议
+│   │       └── FeatureAccountImpl/     # 具体实现
+│   ├── Domain/               # 领域层 (Auth/Chat/Health)
+│   │   └── DomainAuth/       # 示例：认证领域
+│   └── Library/              # 工具层 (ServiceLoader/Networking/ThemeKit)
+├── scripts/                   # 自动化脚本
+└── project.yml               # XcodeGen 配置
 ```
 
 ## 常用命令
