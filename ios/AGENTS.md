@@ -35,8 +35,24 @@ HealthBuddy follows a layered architecture: `App → Feature(Impl) → Feature(A
 
 ## Build, Test, and Development Commands
 
+**CRITICAL - Always Build and Install After Code Changes**:
+After writing or modifying ANY code, you MUST run `scripts/build.sh -i` to verify your changes compile and run correctly.
+
+### Build Commands
+- `scripts/build.sh -i` - **[REQUIRED AFTER CODE CHANGES]** Build and install to running simulator
+- `scripts/build.sh -i -d device` - Build and install to connected iPhone
+- `scripts/build.sh -r -i -d device` - Release build and install to device
+- `scripts/build.sh -a` - Create archive and export .ipa for distribution
+- `scripts/build.sh -c` - Clean build
+
+Build script features:
+- Auto-detects running simulator or connected device
+- Shows progress animation during build
+- All logs saved to `build/xcodebuild_YYYYMMDD_HHMMSS.log`
+- Automatically installs and launches app with `-i` flag
+
+### Other Commands
 - `scripts/generate_project.sh` - Regenerates Xcode project via XcodeGen; run after adding modules or modifying `project.yml`
-- `scripts/build.sh [--clean|--verbose]` - Builds for simulator (default: iPhone 17 Pro)
 - `scripts/createModule.py -f [Name]` - Scaffolds a new Feature module (creates both Api and Impl packages)
 - `scripts/createModule.py -d [Name]` - Scaffolds a new Domain module
 - `scripts/createModule.py -l [Name]` - Scaffolds a new Library module

@@ -76,18 +76,45 @@ HealthBuddy/
 ### 构建验证
 
 ```bash
-# 增量构建
+# 快速构建（仅编译，不安装）
 ./scripts/build.sh
 
+# 构建并安装到当前运行的模拟器（推荐）
+./scripts/build.sh -i
+
+# 构建并安装到连接的 iPhone 真机
+./scripts/build.sh -i -d device
+
+# Release 构建并安装到真机
+./scripts/build.sh -r -i -d device
+
 # 清理构建
-./scripts/build.sh --clean
-
-# 详细输出
-./scripts/build.sh --verbose
-
-# 指定模拟器
-./scripts/build.sh -d "iPhone 16 Pro"
+./scripts/build.sh -c
 ```
+
+**说明**：
+- `-i` / `--install`：构建后自动安装并启动 App
+- `-d` / `--destination`：指定目标（`simulator` 或 `device`，默认 simulator）
+- `-r` / `--release`：Release 模式构建（默认 Debug）
+- `-c` / `--clean`：清理构建
+
+所有构建日志自动保存到 `build/xcodebuild_YYYYMMDD_HHMMSS.log`
+
+### 打包发布
+
+```bash
+# 创建归档并导出 .ipa（用于 App Store 或企业分发）
+./scripts/build.sh -a
+
+# Release 归档
+./scripts/build.sh -r -a
+```
+
+**说明**：
+- `-a` / `--archive`：创建归档并导出 .ipa 文件
+- 归档文件路径：`build/HealthBuddy.xcarchive`
+- IPA 文件路径：`build/HealthBuddy.ipa`
+- 用于提交 App Store 或通过 TestFlight 分发
 
 ### 创建新模块
 

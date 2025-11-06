@@ -13,7 +13,6 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 PROJECT_PATH="${REPO_ROOT}/HealthBuddy.xcodeproj"
 SCHEME="HealthBuddy"
-DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro"
 BUILD_DIR="${REPO_ROOT}/build"
 CONFIGURATION="Debug"
 
@@ -34,34 +33,181 @@ log_error() {
     echo -e "${RED}[错误]${NC} $1"
 }
 
+# 显示进度动画
+show_progress() {
+    local pid=$1
+    local message=$2
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+
+    # 检查是否是交互式终端
+    if [ -t 1 ]; then
+        # 交互式终端：显示动画
+        while kill -0 $pid 2>/dev/null; do
+            i=$(( (i+1) %10 ))
+            printf "\r${BLUE}[进行中]${NC} ${message} ${spin:$i:1}"
+            sleep 0.1
+        done
+        printf "\r"
+    else
+        # 非交互式终端：只显示一次消息
+        echo -e "${BLUE}[进行中]${NC} ${message}..."
+        wait $pid
+    fi
+}
+
+# 查找并返回当前启动的模拟器 UDID
+find_booted_simulator() {
+    local booted_udid=$(xcrun simctl list devices | grep "(Booted)" | head -1 | grep -E -o "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+    echo "$booted_udid"
+}
+
+# 查找并返回当前连接的真机信息
+# 返回格式: "设备名称|UDID|DevicectlID"
+find_connected_device() {
+    # 使用 devicectl 查找第一个连接的 iPhone 设备
+    local device_info=$(xcrun devicectl list devices 2>/dev/null | grep "iPhone" | grep "available" | head -1)
+
+    if [ -z "$device_info" ]; then
+        echo ""
+        return
+    fi
+
+    local device_name=$(echo "$device_info" | awk '{print $1}')
+    local devicectl_id=$(echo "$device_info" | awk '{print $3}')
+
+    # 使用 xctrace 获取传统的 UDID（xcodebuild 需要）
+    local device_udid=$(xcrun xctrace list devices 2>&1 | grep "$device_name" | grep -v "Simulator" | head -1 | grep -E -o '\([0-9A-F]{8}-[0-9A-F-]{15,}\)' | tr -d '()')
+
+    echo "${device_name}|${device_udid}|${devicectl_id}"
+}
+
+# 安装并启动 App
+# 参数: app_path device_udid device_name devicectl_id
+install_and_launch_app() {
+    local app_path="$1"
+    local device_udid="$2"
+    local device_name="$3"
+    local devicectl_id="$4"
+
+    # 从 Info.plist 中获取 Bundle ID
+    local bundle_id=$(plutil -extract CFBundleIdentifier raw -o - "${app_path}/Info.plist" 2>/dev/null)
+
+    if [ -z "$bundle_id" ]; then
+        log_error "无法从 Info.plist 获取 Bundle ID"
+        return 1
+    fi
+
+    log_info "准备安装和启动 App..."
+    log_info "Bundle ID: ${bundle_id}"
+
+    if [ "$DEVICE_TYPE" = "simulator" ]; then
+        # 模拟器模式
+        if [ -z "$device_udid" ]; then
+            log_error "未找到正在运行的模拟器"
+            log_info "请先启动一个模拟器，或使用 Xcode 打开模拟器"
+            return 1
+        fi
+
+        log_info "安装目标模拟器: ${device_name} (${device_udid})"
+
+        # 安装 App
+        log_info "正在安装 App 到模拟器..."
+        if xcrun simctl install "$device_udid" "$app_path" 2>&1; then
+            log_success "App 安装成功"
+        else
+            log_error "App 安装失败"
+            return 1
+        fi
+
+        # 启动 App
+        log_info "正在启动 App..."
+        if xcrun simctl launch "$device_udid" "$bundle_id" 2>&1; then
+            log_success "App 启动成功"
+        else
+            log_error "App 启动失败"
+            return 1
+        fi
+
+    else
+        # 真机模式
+        if [ -z "$device_udid" ]; then
+            log_error "未找到连接的 iPhone 真机"
+            log_info "请确保设备已连接并信任此电脑"
+            return 1
+        fi
+
+        log_info "安装目标设备: ${device_name} (${device_udid})"
+
+        if [ -z "$devicectl_id" ]; then
+            log_error "无法获取设备的 devicectl identifier"
+            log_info "请确保设备已连接并处于可用状态"
+            return 1
+        fi
+
+        log_info "正在安装 App 到真机..."
+        # 使用 xcrun devicectl 安装应用
+        if xcrun devicectl device install app --device "$devicectl_id" "$app_path" 2>&1 | grep -v "^$"; then
+            log_success "App 已安装到真机"
+
+            # 获取 Bundle ID 并启动应用
+            log_info "正在启动 App..."
+            LAUNCH_OUTPUT=$(xcrun devicectl device process launch --device "$devicectl_id" "$bundle_id" 2>&1)
+            LAUNCH_RESULT=$?
+
+            if [ $LAUNCH_RESULT -eq 0 ]; then
+                echo "$LAUNCH_OUTPUT" | grep -v "^$"
+                log_success "App 启动成功"
+            else
+                # 检查是否是设备锁定导致的失败
+                if echo "$LAUNCH_OUTPUT" | grep -q "Locked"; then
+                    log_warning "设备已锁定，无法自动启动 App"
+                    log_info "请解锁设备并手动启动 App"
+                else
+                    log_warning "App 安装成功，但启动失败（请手动启动）"
+                fi
+            fi
+        else
+            log_error "App 安装到真机失败"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 # 显示帮助信息
 show_help() {
     cat << EOF
 用法: $0 [选项]
 
 选项:
-    -h, --help          显示帮助信息
-    -c, --clean         在构建前执行清理
-    -v, --verbose       显示详细构建输出
-    -d, --destination   指定构建目标 (默认: iPhone 17 Pro)
-    --release           使用 Release 配置构建
-    --archive           创建归档并导出 .ipa (仅适用于真机)
+    -h, --help              显示帮助信息
+    -c, --clean             在构建前执行清理
+    -r, --release           使用 Release 配置构建
+    -a, --archive           创建归档并导出 .ipa (仅适用于真机)
+    -i, --install           构建后自动安装并启动 App
+    -d, --destination       指定目标设备: simulator 或 device (默认: simulator)
+                            会自动确定构建目标和安装设备
 
 示例:
-    $0                              # 快速构建到 build 目录
-    $0 --clean                      # 清理后构建
-    $0 --verbose                    # 显示详细输出
-    $0 -d "iPhone 16 Pro"          # 指定其他模拟器
-    $0 --release                    # Release 模式构建
-    $0 --archive                    # 创建归档并生成 .ipa
+    $0                              # 快速构建到模拟器
+    $0 -c                           # 清理后构建
+    $0 -r                           # Release 模式构建
+    $0 -a                           # 创建归档并生成 .ipa
+    $0 -i                           # 构建并安装到当前启动的模拟器
+    $0 -i -d device                 # 构建并安装到连接的真机
+    $0 -r -i -d device              # Release模式构建并安装到真机
+    $0 -d device                    # 构建真机版本（不安装）
 
 EOF
 }
 
 # 解析命令行参数
 CLEAN_BUILD=false
-VERBOSE=false
 CREATE_ARCHIVE=false
+INSTALL_APP=false
+DEVICE_TYPE="simulator"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -73,22 +219,26 @@ while [[ $# -gt 0 ]]; do
             CLEAN_BUILD=true
             shift
             ;;
-        -v|--verbose)
-            VERBOSE=true
-            shift
-            ;;
-        -d|--destination)
-            DESTINATION="platform=iOS Simulator,name=$2"
-            shift 2
-            ;;
-        --release)
+        -r|--release)
             CONFIGURATION="Release"
             shift
             ;;
-        --archive)
+        -a|--archive)
             CREATE_ARCHIVE=true
             CONFIGURATION="Release"
             shift
+            ;;
+        -i|--install)
+            INSTALL_APP=true
+            shift
+            ;;
+        -d|--destination)
+            DEVICE_TYPE="$2"
+            if [ "$DEVICE_TYPE" != "simulator" ] && [ "$DEVICE_TYPE" != "device" ]; then
+                log_error "无效的目标设备: $DEVICE_TYPE (必须是 simulator 或 device)"
+                exit 1
+            fi
+            shift 2
             ;;
         *)
             log_error "未知参数: $1"
@@ -98,12 +248,52 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# 根据 device-type 自动设置 DESTINATION
+if [ "$DEVICE_TYPE" = "simulator" ]; then
+    # 模拟器模式：尝试使用当前运行的模拟器，否则使用默认
+    DEVICE_UDID=$(find_booted_simulator)
+    if [ -n "$DEVICE_UDID" ]; then
+        DEVICE_NAME=$(xcrun simctl list devices | grep "$DEVICE_UDID" | sed -E 's/^[[:space:]]*([^(]+).*/\1/' | xargs)
+        DESTINATION="platform=iOS Simulator,id=${DEVICE_UDID}"
+        log_info "检测到运行中的模拟器: ${DEVICE_NAME}"
+    else
+        # 使用默认模拟器
+        DEVICE_UDID=""
+        DEVICE_NAME="iPhone 17 Pro"
+        DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro"
+        log_warning "未检测到运行中的模拟器，使用默认: iPhone 17 Pro"
+    fi
+else
+    # 真机模式
+    DEVICE_INFO=$(find_connected_device)
+    if [ -n "$DEVICE_INFO" ]; then
+        DEVICE_NAME=$(echo "$DEVICE_INFO" | cut -d'|' -f1)
+        DEVICE_UDID=$(echo "$DEVICE_INFO" | cut -d'|' -f2)
+        DEVICECTL_ID=$(echo "$DEVICE_INFO" | cut -d'|' -f3)
+
+        if [ -z "$DEVICE_UDID" ]; then
+            log_error "无法获取设备 UDID"
+            log_info "请确保设备已连接并信任此电脑"
+            exit 1
+        fi
+
+        DESTINATION="platform=iOS,id=${DEVICE_UDID}"
+        log_info "检测到连接的设备: ${DEVICE_NAME} (${DEVICE_UDID})"
+    else
+        log_error "未检测到连接的 iPhone 设备"
+        log_info "请确保设备已连接并信任此电脑"
+        exit 1
+    fi
+fi
+
 # 打印配置信息
 log_info "构建配置:"
 echo "  项目: ${SCHEME}"
 echo "  配置: ${CONFIGURATION}"
-echo "  目标: ${DESTINATION}"
+echo "  目标设备: ${DEVICE_TYPE}"
+echo "  构建目标: ${DESTINATION}"
 echo "  清理: ${CLEAN_BUILD}"
+echo "  自动安装: ${INSTALL_APP}"
 echo "  输出: ${BUILD_DIR}"
 echo ""
 
@@ -120,22 +310,38 @@ cd "${REPO_ROOT}"
 # 创建构建输出目录
 mkdir -p "${BUILD_DIR}"
 
+# 生成带时间戳的日志文件名
+BUILD_LOG_FILE="${BUILD_DIR}/xcodebuild_$(date +%Y%m%d_%H%M%S).log"
+
 # 开始计时
 START_TIME=$(date +%s)
 
 # 清理构建（如果需要）
 if [ "$CLEAN_BUILD" = true ]; then
-    log_info "清理构建缓存..."
+    echo "=== 清理构建 ===" >> "${BUILD_LOG_FILE}"
+    echo "时间: $(date '+%Y-%m-%d %H:%M:%S')" >> "${BUILD_LOG_FILE}"
+    echo "" >> "${BUILD_LOG_FILE}"
+
     xcodebuild -project "${PROJECT_PATH}" \
                -scheme "${SCHEME}" \
                -destination "${DESTINATION}" \
                -configuration "${CONFIGURATION}" \
-               clean > /dev/null 2>&1
+               clean >> "${BUILD_LOG_FILE}" 2>&1 &
 
-    # 清理本地 build 目录
+    show_progress $! "清理构建缓存"
+    wait $!
+
+    # 清理本地 build 目录（保留日志文件）
     if [ -d "${BUILD_DIR}" ]; then
+        # 临时保存日志文件
+        TMP_LOG=$(mktemp)
+        cp "${BUILD_LOG_FILE}" "${TMP_LOG}"
+
         rm -rf "${BUILD_DIR}"
         mkdir -p "${BUILD_DIR}"
+
+        # 恢复日志文件
+        mv "${TMP_LOG}" "${BUILD_LOG_FILE}"
     fi
 
     log_success "清理完成"
@@ -150,30 +356,25 @@ if [ "$CREATE_ARCHIVE" = true ]; then
     EXPORT_PATH="${BUILD_DIR}"
 
     # 创建归档
-    if [ "$VERBOSE" = true ]; then
-        xcodebuild archive \
-                   -project "${PROJECT_PATH}" \
-                   -scheme "${SCHEME}" \
-                   -configuration "${CONFIGURATION}" \
-                   -archivePath "${ARCHIVE_PATH}"
-        BUILD_RESULT=$?
-    else
-        BUILD_LOG=$(mktemp)
-        xcodebuild archive \
-                   -project "${PROJECT_PATH}" \
-                   -scheme "${SCHEME}" \
-                   -configuration "${CONFIGURATION}" \
-                   -archivePath "${ARCHIVE_PATH}" 2>&1 | tee "${BUILD_LOG}" | \
-                   grep --line-buffered -E "^\*\*|error:|warning:|note:|Building|Compiling|Linking|Signing" || true
-        BUILD_RESULT=${PIPESTATUS[0]}
+    echo "=== 开始归档 ===" >> "${BUILD_LOG_FILE}"
+    echo "时间: $(date '+%Y-%m-%d %H:%M:%S')" >> "${BUILD_LOG_FILE}"
+    echo "配置: ${CONFIGURATION}" >> "${BUILD_LOG_FILE}"
+    echo "" >> "${BUILD_LOG_FILE}"
 
-        if [ $BUILD_RESULT -ne 0 ]; then
-            echo ""
-            log_error "归档失败，完整错误日志:"
-            echo ""
-            cat "${BUILD_LOG}"
-        fi
-        rm -f "${BUILD_LOG}"
+    xcodebuild archive \
+               -project "${PROJECT_PATH}" \
+               -scheme "${SCHEME}" \
+               -configuration "${CONFIGURATION}" \
+               -archivePath "${ARCHIVE_PATH}" >> "${BUILD_LOG_FILE}" 2>&1 &
+
+    show_progress $! "正在归档"
+    wait $!
+    BUILD_RESULT=$?
+
+    if [ $BUILD_RESULT -ne 0 ]; then
+        log_error "归档失败，完整错误日志: ${BUILD_LOG_FILE}"
+    else
+        log_success "归档完成"
     fi
 
     # 如果归档成功，导出 IPA
@@ -214,65 +415,57 @@ if [ "$CREATE_ARCHIVE" = true ]; then
 </plist>
 EOF
 
-            EXPORT_LOG=$(mktemp)
-            if xcodebuild -exportArchive \
+            echo "" >> "${BUILD_LOG_FILE}"
+            echo "=== 导出 IPA ===" >> "${BUILD_LOG_FILE}"
+            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')" >> "${BUILD_LOG_FILE}"
+            echo "" >> "${BUILD_LOG_FILE}"
+
+            xcodebuild -exportArchive \
                        -archivePath "${ARCHIVE_PATH}" \
                        -exportPath "${EXPORT_PATH}" \
-                       -exportOptionsPlist "${EXPORT_OPTIONS}" > "${EXPORT_LOG}" 2>&1; then
+                       -exportOptionsPlist "${EXPORT_OPTIONS}" >> "${BUILD_LOG_FILE}" 2>&1 &
+
+            show_progress $! "正在导出 IPA"
+            wait $!
+
+            if [ $? -eq 0 ]; then
                 log_success "IPA 导出成功"
             else
                 log_error "IPA 导出失败"
-                if [ "$VERBOSE" = true ]; then
-                    cat "${EXPORT_LOG}"
-                else
-                    log_info "查看详细错误: cat ${EXPORT_LOG}"
-                fi
+                log_info "查看详细错误: ${BUILD_LOG_FILE}"
             fi
-            rm -f "${EXPORT_LOG}"
         fi
     fi
 else
-    log_info "开始构建..."
-    echo ""
-
     # 设置自定义构建路径
     SYMROOT="${BUILD_DIR}"
     DERIVED_DATA_PATH="${BUILD_DIR}/DerivedData"
 
-    if [ "$VERBOSE" = true ]; then
-        # 详细模式：显示所有输出
-        xcodebuild -project "${PROJECT_PATH}" \
-                   -scheme "${SCHEME}" \
-                   -destination "${DESTINATION}" \
-                   -configuration "${CONFIGURATION}" \
-                   SYMROOT="${SYMROOT}" \
-                   OBJROOT="${DERIVED_DATA_PATH}" \
-                   build
-        BUILD_RESULT=$?
+    # 写入构建日志头部
+    echo "=== 开始构建 ===" >> "${BUILD_LOG_FILE}"
+    echo "时间: $(date '+%Y-%m-%d %H:%M:%S')" >> "${BUILD_LOG_FILE}"
+    echo "配置: ${CONFIGURATION}" >> "${BUILD_LOG_FILE}"
+    echo "目标: ${DESTINATION}" >> "${BUILD_LOG_FILE}"
+    echo "" >> "${BUILD_LOG_FILE}"
+
+    # 后台执行构建，前台显示进度
+    xcodebuild -project "${PROJECT_PATH}" \
+               -scheme "${SCHEME}" \
+               -destination "${DESTINATION}" \
+               -configuration "${CONFIGURATION}" \
+               SYMROOT="${SYMROOT}" \
+               OBJROOT="${DERIVED_DATA_PATH}" \
+               build >> "${BUILD_LOG_FILE}" 2>&1 &
+
+    show_progress $! "正在构建"
+    wait $!
+    BUILD_RESULT=$?
+
+    # 如果构建失败，提示查看日志文件
+    if [ $BUILD_RESULT -ne 0 ]; then
+        log_error "构建失败，完整错误日志: ${BUILD_LOG_FILE}"
     else
-        # 简洁模式：只显示重要信息
-        BUILD_LOG=$(mktemp)
-
-        xcodebuild -project "${PROJECT_PATH}" \
-                   -scheme "${SCHEME}" \
-                   -destination "${DESTINATION}" \
-                   -configuration "${CONFIGURATION}" \
-                   SYMROOT="${SYMROOT}" \
-                   OBJROOT="${DERIVED_DATA_PATH}" \
-                   build 2>&1 | tee "${BUILD_LOG}" | \
-                   grep --line-buffered -E "^\*\*|error:|warning:|note:|Building|Compiling|Linking|Signing" || true
-
-        BUILD_RESULT=${PIPESTATUS[0]}
-
-        # 如果构建失败，显示完整错误日志
-        if [ $BUILD_RESULT -ne 0 ]; then
-            echo ""
-            log_error "构建失败，完整错误日志:"
-            echo ""
-            cat "${BUILD_LOG}"
-        fi
-
-        rm -f "${BUILD_LOG}"
+        log_success "构建完成"
     fi
 fi
 
@@ -288,6 +481,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 if [ $BUILD_RESULT -eq 0 ]; then
     log_success "构建成功！ ✅"
     log_info "构建时间: ${MINUTES}分${SECONDS}秒"
+    log_info "构建日志: ${BUILD_LOG_FILE}"
 
     # 显示输出路径
     if [ "$CREATE_ARCHIVE" = true ]; then
@@ -306,7 +500,12 @@ if [ $BUILD_RESULT -eq 0 ]; then
         fi
     else
         # 普通构建模式
-        APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphonesimulator/HealthBuddy.app"
+        if [ "$DEVICE_TYPE" = "simulator" ]; then
+            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphonesimulator/HealthBuddy.app"
+        else
+            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphoneos/HealthBuddy.app"
+        fi
+
         if [ -d "${APP_PATH}" ]; then
             APP_SIZE=$(du -sh "${APP_PATH}" | cut -f1)
             log_info "App 大小: ${APP_SIZE}"
@@ -320,6 +519,18 @@ if [ $BUILD_RESULT -eq 0 ]; then
                 log_info "App 路径: ${APP_PATH}"
             fi
         fi
+
+        # 如果需要安装和启动 App
+        if [ "$INSTALL_APP" = true ] && [ -n "${APP_PATH}" ]; then
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            # 模拟器模式下 DEVICECTL_ID 为空，真机模式下传递
+            if install_and_launch_app "${APP_PATH}" "${DEVICE_UDID}" "${DEVICE_NAME}" "${DEVICECTL_ID:-}"; then
+                log_success "App 已成功安装并启动！"
+            else
+                log_warning "App 构建成功，但安装/启动失败"
+            fi
+        fi
     fi
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -327,7 +538,8 @@ if [ $BUILD_RESULT -eq 0 ]; then
 else
     log_error "构建失败！ ❌"
     log_info "构建时间: ${MINUTES}分${SECONDS}秒"
+    log_info "完整日志: ${BUILD_LOG_FILE}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "提示: 使用 -v 参数查看详细输出"
+    log_info "提示: 查看日志文件获取详细错误信息"
     exit 1
 fi

@@ -52,20 +52,50 @@ After modifying any `Package.swift` files or adding new modules, regenerate the 
 scripts/generate_project.sh
 ```
 
-### Quick Build (Recommended)
-Use the build script to quickly verify code changes:
+### Build Script (IMPORTANT - Always Use After Code Changes)
+
+**CRITICAL**: After writing or modifying code, you MUST build and install to verify your changes work correctly.
+
+#### Quick Build and Install (Recommended)
 ```bash
-scripts/build.sh                    # Quick build for iPhone 17 Pro
-scripts/build.sh --clean            # Clean build
-scripts/build.sh --verbose          # Detailed output
-scripts/build.sh -d "iPhone 16 Pro" # Different simulator
+# Build and install to running simulator (most common)
+scripts/build.sh -i
+
+# Build and install to connected device
+scripts/build.sh -i -d device
+
+# Release build and install to device
+scripts/build.sh -r -i -d device
 ```
 
+#### Build Only (No Install)
+```bash
+scripts/build.sh                    # Build for simulator
+scripts/build.sh -d device          # Build for device
+scripts/build.sh -r                 # Release build
+scripts/build.sh -c                 # Clean build
+```
+
+#### Available Parameters
+- `-h, --help`: Show help information
+- `-c, --clean`: Clean before building
+- `-r, --release`: Release mode (default: Debug)
+- `-a, --archive`: Create archive and export .ipa
+- `-i, --install`: Build and install to device/simulator
+- `-d, --destination`: Target device: `simulator` (default) or `device`
+
 The build script provides:
-- Fast incremental builds
-- Clear success/failure indicators
-- Build time tracking
+- **Auto device detection**: Automatically finds running simulator or connected device
+- **Progress animation**: Shows building progress with spinner
+- **Auto logging**: All build output saved to `build/xcodebuild_YYYYMMDD_HHMMSS.log`
+- **Auto install**: Optionally installs and launches the app after building
+- **Build time tracking**: Shows total build time
 - Useful for CI/CD or pre-commit validation
+
+**Best Practice**: Always run `scripts/build.sh -i` after making code changes to ensure:
+1. Code compiles successfully
+2. No runtime errors when launching
+3. Changes work as expected on actual device/simulator
 
 ### Build and Run in Xcode
 Open `HealthBuddy.xcodeproj` in Xcode and build normally. The project requires:
