@@ -28,6 +28,8 @@ packages:
     path: Packages/Domain/DomainAuth
   DomainChat:
     path: Packages/Domain/DomainChat
+  DomainOnboarding:
+    path: Packages/Domain/Onboarding
   FeatureHealthKitApi:
     path: Packages/Feature/HealthKit/FeatureHealthKitApi
   FeatureHealthKitImpl:
@@ -40,6 +42,10 @@ packages:
     path: Packages/Feature/FeatureChat/FeatureChatApi
   FeatureChatImpl:
     path: Packages/Feature/FeatureChat/FeatureChatImpl
+  FeatureOnboardingApi:
+    path: Packages/Feature/Onboarding/FeatureOnboardingApi
+  FeatureOnboardingImpl:
+    path: Packages/Feature/Onboarding/FeatureOnboardingImpl
 targets:
   HealthBuddy:
     templates: [BaseAppTarget]
@@ -71,6 +77,8 @@ targets:
         product: DomainAuth
       - package: DomainChat
         product: DomainChat
+      - package: DomainOnboarding
+        product: DomainOnboarding
       - package: FeatureHealthKitApi
         product: FeatureHealthKitApi
       - package: FeatureHealthKitImpl
@@ -83,6 +91,10 @@ targets:
         product: FeatureChatApi
       - package: FeatureChatImpl
         product: FeatureChatImpl
+      - package: FeatureOnboardingApi
+        product: FeatureOnboardingApi
+      - package: FeatureOnboardingImpl
+        product: FeatureOnboardingImpl
 schemes:
   HealthBuddy:
     build:

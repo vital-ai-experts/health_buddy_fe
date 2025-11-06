@@ -27,6 +27,24 @@ public final class APIClient {
         return authToken
     }
 
+    /// Health check - triggers network permission prompt
+    public func healthCheck() async throws {
+        let url = URL(string: "https://fapi.ninimu.com/health")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        
+        let (_, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        
+        guard 200...299 ~= httpResponse.statusCode else {
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: "Health check failed")
+        }
+    }
+    
     /// Make a network request
     public func request<T: Decodable>(
         _ endpoint: APIEndpoint,

@@ -65,8 +65,8 @@ find_booted_simulator() {
 # 查找并返回当前连接的真机信息
 # 返回格式: "设备名称|UDID|DevicectlID"
 find_connected_device() {
-    # 使用 devicectl 查找第一个连接的 iPhone 设备
-    local device_info=$(xcrun devicectl list devices 2>/dev/null | grep "iPhone" | grep "available" | head -1)
+    # 使用 devicectl 查找第一个连接的 iPhone 设备 (查找 Model 列包含 iPhone 的设备)
+    local device_info=$(xcrun devicectl list devices 2>/dev/null | awk '/iPhone/ && /available/ {print; exit}')
 
     if [ -z "$device_info" ]; then
         echo ""
