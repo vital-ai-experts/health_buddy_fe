@@ -20,12 +20,26 @@ packages:
     path: Packages/Library/ServiceLoader
   LibraryThemeKit:
     path: Packages/Library/ThemeKit
+  LibraryNetworking:
+    path: Packages/Library/Networking
   DomainHealth:
     path: Packages/Domain/Health
+  DomainAuth:
+    path: Packages/Domain/DomainAuth
+  DomainChat:
+    path: Packages/Domain/DomainChat
   FeatureHealthKitApi:
     path: Packages/Feature/HealthKit/FeatureHealthKitApi
   FeatureHealthKitImpl:
     path: Packages/Feature/HealthKit/FeatureHealthKitImpl
+  FeatureAccountApi:
+    path: Packages/Feature/FeatureAccount/FeatureAccountApi
+  FeatureAccountImpl:
+    path: Packages/Feature/FeatureAccount/FeatureAccountImpl
+  FeatureChatApi:
+    path: Packages/Feature/FeatureChat/FeatureChatApi
+  FeatureChatImpl:
+    path: Packages/Feature/FeatureChat/FeatureChatImpl
 targets:
   HealthBuddy:
     templates: [BaseAppTarget]
@@ -49,12 +63,26 @@ targets:
         product: LibraryServiceLoader
       - package: LibraryThemeKit
         product: ThemeKit
+      - package: LibraryNetworking
+        product: LibraryNetworking
       - package: DomainHealth
         product: DomainHealth
+      - package: DomainAuth
+        product: DomainAuth
+      - package: DomainChat
+        product: DomainChat
       - package: FeatureHealthKitApi
         product: FeatureHealthKitApi
       - package: FeatureHealthKitImpl
         product: FeatureHealthKitImpl
+      - package: FeatureAccountApi
+        product: FeatureAccountApi
+      - package: FeatureAccountImpl
+        product: FeatureAccountImpl
+      - package: FeatureChatApi
+        product: FeatureChatApi
+      - package: FeatureChatImpl
+        product: FeatureChatImpl
 schemes:
   HealthBuddy:
     build:
