@@ -59,5 +59,5 @@ struct HealthKitCoordinator: View {
 }
 
 #Preview {
-    HealthKitCoordinator()
+    HealthKitDemoCoordinator()
 }

@@ -120,7 +120,7 @@ public final class ChatServiceImpl: ChatService {
 
         default:
             // Ignore unknown events (like tool_use, tool_result)
-            return .messageEnd
+            return .ignored
         }
     }
 }

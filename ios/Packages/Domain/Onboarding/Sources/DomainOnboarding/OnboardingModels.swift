@@ -45,14 +45,25 @@ public enum BotMessageAction: String, Codable {
     case finishOnboarding = "finish_onboarding" // 完成引导
 }
 
+/// Bot 消息操作信息
+public struct BotMessageActionInfo: Codable {
+    public let type: BotMessageAction
+    public let title: String
+
+    public init(type: BotMessageAction, title: String) {
+        self.type = type
+        self.title = title
+    }
+}
+
 /// Bot 消息
 public struct BotMessage: Codable, Identifiable {
     public let id: String
     public let type: BotMessageType
     public let text: String?
-    public let action: BotMessageAction?
-    
-    public init(id: String = UUID().uuidString, type: BotMessageType, text: String?, action: BotMessageAction? = nil) {
+    public let action: BotMessageActionInfo?  // 修改为包含 type 和 title 的结构
+
+    public init(id: String = UUID().uuidString, type: BotMessageType, text: String?, action: BotMessageActionInfo? = nil) {
         self.id = id
         self.type = type
         self.text = text

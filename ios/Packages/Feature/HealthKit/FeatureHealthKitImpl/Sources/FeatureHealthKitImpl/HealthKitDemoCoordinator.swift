@@ -3,7 +3,7 @@ import DomainHealth
 import FeatureHealthKitApi
 import LibraryServiceLoader
 
-struct HealthKitCoordinator: View {
+struct HealthKitDemoCoordinator: View {
     @State private var isAuthorized = false
     @State private var isLoading = true
 
@@ -59,5 +59,5 @@ struct HealthKitCoordinator: View {
 }
 
 #Preview {
-    HealthKitCoordinator()
+    HealthKitDemoCoordinator()
 }

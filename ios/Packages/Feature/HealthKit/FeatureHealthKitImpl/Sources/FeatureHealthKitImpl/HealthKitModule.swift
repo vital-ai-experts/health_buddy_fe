@@ -1,6 +1,7 @@
 import SwiftUI
 import FeatureHealthKitApi
 import LibraryServiceLoader
+import DomainHealth
 
 public struct HealthKitBuilder: FeatureHealthKitBuildable {
     public init() {}
@@ -14,7 +15,11 @@ public struct HealthKitBuilder: FeatureHealthKitBuildable {
     }
 
     public func makeHealthKitTabView() -> AnyView {
-        AnyView(HealthKitCoordinator())
+        let coordinator: HealthKitCoordinator = HealthKitCoordinator(
+            authorizationService: ServiceManager.shared.resolve(AuthorizationService.self),
+            healthKitBuilder: ServiceManager.shared.resolve(FeatureHealthKitBuildable.self)
+        )
+        return AnyView(coordinator)
     }
 }
 

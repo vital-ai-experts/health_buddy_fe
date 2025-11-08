@@ -22,6 +22,8 @@ packages:
     path: Packages/Library/ThemeKit
   LibraryNetworking:
     path: Packages/Library/Networking
+  LibraryChatUI:
+    path: Packages/Library/ChatUI
   DomainHealth:
     path: Packages/Domain/Health
   DomainAuth:
@@ -71,6 +73,8 @@ targets:
         product: ThemeKit
       - package: LibraryNetworking
         product: LibraryNetworking
+      - package: LibraryChatUI
+        product: LibraryChatUI
       - package: DomainHealth
         product: DomainHealth
       - package: DomainAuth

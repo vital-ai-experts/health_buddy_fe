@@ -108,4 +108,5 @@ public enum ChatStreamEvent {
     case messageEnd
     case conversationEnd
     case error(String)
+    case ignored // For unknown SSE events that should be silently ignored
 }

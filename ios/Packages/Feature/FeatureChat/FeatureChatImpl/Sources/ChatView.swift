@@ -1,11 +1,10 @@
 import SwiftUI
 import DomainChat
 import LibraryServiceLoader
+import LibraryChatUI
 
 struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
-    @State private var messageText = ""
-    @FocusState private var isTextFieldFocused: Bool
 
     init(conversationId: String? = nil) {
         let chatService = ServiceManager.shared.resolve(ChatService.self)
@@ -16,76 +15,16 @@ struct ChatView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Messages list
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(viewModel.messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
-                        }
-
-                        // Streaming message if active
-                        if !viewModel.streamingContent.isEmpty {
-                            MessageBubble(
-                                message: Message(
-                                    id: "streaming",
-                                    conversationId: viewModel.conversationId ?? "",
-                                    role: .assistant,
-                                    content: viewModel.streamingContent,
-                                    createdAt: ISO8601DateFormatter().string(from: Date())
-                                ),
-                                isStreaming: true
-                            )
-                            .id("streaming")
-                        }
-                    }
-                    .padding()
-                }
-                .onChange(of: viewModel.messages.count) { _, _ in
-                    if let lastMessage = viewModel.messages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
-                    }
-                }
-                .onChange(of: viewModel.streamingContent) { _, _ in
-                    withAnimation {
-                        proxy.scrollTo("streaming", anchor: .bottom)
-                    }
+        SimpleChatView(
+            messages: $viewModel.displayMessages,
+            inputText: $viewModel.inputText,
+            isLoading: viewModel.isSending,
+            onSendMessage: { text in
+                Task {
+                    await viewModel.sendMessage(text)
                 }
             }
-
-            // Error message
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-            }
-
-            // Input area
-            HStack(spacing: 12) {
-                TextField("Type a message...", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .padding(12)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(20)
-                    .lineLimit(1...5)
-                    .focused($isTextFieldFocused)
-
-                Button(action: sendMessage) {
-                    Image(systemName: viewModel.isSending ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 32))
-                        .foregroundColor(canSend ? .blue : .gray)
-                }
-                .disabled(!canSend && !viewModel.isSending)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-        }
+        )
         .navigationTitle(viewModel.conversationId == nil ? "New Chat" : "Chat")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -96,69 +35,16 @@ struct ChatView: View {
             }
         }
     }
-
-    private var canSend: Bool {
-        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isSending
-    }
-
-    private func sendMessage() {
-        guard canSend else { return }
-
-        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        messageText = ""
-        isTextFieldFocused = false
-
-        Task {
-            await viewModel.sendMessage(message)
-        }
-    }
-}
-
-struct MessageBubble: View {
-    let message: Message
-    var isStreaming: Bool = false
-
-    var body: some View {
-        HStack {
-            if message.role == .user {
-                Spacer()
-            }
-
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .padding(12)
-                    .background(message.role == .user ? Color.blue : Color(.systemGray5))
-                    .foregroundColor(message.role == .user ? .white : .primary)
-                    .cornerRadius(16)
-
-                if !isStreaming {
-                    Text(formatTime(message.createdAt))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(maxWidth: 280, alignment: message.role == .user ? .trailing : .leading)
-        }
-    }
-    
-    private func formatTime(_ dateString: String) -> String {
-        // Format: "2024-11-05T14:30:00" -> "14:30"
-        let components = dateString.split(separator: "T")
-        if components.count >= 2 {
-            let time = String(components[1].prefix(5)) // Get HH:mm
-            return time
-        }
-        return dateString
-    }
 }
 
 @MainActor
 final class ChatViewModel: ObservableObject {
-    @Published var messages: [Message] = []
+    @Published var displayMessages: [ChatMessage] = []
     @Published var streamingContent = ""
     @Published var isSending = false
     @Published var errorMessage: String?
     @Published var conversationId: String?
+    @Published var inputText = ""
 
     private let chatService: ChatService
 
@@ -172,22 +58,32 @@ final class ChatViewModel: ObservableObject {
 
         do {
             let (_, messages) = try await chatService.getConversation(id: conversationId)
-            self.messages = messages
+            self.displayMessages = messages.map { msg in
+                ChatMessage(
+                    id: msg.id,
+                    text: msg.content,
+                    isFromUser: msg.role == .user,
+                    timestamp: parseDate(msg.createdAt),
+                    isStreaming: false
+                )
+            }
         } catch {
             errorMessage = "Failed to load conversation: \(error.localizedDescription)"
         }
     }
 
     func sendMessage(_ text: String) async {
-        // Add user message immediately
-        let userMessage = Message(
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        // Add user message
+        let userMessage = ChatMessage(
             id: UUID().uuidString,
-            conversationId: conversationId ?? "",
-            role: .user,
-            content: text,
-            createdAt: ISO8601DateFormatter().string(from: Date())
+            text: text,
+            isFromUser: true,
+            timestamp: Date(),
+            isStreaming: false
         )
-        messages.append(userMessage)
+        displayMessages.append(userMessage)
 
         isSending = true
         errorMessage = nil
@@ -216,22 +112,54 @@ final class ChatViewModel: ObservableObject {
                 conversationId = id
             }
 
-        case .messageStart:
+        case .messageStart(let messageId):
             streamingContent = ""
+            // Add streaming message placeholder
+            let streamingMsg = ChatMessage(
+                id: messageId,
+                text: "",
+                isFromUser: false,
+                timestamp: Date(),
+                isStreaming: true
+            )
+            displayMessages.append(streamingMsg)
 
         case .contentDelta(let content):
             streamingContent += content
 
-        case .messageEnd:
-            if !streamingContent.isEmpty {
-                let assistantMessage = Message(
+            // 如果还没有流式消息，先创建一个（处理服务端没有发送 messageStart 的情况）
+            if !displayMessages.contains(where: { $0.isStreaming }) {
+                let streamingMsg = ChatMessage(
                     id: UUID().uuidString,
-                    conversationId: conversationId ?? "",
-                    role: .assistant,
-                    content: streamingContent,
-                    createdAt: ISO8601DateFormatter().string(from: Date())
+                    text: content,
+                    isFromUser: false,
+                    timestamp: Date(),
+                    isStreaming: true
                 )
-                messages.append(assistantMessage)
+                displayMessages.append(streamingMsg)
+            } else {
+                // Update the streaming message
+                if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+                    displayMessages[index] = ChatMessage(
+                        id: displayMessages[index].id,
+                        text: streamingContent,
+                        isFromUser: false,
+                        timestamp: Date(),
+                        isStreaming: true
+                    )
+                }
+            }
+
+        case .messageEnd:
+            // Replace streaming message with final message
+            if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+                displayMessages[index] = ChatMessage(
+                    id: displayMessages[index].id,
+                    text: streamingContent,
+                    isFromUser: false,
+                    timestamp: Date(),
+                    isStreaming: false
+                )
                 streamingContent = ""
             }
 
@@ -240,6 +168,14 @@ final class ChatViewModel: ObservableObject {
 
         case .error(let error):
             errorMessage = error
+
+        case .ignored:
+            break // Silently ignore unknown SSE events
         }
+    }
+
+    private func parseDate(_ dateString: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: dateString) ?? Date()
     }
 }

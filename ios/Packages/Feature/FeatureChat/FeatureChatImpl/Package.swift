@@ -8,7 +8,8 @@ let package = Package(
     dependencies: [
         .package(name: "FeatureChatApi", path: "../FeatureChatApi"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
-        .package(name: "DomainChat", path: "../../../Domain/DomainChat")
+        .package(name: "DomainChat", path: "../../../Domain/DomainChat"),
+        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI")
     ],
     targets: [
         .target(
@@ -16,7 +17,8 @@ let package = Package(
             dependencies: [
                 .product(name: "FeatureChatApi", package: "FeatureChatApi"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
-                .product(name: "DomainChat", package: "DomainChat")
+                .product(name: "DomainChat", package: "DomainChat"),
+                .product(name: "LibraryChatUI", package: "LibraryChatUI")
             ],
             path: "Sources"
         )
