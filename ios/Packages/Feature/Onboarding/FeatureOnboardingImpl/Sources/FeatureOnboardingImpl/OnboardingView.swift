@@ -111,6 +111,9 @@ final class OnboardingViewModel: ObservableObject {
     
     // 消息ID到ChatMessage的映射，用于处理流式更新
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
+    
+    // 需要用户交互的工具名称集合
+    private let interactiveToolNames: Set<String> = ["auth_health", "noti_permit", "finish_onboarding"]
 
     init(onboardingService: OnboardingService, onComplete: @escaping () -> Void) {
         self.onboardingService = onboardingService
@@ -247,14 +250,63 @@ final class OnboardingViewModel: ObservableObject {
             
         case .finished:
             print("✅ Agent 完成")
+            // 将所有仍在 streaming 状态的消息更新为非 streaming
+            for (index, message) in displayMessages.enumerated() {
+                if message.isStreaming {
+                    var updatedMessage = message
+                    updatedMessage = ChatMessage(
+                        id: updatedMessage.id,
+                        text: updatedMessage.text,
+                        isFromUser: updatedMessage.isFromUser,
+                        timestamp: updatedMessage.timestamp,
+                        isStreaming: false,
+                        thinkingContent: updatedMessage.thinkingContent,
+                        toolCalls: updatedMessage.toolCalls
+                    )
+                    displayMessages[index] = updatedMessage
+                    print("  → Message at index \(index) set to non-streaming")
+                }
+            }
             isLoading = false
             
         case .error:
             print("❌ Agent 错误")
+            // 错误时也将所有消息设为非 streaming
+            for (index, message) in displayMessages.enumerated() {
+                if message.isStreaming {
+                    var updatedMessage = message
+                    updatedMessage = ChatMessage(
+                        id: updatedMessage.id,
+                        text: updatedMessage.text,
+                        isFromUser: updatedMessage.isFromUser,
+                        timestamp: updatedMessage.timestamp,
+                        isStreaming: false,
+                        thinkingContent: updatedMessage.thinkingContent,
+                        toolCalls: updatedMessage.toolCalls
+                    )
+                    displayMessages[index] = updatedMessage
+                }
+            }
             isLoading = false
             
         case .stopped:
             print("⏸️ Agent 停止")
+            // 停止时也将所有消息设为非 streaming
+            for (index, message) in displayMessages.enumerated() {
+                if message.isStreaming {
+                    var updatedMessage = message
+                    updatedMessage = ChatMessage(
+                        id: updatedMessage.id,
+                        text: updatedMessage.text,
+                        isFromUser: updatedMessage.isFromUser,
+                        timestamp: updatedMessage.timestamp,
+                        isStreaming: false,
+                        thinkingContent: updatedMessage.thinkingContent,
+                        toolCalls: updatedMessage.toolCalls
+                    )
+                    displayMessages[index] = updatedMessage
+                }
+            }
             isLoading = false
         }
     }
@@ -283,14 +335,15 @@ final class OnboardingViewModel: ObservableObject {
         // 使用content，如果为空则使用空字符串（但仍然可以显示thinking和toolCalls）
         let content = data.content ?? ""
         
-        // 检查是否有需要显示UI按钮的工具调用（如auth_health）
-        let hasUIActionToolCall = data.toolCalls?.contains { toolCall in
-            toolCall.toolCallName == "auth_health"
-        } ?? false
-        
-        // 如果有UI按钮的工具调用，就不在消息中显示toolCalls（会通过actionButton显示）
-        let toolCallInfos: [ToolCallInfo]? = hasUIActionToolCall ? nil : data.toolCalls?.map { toolCall in
-            ToolCallInfo(
+        // 将需要用户交互的工具调用过滤掉（不在消息中显示，通过actionButton显示）
+        // 不需要用户交互的工具调用仍然在消息中显示
+        let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.compactMap { toolCall in
+            // 如果是需要用户交互的工具，返回 nil（过滤掉）
+            guard !interactiveToolNames.contains(toolCall.toolCallName) else {
+                return nil
+            }
+            // 否则返回 ToolCallInfo（显示在消息中）
+            return ToolCallInfo(
                 id: toolCall.toolCallId,
                 name: toolCall.toolCallName,
                 args: toolCall.toolCallArgs,
@@ -309,7 +362,7 @@ final class OnboardingViewModel: ObservableObject {
                 text: content,
                 isFromUser: message.isFromUser,
                 timestamp: message.timestamp,
-                isStreaming: data.messageType == .chunk,
+                isStreaming: true,  // 当前正在处理的消息保持 streaming 状态
                 thinkingContent: data.thinkingContent,
                 toolCalls: toolCallInfos
             )
@@ -317,13 +370,32 @@ final class OnboardingViewModel: ObservableObject {
             
         } else {
             print("  → Creating new message")
-            // 创建新消息
+            
+            // 新消息到来时，将之前所有的消息设置为非 streaming 状态
+            for (idx, msg) in displayMessages.enumerated() {
+                if msg.isStreaming {
+                    var updatedMsg = msg
+                    updatedMsg = ChatMessage(
+                        id: updatedMsg.id,
+                        text: updatedMsg.text,
+                        isFromUser: updatedMsg.isFromUser,
+                        timestamp: updatedMsg.timestamp,
+                        isStreaming: false,
+                        thinkingContent: updatedMsg.thinkingContent,
+                        toolCalls: updatedMsg.toolCalls
+                    )
+                    displayMessages[idx] = updatedMsg
+                    print("  ✅ Previous message at index \(idx) set to non-streaming")
+                }
+            }
+            
+            // 创建新消息，保持 streaming 状态
             let newMessage = ChatMessage(
                 id: msgId,
                 text: content,
                 isFromUser: false,
                 timestamp: Date(),
-                isStreaming: data.messageType == .chunk,
+                isStreaming: true,  // 新消息以 streaming 状态创建
                 thinkingContent: data.thinkingContent,
                 toolCalls: toolCallInfos
             )
@@ -335,6 +407,7 @@ final class OnboardingViewModel: ObservableObject {
         // 如果是完整消息，检查是否有工具调用需要处理
         if data.messageType == .whole {
             print("  → Message is complete (WHOLE)")
+            
             // 根据 toolCalls 决定是否需要显示action button
             if let toolCalls = data.toolCalls, !toolCalls.isEmpty {
                 print("  → Has \(toolCalls.count) tool calls")
@@ -376,6 +449,26 @@ final class OnboardingViewModel: ObservableObject {
                     self.showActionButton = true
                     self.actionButtonText = "授权健康数据"
                     self.actionButtonAction = .healthPermit
+                }
+            }
+            
+        case "noti_permit":
+            // 显示通知权限授权按钮
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    self.showActionButton = true
+                    self.actionButtonText = "开启通知"
+                    self.actionButtonAction = .notiPermit
+                }
+            }
+            
+        case "finish_onboarding":
+            // 显示完成引导按钮
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    self.showActionButton = true
+                    self.actionButtonText = "开始使用"
+                    self.actionButtonAction = .finishOnboarding
                 }
             }
             

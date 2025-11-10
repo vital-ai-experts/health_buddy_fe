@@ -60,7 +60,7 @@ public struct SimpleChatView: View {
 
                                 // Typing indicator 气泡
                                 TypingIndicatorView()
-                                    .padding(12)
+                                    .padding(16)
                                     .background(configuration.botMessageColor)
                                     .cornerRadius(configuration.cornerRadius)
 
