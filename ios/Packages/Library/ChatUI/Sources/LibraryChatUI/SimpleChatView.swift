@@ -74,16 +74,19 @@ public struct SimpleChatView: View {
                     .padding(.bottom, bottomPadding)  // 可配置的底部空间
                 }
                 .onChange(of: messages.count) { _, _ in
-                    scrollToBottom(proxy: proxy)
+                    scrollToBottom(proxy: proxy, animated: true)
                 }
                 .onChange(of: isLoading) { _, newValue in
                     if newValue {
-                        scrollToBottom(proxy: proxy)
+                        scrollToBottom(proxy: proxy, animated: false)
                     }
                 }
-                // 监听流式消息的变化
-                .onChange(of: streamingMessageText) { _, _ in
-                    scrollToBottom(proxy: proxy)
+                // 监听流式消息的变化（限流以避免过度滚动）
+                .onChange(of: streamingMessageText) { oldValue, newValue in
+                    // 只在文本显著变化时滚动（例如，每增加20个字符）
+                    if abs(newValue.count - oldValue.count) >= 20 || newValue.count < oldValue.count {
+                        scrollToBottom(proxy: proxy, animated: false)
+                    }
                 }
             }
 
@@ -179,14 +182,23 @@ public struct SimpleChatView: View {
         messages.first { $0.isStreaming }?.text ?? ""
     }
 
-    private func scrollToBottom(proxy: ScrollViewProxy) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation {
+    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool = true) {
+        // 减少延迟以提高响应性，并避免过度排队
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            let scrollAction = {
                 if isLoading && !hasStreamingMessage {
                     proxy.scrollTo("loading", anchor: .top)
                 } else if let lastMessage = messages.last {
                     proxy.scrollTo(lastMessage.id, anchor: .top)
                 }
+            }
+            
+            if animated {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    scrollAction()
+                }
+            } else {
+                scrollAction()
             }
         }
     }
@@ -242,3 +254,4 @@ public struct SimpleChatView: View {
 
     return PreviewWrapper()
 }
+

@@ -10,6 +10,23 @@ public protocol ChatMessageProtocol: Identifiable {
     var isStreaming: Bool { get }
 }
 
+/// 工具调用信息（用于显示AI执行的操作）
+public struct ToolCallInfo: Equatable, Codable {
+    public let id: String
+    public let name: String
+    public let args: String?
+    public let status: String?
+    public let result: String?
+    
+    public init(id: String, name: String, args: String? = nil, status: String? = nil, result: String? = nil) {
+        self.id = id
+        self.name = name
+        self.args = args
+        self.status = status
+        self.result = result
+    }
+}
+
 /// 聊天消息实现
 public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let id: String
@@ -17,19 +34,27 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let isFromUser: Bool
     public let timestamp: Date
     public let isStreaming: Bool
+    
+    // AI相关的额外信息
+    public let thinkingContent: String?  // AI的思考过程
+    public let toolCalls: [ToolCallInfo]? // AI执行的工具调用
 
     public init(
         id: String = UUID().uuidString,
         text: String,
         isFromUser: Bool,
         timestamp: Date = Date(),
-        isStreaming: Bool = false
+        isStreaming: Bool = false,
+        thinkingContent: String? = nil,
+        toolCalls: [ToolCallInfo]? = nil
     ) {
         self.id = id
         self.text = text
         self.isFromUser = isFromUser
         self.timestamp = timestamp
         self.isStreaming = isStreaming
+        self.thinkingContent = thinkingContent
+        self.toolCalls = toolCalls
     }
 }
 

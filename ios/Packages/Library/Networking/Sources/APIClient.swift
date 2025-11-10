@@ -4,13 +4,21 @@ import Foundation
 public final class APIClient {
     public static let shared = APIClient()
 
-    private let baseURL: URL
+    private static let DEBUG_LOCAL_SERVER_URL = "http://192.168.1.204:8888/api/v1"
+    private static let PROD_SERVER_URL = "https://vital.ninimu.com/api/v1"
+    private static let USE_DEBUG_LOCAL_SERVER = true
+    private let baseURL: URL = {
+        if USE_DEBUG_LOCAL_SERVER {
+            return URL(string: DEBUG_LOCAL_SERVER_URL)!
+        } else {
+            return URL(string: PROD_SERVER_URL)!
+        }
+    }()
+
     private let session: URLSession
     private var authToken: String?
 
-    public init(baseURL: String = "https://fapi.ninimu.com/api/v1") {
-        self.baseURL = URL(string: baseURL)!
-
+    public init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 300
@@ -81,30 +89,70 @@ public final class APIClient {
         onEvent: @escaping (ServerSentEvent) -> Void
     ) async throws {
         let request = try buildRequest(endpoint)
+        
+        print("🌐 [APIClient] Starting stream request")
+        print("  URL: \(request.url?.absoluteString ?? "nil")")
+        print("  Method: \(request.httpMethod ?? "nil")")
+        print("  Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("  Body: \(bodyString)")
+        }
 
         let (bytes, response) = try await session.bytes(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ [APIClient] Invalid response type")
             throw APIError.invalidResponse
         }
+        
+        print("✅ [APIClient] Response received")
+        print("  Status: \(httpResponse.statusCode)")
+        print("  Headers: \(httpResponse.allHeaderFields)")
 
         guard 200...299 ~= httpResponse.statusCode else {
+            print("❌ [APIClient] HTTP error: \(httpResponse.statusCode)")
             throw APIError.httpError(statusCode: httpResponse.statusCode, message: "Request failed")
         }
 
-        var buffer = ""
+        print("📡 [APIClient] Starting to receive SSE stream...")
+        var buffer = Data()
+        var eventCount = 0
+        
         for try await byte in bytes {
-            let character = String(UnicodeScalar(byte))
-            buffer.append(character)
-
-            if buffer.hasSuffix("\n\n") {
-                let event = parseServerSentEvent(buffer)
-                if let event = event {
-                    onEvent(event)
+            buffer.append(byte)
+            
+            // 检查是否遇到 SSE 事件分隔符 "\n\n"
+            if buffer.count >= 2 {
+                let lastTwoBytes = buffer.suffix(2)
+                if lastTwoBytes[lastTwoBytes.startIndex] == 0x0A && 
+                   lastTwoBytes[lastTwoBytes.index(after: lastTwoBytes.startIndex)] == 0x0A {
+                    // 找到 "\n\n"，处理这个事件
+                    eventCount += 1
+                    
+                    // 将 Data 转换为 UTF-8 字符串
+                    if let eventString = String(data: buffer, encoding: .utf8) {
+                        print("📨 [APIClient] Received SSE event #\(eventCount)")
+                        print("  Raw: \(eventString.replacingOccurrences(of: "\n", with: "\\n"))")
+                        
+                        let event = parseServerSentEvent(eventString)
+                        if let event = event {
+                            print("  ✅ Parsed successfully")
+                            print("  Event type: \(event.event)")
+                            print("  Data length: \(event.data.count) chars")
+                            onEvent(event)
+                        } else {
+                            print("  ⚠️ Failed to parse SSE event")
+                        }
+                    } else {
+                        print("  ❌ Failed to decode UTF-8 data")
+                    }
+                    
+                    buffer = Data()
                 }
-                buffer = ""
             }
         }
+        
+        print("🏁 [APIClient] Stream ended. Total events: \(eventCount)")
     }
 
     // MARK: - Private Methods
@@ -154,9 +202,13 @@ public final class APIClient {
             }
         }
 
-        guard let eventType = event, let eventData = data else {
+        // data字段是必须的
+        guard let eventData = data else {
             return nil
         }
+        
+        // event字段是可选的，如果没有则使用"message"作为默认值
+        let eventType = event ?? "message"
 
         return ServerSentEvent(event: eventType, data: eventData)
     }

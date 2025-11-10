@@ -67,3 +67,6 @@ fastlane/readme.md
 *.xcodeproj/
 # 本地配置覆盖文件不入库
 *.local.xcconfig
+
+# VSCode
+.vscode/

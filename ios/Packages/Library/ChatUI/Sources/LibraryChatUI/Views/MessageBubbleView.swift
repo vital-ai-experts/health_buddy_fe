@@ -41,12 +41,24 @@ struct MessageBubbleView: View {
                 }
             }
 
-            VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: message.isFromUser ? .trailing : .leading, spacing: 6) {
+                // Thinking content (仅AI消息显示)
+                if !message.isFromUser, let thinkingContent = message.thinkingContent, !thinkingContent.isEmpty {
+                    thinkingDisclosureGroup(content: thinkingContent)
+                }
+                
                 // 消息气泡
-                messageContentView
-                    .padding(configuration.messagePadding)
-                    .background(message.isFromUser ? configuration.userMessageColor : configuration.botMessageColor)
-                    .cornerRadius(configuration.cornerRadius)
+                if !message.text.isEmpty {
+                    messageContentView
+                        .padding(configuration.messagePadding)
+                        .background(message.isFromUser ? configuration.userMessageColor : configuration.botMessageColor)
+                        .cornerRadius(configuration.cornerRadius)
+                }
+                
+                // Tool calls (仅AI消息显示)
+                if !message.isFromUser, let toolCalls = message.toolCalls, !toolCalls.isEmpty {
+                    toolCallsDisclosureGroup(toolCalls: toolCalls)
+                }
 
                 // 时间戳
                 if configuration.showTimestamp && !message.isStreaming {
@@ -71,6 +83,98 @@ struct MessageBubbleView: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+
+    // Thinking content disclosure group
+    @ViewBuilder
+    private func thinkingDisclosureGroup(content: String) -> some View {
+        DisclosureGroup {
+            Text(content)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemGray6))
+                .cornerRadius(6)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "brain")
+                    .font(.caption)
+                Text("思考过程")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.purple)
+        }
+        .padding(8)
+        .background(Color.purple.opacity(0.1))
+        .cornerRadius(8)
+    }
+    
+    // Tool calls disclosure group
+    @ViewBuilder
+    private func toolCallsDisclosureGroup(toolCalls: [ToolCallInfo]) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(toolCalls.enumerated()), id: \.element.id) { index, toolCall in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("工具 \(index + 1): \(toolCall.name)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            if let status = toolCall.status {
+                                Text(status)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(statusColor(for: status))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        
+                        if let args = toolCall.args, !args.isEmpty {
+                            Text("参数: \(args)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if let result = toolCall.result, !result.isEmpty {
+                            Text("结果: \(result)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(6)
+                }
+            }
+            .padding(.top, 4)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "wrench.and.screwdriver")
+                    .font(.caption)
+                Text("工具调用 (\(toolCalls.count))")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.blue)
+        }
+        .padding(8)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(8)
+    }
+    
+    private func statusColor(for status: String) -> Color {
+        switch status {
+        case "成功": return Color.green.opacity(0.2)
+        case "失败": return Color.red.opacity(0.2)
+        default: return Color.orange.opacity(0.2)
+        }
     }
 
     @ViewBuilder
