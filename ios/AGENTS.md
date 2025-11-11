@@ -1,8 +1,24 @@
-# Repository Guidelines
+# HealthBuddy Development Guide
 
-## Project Structure & Module Organization
+## Project Overview
 
-HealthBuddy follows a layered architecture: `App → Feature(Impl) → Feature(Api) → Domain → Library`.
+HealthBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app integrates AI-powered health assistant with HealthKit data tracking.
+
+**Core Features**:
+- AI Health Assistant: LLM-based conversational health advice
+- HealthKit Integration: Health data tracking and visualization
+- Account System: User registration, login, and profile management
+
+**Requirements**:
+- iOS 17.0+
+- Xcode 15.0+
+- XcodeGen (install via `brew install xcodegen`)
+
+## Architecture Overview
+
+HealthBuddy follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
+
+### Layer Responsibilities
 
 **App Layer** (`App/Sources/`):
 - `AppMain/`: Application entry point (`HealthBuddyApp.swift`), root navigation (`RootView.swift`), splash screen, main TabView
@@ -11,6 +27,7 @@ HealthBuddy follows a layered architecture: `App → Feature(Impl) → Feature(A
 
 **Feature Layer** (`Packages/Feature/`):
 - Each feature split into two packages: `Feature[Name]Api` (protocols) and `Feature[Name]Impl` (implementation)
+- **Directory names must match package names exactly** (e.g., `FeatureAccountApi`, not `api`)
 - Current features:
   - `FeatureAccount`: User registration, login, account management
   - `FeatureChat`: AI chat interface and conversation management
@@ -25,6 +42,7 @@ HealthBuddy follows a layered architecture: `App → Feature(Impl) → Feature(A
   - `DomainChat`: AI chat service
   - `DomainHealth`: Health data services, HealthKit manager
 - Export `[Name]DomainBootstrap.configure()` to register services into `ServiceManager`
+- Can integrate system frameworks directly (e.g., HealthKit in DomainHealth)
 
 **Library Layer** (`Packages/Library/`):
 - Business-agnostic utilities
@@ -32,6 +50,34 @@ HealthBuddy follows a layered architecture: `App → Feature(Impl) → Feature(A
   - `ServiceLoader`: Dependency injection container (`ServiceManager`)
   - `Networking`: HTTP client wrapper
   - `ThemeKit`: App theming and styling
+
+### Module Structure Example
+
+```
+Packages/
+├── Feature/
+│   └── FeatureAccount/
+│       ├── FeatureAccountApi/            # API protocols
+│       │   └── Sources/FeatureAccountApi/
+│       │       └── FeatureAccountApi.swift
+│       └── FeatureAccountImpl/           # Implementation
+│           └── Sources/
+│               ├── AccountModule.swift   # Module registration
+│               ├── AccountBuilder.swift  # Builder implementation
+│               └── Views...              # SwiftUI views
+│
+├── Domain/
+│   └── DomainAuth/
+│       └── Sources/DomainAuth/
+│           ├── AuthDomainBootstrap.swift # Service registration
+│           ├── AuthenticationService.swift
+│           └── User.swift                # Domain models
+│
+└── Library/
+    └── ServiceLoader/
+        └── Sources/ServiceLoader/
+            └── ServiceManager.swift
+```
 
 ## Build, Test, and Development Commands
 
@@ -57,13 +103,59 @@ Build script features:
 - `scripts/createModule.py -d [Name]` - Scaffolds a new Domain module
 - `scripts/createModule.py -l [Name]` - Scaffolds a new Library module
 
-## Coding Style & Naming Conventions
+## Dependency Injection Pattern
 
-**Package Naming**:
+The app uses a custom service locator pattern (`ServiceManager` from `LibraryServiceLoader`):
+
+**1. Registration** (in bootstrap modules during app launch):
+```swift
+// Domain Bootstrap
+public enum AuthDomainBootstrap {
+    public static func configure(manager: ServiceManager = .shared) {
+        manager.register(AuthenticationService.self) { AuthenticationServiceImpl() }
+    }
+}
+
+// Feature Module Registration
+public enum AccountModule {
+    public static func register(in manager: ServiceManager = .shared) {
+        manager.register(FeatureAccountBuildable.self) { AccountBuilder() }
+    }
+}
+```
+
+**2. App Composition** (`AppComposition.bootstrap()`):
+```swift
+// 1. Configure domain services first
+HealthDomainBootstrap.configure()
+AuthDomainBootstrap.configure()
+ChatDomainBootstrap.configure()
+
+// 2. Register features
+HealthKitModule.register()
+AccountModule.register()
+ChatModule.register()
+```
+
+**3. Resolution** (at view initialization):
+```swift
+let service = ServiceManager.shared.resolve(AuthenticationService.self)
+```
+
+## App Flow
+
+1. Launch → `HealthBuddyApp.init()` → `AppComposition.bootstrap()`
+2. Splash screen (1.5s) while checking authentication
+3. If authenticated → MainTabView (AI Assistant, Health, Profile)
+4. If not authenticated → AccountLandingView
+5. Data persistence via SwiftData (models in Domain layer)
+
+## Coding Conventions
+
+**Package Naming** (Directory = Package = Product = Target):
 - Feature: `Feature[Name]Api`, `Feature[Name]Impl`
 - Domain: `Domain[Name]`
 - Library: `Library[Name]`
-- **Critical**: Directory name, Package name, Product name, and Target name must match exactly
 
 **Import Rules**:
 - Domain: `import DomainAuth`, `import DomainHealth`, `import DomainChat`
@@ -76,100 +168,226 @@ Build script features:
 - Feature Module: `[Name]Module.swift`
 - Domain Bootstrap: `[Name]DomainBootstrap.swift`
 
-Use Swift 5.9 conventions, 4-space indentation, and prefer `struct` + SwiftUI patterns. Keep files focused and single-purpose.
+**Code Style**:
+- Swift 5.9 conventions
+- 4-space indentation
+- Prefer `struct` + SwiftUI patterns
+- Keep files focused and single-purpose
 
-## Architecture Patterns
+## Creating New Modules
 
-**Service Locator Pattern** (via `ServiceManager`):
-```swift
-// Registration (in Bootstrap)
-manager.register(AuthenticationService.self) { AuthenticationServiceImpl() }
+### Quick Start
 
-// Resolution (in usage)
-let service = ServiceManager.shared.resolve(AuthenticationService.self)
+Use the scaffold script to generate module structure:
+
+```bash
+# Create a Feature module (generates both Api and Impl)
+scripts/createModule.py -f YourFeature
+
+# Create a Domain module
+scripts/createModule.py -d YourDomain
+
+# Create a Library module
+scripts/createModule.py -l YourLibrary
 ```
 
-**Feature Builder Pattern**:
-```swift
-// Api package defines protocol
-public protocol FeatureAccountBuildable {
-    func makeLoginView(onLoginSuccess: @escaping () -> Void) -> AnyView
-}
+### Step-by-Step: Adding a New Feature
 
-// Impl package implements builder
-public struct AccountBuilder: FeatureAccountBuildable {
-    public func makeLoginView(onLoginSuccess: @escaping () -> Void) -> AnyView {
-        AnyView(LoginView(onLoginSuccess: onLoginSuccess))
+**1. Create Module Structure**
+```bash
+scripts/createModule.py -f YourFeature
+```
+
+This creates:
+- `Packages/Feature/YourFeature/FeatureYourFeatureApi/` - Protocol definitions
+- `Packages/Feature/YourFeature/FeatureYourFeatureImpl/` - Implementation
+
+**2. Define API Protocol** (`FeatureYourFeatureApi/Sources/FeatureYourFeatureApi.swift`):
+```swift
+import SwiftUI
+
+public protocol FeatureYourFeatureBuildable {
+    func makeYourFeatureView() -> AnyView
+}
+```
+
+**3. Implement Builder** (`FeatureYourFeatureImpl/Sources/YourFeatureBuilder.swift`):
+```swift
+import SwiftUI
+import FeatureYourFeatureApi
+
+public struct YourFeatureBuilder: FeatureYourFeatureBuildable {
+    public init() {}
+
+    public func makeYourFeatureView() -> AnyView {
+        AnyView(YourFeatureView())
     }
 }
 ```
 
-**Module Registration**:
+**4. Create Module Registration** (`FeatureYourFeatureImpl/Sources/YourFeatureModule.swift`):
 ```swift
-// Feature Impl exports registration
-public enum AccountModule {
+import LibraryServiceLoader
+import FeatureYourFeatureApi
+
+public enum YourFeatureModule {
     public static func register(in manager: ServiceManager = .shared) {
-        manager.register(FeatureAccountBuildable.self) { AccountBuilder() }
+        manager.register(FeatureYourFeatureBuildable.self) { YourFeatureBuilder() }
     }
 }
-
-// Called in AppComposition.bootstrap()
-HealthDomainBootstrap.configure()
-AuthDomainBootstrap.configure()
-ChatDomainBootstrap.configure()
-HealthKitModule.register()
-AccountModule.register()
-ChatModule.register()
 ```
 
-## App Flow
+**5. Update `project.yml`**:
+```yaml
+packages:
+  FeatureYourFeatureApi:
+    path: Packages/Feature/YourFeature/FeatureYourFeatureApi
+  FeatureYourFeatureImpl:
+    path: Packages/Feature/YourFeature/FeatureYourFeatureImpl
 
-1. Launch → `HealthBuddyApp.init()` → `AppComposition.bootstrap()`
-2. Splash screen (1.5s) while checking authentication
-3. If authenticated → MainTabView (AI Assistant, Health, Profile)
-4. If not authenticated → AccountLandingView
-5. Data persistence via SwiftData (models in Domain layer)
+targets:
+  HealthBuddy:
+    dependencies:
+      - package: FeatureYourFeatureApi
+        product: FeatureYourFeatureApi
+      - package: FeatureYourFeatureImpl
+        product: FeatureYourFeatureImpl
+```
 
-## Adding New Features
+**6. Register in AppComposition** (`App/Sources/Composition/AppComposition.swift`):
+```swift
+import FeatureYourFeatureImpl  // Add import
 
-1. **Create module**: `scripts/createModule.py -f YourFeature`
-2. **Define API**: Create `FeatureYourFeatureBuildable` protocol in Api package
-3. **Implement builder**: Create `YourFeatureBuilder` in Impl package
-4. **Register module**: Export `YourFeatureModule.register()` in Impl package
-5. **Update project.yml**: Add both Api and Impl packages
-6. **Register in AppComposition**: Import Impl and call `.register()`
-7. **Regenerate**: `scripts/generate_project.sh`
-8. **Build**: `scripts/build.sh`
+enum AppComposition {
+    @MainActor
+    static func bootstrap() {
+        // Domain services...
+        HealthDomainBootstrap.configure()
+        AuthDomainBootstrap.configure()
+        ChatDomainBootstrap.configure()
+
+        // Features...
+        HealthKitModule.register()
+        AccountModule.register()
+        ChatModule.register()
+        YourFeatureModule.register()  // Add this
+    }
+}
+```
+
+**7. Regenerate and Build**:
+```bash
+scripts/generate_project.sh
+scripts/build.sh -i
+```
+
+### Adding a Domain Service
+
+1. Create service protocol and implementation in Domain module
+2. Register in `[Domain]Bootstrap.configure()`:
+   ```swift
+   manager.register(YourService.self) { YourServiceImpl() }
+   ```
+3. Call bootstrap in `AppComposition.bootstrap()`
+4. Resolve where needed: `ServiceManager.shared.resolve(YourService.self)`
 
 ## Testing Guidelines
 
+**Unit Tests**:
 - Add `Tests/` targets to new packages
 - Use XCTest with descriptive `test_<behavior>` names
 - Mock domain services via dependency inversion
-- Run project tests: `xcodebuild test -project HealthBuddy.xcodeproj -scheme HealthBuddy`
-- Run package tests: `swift test --package-path Packages/Feature/<Module>/Api`
 
-## Commit & Pull Request Guidelines
+**Running Tests**:
+```bash
+# Run all project tests
+xcodebuild test -project HealthBuddy.xcodeproj -scheme HealthBuddy
 
-- Follow conventional commits: `type: summary` (e.g., `feat: add chat feature`, `refactor: simplify module structure`)
+# Run package tests
+swift test --package-path Packages/Feature/<Module>/Api
+```
+
+## HealthKit Integration
+
+- **Entitlements**: Configured in `App/HealthBuddy.entitlements`
+- **Usage Descriptions**: Defined in `project.yml`:
+  - `NSHealthShareUsageDescription`
+  - `NSHealthUpdateUsageDescription`
+- **Authorization Flow**: `FeatureHealthKit` → `DomainHealth` → HealthKit framework
+- **Framework Linking**: HealthKit linked directly in `DomainHealth` module
+
+## Common Pitfalls & Solutions
+
+### 1. Package Name Mismatch
+❌ **Wrong**: Directory `api`, Package `YourFeatureAPI`, Product `FeatureYourFeatureApi`
+✅ **Correct**: All must match exactly: `FeatureYourFeatureApi`
+
+### 2. Wrong Import Prefix
+❌ **Wrong**: `import Health`, `import ServiceLoader`
+✅ **Correct**: `import DomainHealth`, `import LibraryServiceLoader`
+
+### 3. Reverse Dependencies
+❌ **Wrong**: Domain depending on Feature
+✅ **Correct**: Feature → Domain → Library (dependency flows downward)
+
+### 4. Missing Project Regeneration
+After modifying `Package.swift` or adding modules, always run:
+```bash
+scripts/generate_project.sh
+```
+
+### 5. Feature Impl Coupling
+❌ **Wrong**: Feature depending on another Feature's `Impl` package
+✅ **Correct**: Features depend only on other Feature `Api` modules
+
+### 6. Forgetting to Build After Changes
+Always verify your changes compile and run:
+```bash
+scripts/build.sh -i
+```
+
+## Git Workflow
+
+**Commit Conventions**:
+- Follow conventional commits: `type: summary`
+- Examples: `feat: add chat feature`, `fix: resolve login bug`, `refactor: simplify module structure`
 - Keep commits scoped to single changes
-- PRs should include:
-  - Summary of changes
-  - Screenshots for UI work
-  - Test results
-  - Migration notes for architectural changes
 
-## HealthKit Configuration
+**Pull Request Checklist**:
+- [ ] Summary of changes
+- [ ] Screenshots for UI work
+- [ ] Test results
+- [ ] Migration notes for architectural changes
+- [ ] All builds pass (`scripts/build.sh -i`)
 
-- Entitlements: `App/HealthBuddy.entitlements`
-- Usage descriptions: Configured in `project.yml`
-- Authorization flow: `FeatureHealthKit` → `DomainHealth` → HealthKit framework
-- HealthKit linked directly in `DomainHealth` module
+## Quick Reference
 
-## Common Pitfalls
+**Create Module**:
+```bash
+scripts/createModule.py -f FeatureName    # Feature
+scripts/createModule.py -d DomainName     # Domain
+scripts/createModule.py -l LibraryName    # Library
+```
 
-1. **Package name mismatch**: Ensure directory, package, product, and target names are identical
-2. **Wrong import prefix**: Use `DomainXxx` for domains, `LibraryXxx` for libraries
-3. **Reverse dependencies**: Never depend downward (e.g., Domain depending on Feature)
-4. **Missing regeneration**: Always run `scripts/generate_project.sh` after Package.swift changes
-5. **Feature Impl coupling**: Features should only depend on other Feature Api modules
+**Build & Deploy**:
+```bash
+scripts/build.sh -i              # Build and install to simulator
+scripts/build.sh -i -d device    # Build and install to device
+scripts/generate_project.sh      # Regenerate Xcode project
+```
+
+**Import Patterns**:
+```swift
+import DomainAuth               // Domain modules
+import LibraryServiceLoader     // Library modules
+import FeatureAccountApi        // Feature API modules
+```
+
+**Service Registration**:
+```swift
+// Domain Bootstrap
+AuthDomainBootstrap.configure()
+
+// Feature Module
+AccountModule.register()
+```
