@@ -1,6 +1,6 @@
 //
 //  SplashView.swift
-//  HealthBuddy
+//  ThriveBuddy
 //
 //  Created by Claude on 2025/10/22.
 //
@@ -66,7 +66,7 @@ struct SplashView: View {
                 }
 
                 // App 名称 - 使用深绿色
-                Text("HealthBuddy")
+                Text("ThriveBuddy")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundColor(Color(red: 0.25, green: 0.55, blue: 0.40))
                     .opacity(showAppName ? 1.0 : 0.0)

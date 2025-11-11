@@ -1,10 +1,10 @@
-# HealthBuddy
+# ThriveBuddy
 
 一个集成 AI 健康助手的智能健康管理应用，采用 SwiftUI 和模块化架构构建。
 
 ## 项目简介
 
-HealthBuddy 是一款智能健康管理应用，通过 AI 助手为用户提供个性化的健康建议，并整合 HealthKit 进行全面的健康数据追踪与分析。
+ThriveBuddy 是一款智能健康管理应用，通过 AI 助手为用户提供个性化的健康建议，并整合 HealthKit 进行全面的健康数据追踪与分析。
 
 ### 核心功能
 
@@ -39,13 +39,13 @@ HealthBuddy 是一款智能健康管理应用，通过 AI 助手为用户提供�
 ./scripts/build.sh
 
 # 3. 在 Xcode 中运行
-open HealthBuddy.xcodeproj
+open ThriveBuddy.xcodeproj
 ```
 
 ## 项目结构
 
 ```
-HealthBuddy/
+ThriveBuddy/
 ├── App/                       # 应用层
 │   ├── Sources/
 │   │   ├── AppMain/          # 应用入口、根视图
@@ -112,8 +112,8 @@ HealthBuddy/
 
 **说明**：
 - `-a` / `--archive`：创建归档并导出 .ipa 文件
-- 归档文件路径：`build/HealthBuddy.xcarchive`
-- IPA 文件路径：`build/HealthBuddy.ipa`
+- 归档文件路径：`build/ThriveBuddy.xcarchive`
+- IPA 文件路径：`build/ThriveBuddy.ipa`
 - 用于提交 App Store 或通过 TestFlight 分发
 
 ### 创建新模块
@@ -138,7 +138,7 @@ HealthBuddy/
 
 应用需要 HealthKit 权限，相关配置：
 
-- **Entitlements**: `App/HealthBuddy.entitlements`
+- **Entitlements**: `App/ThriveBuddy.entitlements`
 - **Usage Descriptions**: 在 `project.yml` 中配置
 - **支持数据类型**: 步数、睡眠、心率、活动能量等
 

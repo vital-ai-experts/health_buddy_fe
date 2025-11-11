@@ -1,6 +1,6 @@
 //
 //  RootView.swift
-//  HealthBuddy
+//  ThriveBuddy
 //
 //  Created by Codex on 2025/2/14.
 //
@@ -19,6 +19,7 @@ struct RootView: View {
     @State private var showingSplash: Bool = true
     @State private var appState: AppState = .initializing
     @State private var showLoginSheet: Bool = false
+    @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let accountFeature: FeatureAccountBuildable
@@ -113,6 +114,26 @@ struct RootView: View {
         let onboardingStateManager = OnboardingStateManager.shared
         let shouldShowOnboarding = onboardingStateManager.shouldShowOnboarding(isAuthenticated: isAuthenticated)
 
+        // 等待最少 Splash 时间（动画播放）
+        let elapsedTime = DispatchTime.now().uptimeNanoseconds - startTime.uptimeNanoseconds
+        if elapsedTime < minimumSplashDuration {
+            try? await Task.sleep(nanoseconds: minimumSplashDuration - elapsedTime)
+        }
+
+        // ⭐️ 如果需要Onboarding，在Splash动画结束后延迟1秒，然后检测网络
+        if shouldShowOnboarding {
+            print("ℹ️ Splash动画已结束，延迟1秒后开始检测网络...")
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
+
+            print("ℹ️ 开始检测网络连接（仍在Splash状态）...")
+            // 等待网络连接（无超时限制）- 此时仍在Splash页面
+            await waitForNetworkAvailable()
+            print("✅ 网络已连接，准备跳转到Onboarding")
+
+            // 发送健康检查请求，触发网络授权弹窗（仍在Splash状态）
+            await triggerNetworkPermissionWithRetry()
+        }
+
         // 确定应用初始状态
         let initialState: AppState
         if isAuthenticated {
@@ -126,12 +147,6 @@ struct RootView: View {
             initialState = .authenticated // 先进入authenticated状态，然后立即弹出登录页
         }
 
-        // 等待最少 Splash 时间
-        let elapsedTime = DispatchTime.now().uptimeNanoseconds - startTime.uptimeNanoseconds
-        if elapsedTime < minimumSplashDuration {
-            try? await Task.sleep(nanoseconds: minimumSplashDuration - elapsedTime)
-        }
-
         // 关闭 Splash，同时设置应用状态
         await MainActor.run {
             appState = initialState
@@ -142,19 +157,77 @@ struct RootView: View {
                 showLoginSheet = true
             }
         }
+    }
 
-        // 如果需要显示Onboarding，延迟触发网络权限请求
-        if shouldShowOnboarding {
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
+    /// 等待网络可用（无超时限制）
+    /// ⭐️ 在这里才初始化 NetworkMonitor，触发网络权限弹窗
+    private func waitForNetworkAvailable() async {
+        // 延迟初始化 NetworkMonitor - 在需要检测网络时才创建
+        // 这样可以确保在 Splash 动画结束 + 延迟1秒后才触发网络权限弹窗
+        if networkMonitor == nil {
+            print("🔧 [RootView] 初始化 NetworkMonitor (将触发网络权限弹窗)")
+            networkMonitor = NetworkMonitor.shared
 
-            // 发送健康检查请求，触发网络授权弹窗
+            // 给 NetworkMonitor 一点时间启动并检测网络状态
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+        }
+
+        // 如果已经连接，直接返回
+        guard let monitor = networkMonitor else {
+            print("⚠️ [RootView] NetworkMonitor 初始化失败")
+            return
+        }
+
+        if monitor.isConnected {
+            print("✅ [RootView] 网络已连接")
+            return
+        }
+
+        print("⏳ [RootView] 等待网络连接...")
+
+        // 持续等待直到网络可用
+        while !monitor.isConnected {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒检查一次
+        }
+
+        print("✅ [RootView] 网络连接已建立")
+    }
+
+    /// 触发网络权限请求，带智能重试
+    /// iOS无法直接检测网络权限授权状态，因此采用指数退避重试策略
+    private func triggerNetworkPermissionWithRetry() async {
+        let retryDelays: [UInt64] = [
+            2_000_000_000,  // 2秒 - 给用户时间看弹窗和授权
+            3_000_000_000,  // 3秒
+            5_000_000_000   // 5秒
+        ]
+
+        // 首次请求 - 触发系统网络权限弹窗
+        do {
+            try await APIClient.shared.healthCheck()
+            print("✅ 健康检查成功")
+            return
+        } catch {
+            print("⚠️ 首次健康检查失败: \(error.localizedDescription)")
+            print("ℹ️ 可能原因: 用户尚未授权网络权限，或网络不可用")
+        }
+
+        // 重试逻辑 - 使用指数退避
+        for (index, delay) in retryDelays.enumerated() {
+            print("⏳ 等待 \(Double(delay) / 1_000_000_000)秒后重试...")
+            try? await Task.sleep(nanoseconds: delay)
+
             do {
                 try await APIClient.shared.healthCheck()
-                print("✅ 健康检查成功")
+                print("✅ 健康检查成功 (重试 \(index + 1) 后)")
+                return
             } catch {
-                print("⚠️ 健康检查失败: \(error.localizedDescription)")
+                print("⚠️ 健康检查失败 (重试 \(index + 1)/\(retryDelays.count)): \(error.localizedDescription)")
             }
         }
+
+        print("⚠️ 健康检查最终失败，用户可能拒绝了网络权限或网络不可用")
+        print("ℹ️ 应用仍可使用，但部分功能可能受限")
     }
     
     /// 检查认证状态，返回是否已登录

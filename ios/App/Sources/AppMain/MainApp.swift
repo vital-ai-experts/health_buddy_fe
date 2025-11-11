@@ -1,6 +1,6 @@
 //
-//  HealthBuddyApp.swift
-//  HealthBuddy
+//  MainApp.swift
+//  MainApp
 //
 //  Created by High on 2025/9/17.
 //
@@ -12,7 +12,7 @@ import FeatureChatImpl
 
 @main
 @MainActor
-struct HealthBuddyApp: App {
+struct MainApp: App {
     // 创建 SwiftData 模型容器
     let modelContainer: ModelContainer
 
@@ -39,7 +39,7 @@ struct HealthBuddyApp: App {
             fatalError("无法初始化 ModelContainer: \(error)")
         }
     }
-    
+
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -6,7 +6,7 @@ public final class APIClient {
 
     private static let DEBUG_LOCAL_SERVER_URL = "http://192.168.31.190:8888/api/v1"
     private static let PROD_SERVER_URL = "https://vital.ninimu.com/api/v1"
-    private static let USE_DEBUG_LOCAL_SERVER = true
+    private static let USE_DEBUG_LOCAL_SERVER = false
     private let baseURL: URL = {
         if USE_DEBUG_LOCAL_SERVER {
             return URL(string: DEBUG_LOCAL_SERVER_URL)!
@@ -22,6 +22,11 @@ public final class APIClient {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 300
+
+        // 启用自动等待网络连接
+        // 当网络暂时不可用时，URLSession会等待而不是立即失败
+        configuration.waitsForConnectivity = true
+
         self.session = URLSession(configuration: configuration)
     }
 
@@ -42,6 +47,9 @@ public final class APIClient {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         
+        print("🌐 [APIClient] Starting healthCheck")
+        print("  URL: \(request.url?.absoluteString ?? "nil")")
+        
         let (_, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -60,6 +68,9 @@ public final class APIClient {
     ) async throws -> T {
         let request = try buildRequest(endpoint)
 
+        print("🌐 [APIClient] Starting request")
+        print("  URL: \(request.url?.absoluteString ?? "nil")")
+        
         let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {

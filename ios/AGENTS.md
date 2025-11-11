@@ -1,8 +1,8 @@
-# HealthBuddy Development Guide
+# ThriveBuddy Development Guide
 
 ## Project Overview
 
-HealthBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app integrates AI-powered health assistant with HealthKit data tracking.
+ThriveBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app integrates AI-powered health assistant with HealthKit data tracking.
 
 **Core Features**:
 - AI Health Assistant: LLM-based conversational health advice
@@ -16,12 +16,12 @@ HealthBuddy is an intelligent health management iOS app built with SwiftUI and S
 
 ## Architecture Overview
 
-HealthBuddy follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
+ThriveBuddy follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
 
 ### Layer Responsibilities
 
 **App Layer** (`App/Sources/`):
-- `AppMain/`: Application entry point (`HealthBuddyApp.swift`), root navigation (`RootView.swift`), splash screen, main TabView
+- `AppMain/`: Application entry point (`MainApp.swift`), root navigation (`RootView.swift`), splash screen, main TabView
 - `Composition/`: Dependency injection setup (`AppComposition.swift`) - registers all domain services and feature builders
 - Only layer allowed to depend on Feature `Impl` modules
 
@@ -144,7 +144,7 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 
 ## App Flow
 
-1. Launch → `HealthBuddyApp.init()` → `AppComposition.bootstrap()`
+1. Launch → `MainApp.init()` → `AppComposition.bootstrap()`
 2. Splash screen (1.5s) while checking authentication
 3. If authenticated → MainTabView (AI Assistant, Health, Profile)
 4. If not authenticated → AccountLandingView
@@ -246,7 +246,7 @@ packages:
     path: Packages/Feature/YourFeature/FeatureYourFeatureImpl
 
 targets:
-  HealthBuddy:
+  ThriveBuddy:
     dependencies:
       - package: FeatureYourFeatureApi
         product: FeatureYourFeatureApi
@@ -301,7 +301,7 @@ scripts/build.sh -i
 **Running Tests**:
 ```bash
 # Run all project tests
-xcodebuild test -project HealthBuddy.xcodeproj -scheme HealthBuddy
+xcodebuild test -project ThriveBuddy.xcodeproj -scheme ThriveBuddy
 
 # Run package tests
 swift test --package-path Packages/Feature/<Module>/Api
@@ -309,7 +309,7 @@ swift test --package-path Packages/Feature/<Module>/Api
 
 ## HealthKit Integration
 
-- **Entitlements**: Configured in `App/HealthBuddy.entitlements`
+- **Entitlements**: Configured in `App/ThriveBuddy.entitlements`
 - **Usage Descriptions**: Defined in `project.yml`:
   - `NSHealthShareUsageDescription`
   - `NSHealthUpdateUsageDescription`

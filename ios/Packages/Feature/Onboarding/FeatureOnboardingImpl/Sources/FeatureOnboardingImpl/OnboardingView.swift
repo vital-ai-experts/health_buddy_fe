@@ -9,6 +9,7 @@ struct OnboardingView: View {
     let onComplete: () -> Void
 
     @StateObject private var viewModel: OnboardingViewModel
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         onComplete: @escaping () -> Void,
@@ -27,26 +28,62 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            SimpleChatView(
-                messages: $viewModel.displayMessages,
-                inputText: $viewModel.inputText,
-                isLoading: viewModel.isLoading,
-                configuration: ChatConfiguration(
-                    showTimestamp: false,  // Onboarding 过程中不显示时间戳
-                    autoFocusAfterBotMessage: false,
-                    dismissKeyboardAfterSend: true
-                ),
-                bottomPadding: 200,  // Onboarding 需要底部空间让消息滚动到舒适位置
-                onSendMessage: { text in
-                    viewModel.sendMessage(text)
-                },
-                onSpecialMessageAction: { messageId, action in
-                    viewModel.handleSpecialMessageAction(messageId: messageId, action: action)
-                }
-            )
+            // 如果初始化失败，显示错误UI
+            if viewModel.initializationFailed {
+                VStack(spacing: 20) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.orange)
 
-            // 顶部渐变遮罩 - 使用固定高度避免布局循环
-            VStack(spacing: 0) {
+                    Text("网络连接失败")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    Text("请检查网络连接后重试")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button(action: {
+                        Task {
+                            await viewModel.retryInitialization()
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("重试")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .cornerRadius(12)
+                    }
+                }
+                .padding()
+            } else {
+                // 正常的聊天界面
+                SimpleChatView(
+                    messages: $viewModel.displayMessages,
+                    inputText: $viewModel.inputText,
+                    isLoading: viewModel.isLoading,
+                    configuration: ChatConfiguration(
+                        showTimestamp: false,  // Onboarding 过程中不显示时间戳
+                        autoFocusAfterBotMessage: false,
+                        dismissKeyboardAfterSend: true
+                    ),
+                    bottomPadding: 200,  // Onboarding 需要底部空间让消息滚动到舒适位置
+                    onSendMessage: { text in
+                        viewModel.sendMessage(text)
+                    },
+                    onSpecialMessageAction: { messageId, action in
+                        viewModel.handleSpecialMessageAction(messageId: messageId, action: action)
+                    }
+                )
+
+                // 顶部渐变遮罩 - 使用固定高度避免布局循环
+                VStack(spacing: 0) {
                 LinearGradient(
                     stops: [
                         .init(color: Color(uiColor: .systemBackground), location: 0.0),   // 顶部完全不透明
@@ -62,40 +99,41 @@ struct OnboardingView: View {
                 .ignoresSafeArea(edges: .top) // 延伸到状态栏区域
 
                 Spacer()
-            }
+                }
 
-            // Action button overlay (when needed)
-            VStack {
-                Spacer()
+                // Action button overlay (when needed)
+                VStack {
+                    Spacer()
 
-                if viewModel.showActionButton {
-                    VStack(spacing: 0) {
-                        // 渐变背景
-                        LinearGradient(
-                            colors: [
-                                Color(uiColor: .systemBackground).opacity(0),
-                                Color(uiColor: .systemBackground)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 40)
-                        
-                        // 按钮区域
-                        Button(action: {
-                            viewModel.handleActionButton()
-                        }) {
-                            Text(viewModel.actionButtonText)
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
+                    if viewModel.showActionButton {
+                        VStack(spacing: 0) {
+                            // 渐变背景
+                            LinearGradient(
+                                colors: [
+                                    Color(uiColor: .systemBackground).opacity(0),
+                                    Color(uiColor: .systemBackground)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 40)
+
+                            // 按钮区域
+                            Button(action: {
+                                viewModel.handleActionButton()
+                            }) {
+                                Text(viewModel.actionButtonText)
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 16)
+                            .background(Color(uiColor: .systemBackground))
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 16)
-                        .background(Color(uiColor: .systemBackground))
                     }
                 }
             }
@@ -103,6 +141,19 @@ struct OnboardingView: View {
         .background(Color(uiColor: .systemBackground))
         .task {
             await viewModel.initializeOnboarding()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // 当 Scene 从非激活状态变为激活状态时
+            if oldPhase != .active && newPhase == .active {
+                print("ℹ️ [OnboardingView] Scene became active")
+                // 如果初始化失败，自动重试
+                if viewModel.initializationFailed {
+                    print("♻️ [OnboardingView] Auto-retrying initialization")
+                    Task {
+                        await viewModel.retryInitialization()
+                    }
+                }
+            }
         }
     }
 }
@@ -114,6 +165,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var showActionButton = false
     @Published var actionButtonText = ""
+    @Published var initializationFailed = false
 
     private var onboardingId: String?
     private var lastDataId: String?  // 记录最新的data id，用于断线重连
@@ -143,6 +195,7 @@ final class OnboardingViewModel: ObservableObject {
 
     func initializeOnboarding() async {
         print("🎬 [OnboardingViewModel] initializeOnboarding started")
+        initializationFailed = false
         isLoading = true
 
         do {
@@ -157,7 +210,13 @@ final class OnboardingViewModel: ObservableObject {
         } catch {
             print("❌ [OnboardingViewModel] 初始化失败: \(error)")
             isLoading = false
+            initializationFailed = true
         }
+    }
+
+    func retryInitialization() async {
+        print("♻️ [OnboardingViewModel] Retrying initialization")
+        await initializeOnboarding()
     }
 
     func sendMessage(_ text: String) {
