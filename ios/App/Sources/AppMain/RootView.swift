@@ -16,15 +16,21 @@ import LibraryNetworking
 
 struct RootView: View {
     @State private var showingSplash: Bool = true
-    @State private var isInitialized: Bool = false
-    @State private var showOnboarding: Bool = false
-    @State private var isAuthenticated: Bool = false
+    @State private var appState: AppState = .initializing
+    @State private var showLoginSheet: Bool = false
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let accountFeature: FeatureAccountBuildable
     private let chatFeature: FeatureChatBuildable
     private let onboardingFeature: FeatureOnboardingBuildable
     private let authService: AuthenticationService
+    
+    // MARK: - App State
+    enum AppState {
+        case initializing      // 初始化中（Splash阶段）
+        case onboarding       // 首次使用引导
+        case authenticated    // 已登录
+    }
 
     init(
         healthKitFeature: FeatureHealthKitBuildable = ServiceManager.shared.resolve(FeatureHealthKitBuildable.self),
@@ -42,28 +48,35 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            // Main content - 只在初始化完成后显示
-            if isInitialized {
-                if isAuthenticated {
+            // Main content - 根据 appState 显示对应内容
+            Group {
+                switch appState {
+                case .initializing:
+                    // 初始化阶段不显示任何内容，等待 Splash
+                    Color.clear
+                    
+                case .onboarding:
+                    // Onboarding 引导流程
+                    onboardingFeature.makeOnboardingView {
+                        // Onboarding 完成后，弹出登录页
+                        showLoginSheet = true
+                    }
+                    
+                case .authenticated:
                     // 主界面 - TabView包含AI助手、健康数据和我的三个Tab
                     MainTabView(
                         healthKitFeature: healthKitFeature,
                         chatFeature: chatFeature,
-                        onLogout: {
-                            isAuthenticated = false
-                        }
+                        onLogout: handleLogout
                     )
-                } else if showOnboarding {
-                    // Onboarding flow
-                    onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后跳转到登录页
-                        showOnboarding = false
-                    }
-                } else {
-                    // Account landing page (登录页)
-                    accountFeature.makeAccountLandingView {
-                        isAuthenticated = true
-                    }
+                }
+            }
+            .sheet(isPresented: $showLoginSheet) {
+                // 登录页面以 Sheet 形式按需弹出
+                accountFeature.makeAccountLandingView {
+                    // 登录成功
+                    showLoginSheet = false
+                    appState = .authenticated
                 }
             }
 
@@ -91,43 +104,67 @@ struct RootView: View {
         let minimumSplashDuration: UInt64 = 1_500_000_000 // 1.5秒
         let startTime = DispatchTime.now()
 
-        // Check authentication status
-        isAuthenticated = authService.isAuthenticated()
+        // 检查认证状态
+        let isAuthenticated = await checkAuthentication()
+        
+        // 确定应用初始状态
+        let initialState: AppState = isAuthenticated ? .authenticated : .onboarding
 
         // 等待最少 Splash 时间
         let elapsedTime = DispatchTime.now().uptimeNanoseconds - startTime.uptimeNanoseconds
         if elapsedTime < minimumSplashDuration {
             try? await Task.sleep(nanoseconds: minimumSplashDuration - elapsedTime)
         }
-
-        // Splash 结束前先标记初始化完成（但还不显示内容）
-        await MainActor.run {
-            isInitialized = true
-        }
         
-        // Splash 结束后关闭 Splash 画面
+        // 关闭 Splash，同时设置应用状态
         await MainActor.run {
+            appState = initialState
             showingSplash = false
         }
         
-        // 等待 1 秒
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
-        
-        // 发送健康检查请求，触发网络授权弹窗
-        do {
-            try await APIClient.shared.healthCheck()
-            print("✅ 健康检查成功")
-        } catch {
-            print("⚠️ 健康检查失败: \(error.localizedDescription)")
-            // 即使失败也继续流程
-        }
-        
-        // 如果未登录，显示 Onboarding
+        // 如果未登录，延迟触发网络权限请求
         if !isAuthenticated {
-            await MainActor.run {
-                showOnboarding = true
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
+            
+            // 发送健康检查请求，触发网络授权弹窗
+            do {
+                try await APIClient.shared.healthCheck()
+                print("✅ 健康检查成功")
+            } catch {
+                print("⚠️ 健康检查失败: \(error.localizedDescription)")
             }
         }
+    }
+    
+    /// 检查认证状态，返回是否已登录
+    private func checkAuthentication() async -> Bool {
+        // 首先检查是否有 token
+        guard authService.isAuthenticated() else {
+            return false
+        }
+        
+        // 验证 token 是否有效，如果即将过期则自动刷新
+        do {
+            let isValid = try await authService.verifyAndRefreshTokenIfNeeded()
+            
+            if isValid {
+                print("✅ Token 验证成功，用户已登录")
+            } else {
+                print("⚠️ Token 已过期或无效，需要重新登录")
+            }
+            
+            return isValid
+        } catch {
+            print("❌ Token 验证失败: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    /// 处理退出登录
+    private func handleLogout() {
+        appState = .onboarding
+        // 退出登录后，显示登录页
+        showLoginSheet = true
     }
 }
 
@@ -190,7 +227,7 @@ private struct PreviewOnboardingFeature: FeatureOnboardingBuildable {
 }
 
 private class PreviewAuthService: AuthenticationService {
-    func register(email: String, password: String, fullName: String) async throws -> DomainAuth.User {
+    func register(email: String, password: String, fullName: String?) async throws -> DomainAuth.User {
         fatalError("Preview only")
     }
 
@@ -200,13 +237,19 @@ private class PreviewAuthService: AuthenticationService {
 
     func logout() async throws {}
 
-    func refreshToken() async throws {}
+    func verifyAndRefreshTokenIfNeeded() async throws -> Bool {
+        return false
+    }
 
     func getCurrentUser() async throws -> DomainAuth.User {
         fatalError("Preview only")
     }
 
     func isAuthenticated() -> Bool {
+        return false
+    }
+    
+    func isTokenValid() -> Bool {
         return false
     }
 

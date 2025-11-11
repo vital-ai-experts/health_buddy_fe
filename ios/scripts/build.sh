@@ -365,6 +365,7 @@ if [ "$CREATE_ARCHIVE" = true ]; then
                -project "${PROJECT_PATH}" \
                -scheme "${SCHEME}" \
                -configuration "${CONFIGURATION}" \
+               -allowProvisioningUpdates \
                -archivePath "${ARCHIVE_PATH}" >> "${BUILD_LOG_FILE}" 2>&1 &
 
     show_progress $! "正在归档"
@@ -453,6 +454,7 @@ else
                -scheme "${SCHEME}" \
                -destination "${DESTINATION}" \
                -configuration "${CONFIGURATION}" \
+               -allowProvisioningUpdates \
                SYMROOT="${SYMROOT}" \
                OBJROOT="${DERIVED_DATA_PATH}" \
                build >> "${BUILD_LOG_FILE}" 2>&1 &

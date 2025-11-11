@@ -209,6 +209,11 @@ public struct SimpleChatView: View {
 
         onSendMessage(trimmedText)
         inputText = ""
+        
+        // 根据配置决定是否收起键盘
+        if configuration.dismissKeyboardAfterSend {
+            isInputFocused = false
+        }
     }
 }
 

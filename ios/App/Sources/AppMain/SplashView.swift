@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SplashView: View {
-    @State private var logoScale: CGFloat = 0.5
+    @State private var logoScale: CGFloat = 0.8
     @State private var logoOpacity: Double = 0
     @State private var pulseScale: CGFloat = 1.0
     @State private var heartbeatAnimation = false

@@ -26,7 +26,10 @@ struct OnboardingView: View {
                 messages: $viewModel.displayMessages,
                 inputText: $viewModel.inputText,
                 isLoading: viewModel.isLoading,
-                configuration: ChatConfiguration(autoFocusAfterBotMessage: true),
+                configuration: ChatConfiguration(
+                    autoFocusAfterBotMessage: false,
+                    dismissKeyboardAfterSend: true
+                ),
                 bottomPadding: 200,  // Onboarding 需要底部空间让消息滚动到舒适位置
                 onSendMessage: { text in
                     viewModel.sendMessage(text)
@@ -113,7 +116,7 @@ final class OnboardingViewModel: ObservableObject {
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
     
     // 需要用户交互的工具名称集合
-    private let interactiveToolNames: Set<String> = ["auth_health", "noti_permit", "finish_onboarding"]
+    private let interactiveToolNames: Set<String> = ["authorize_health_data", "noti_permit", "finish_onboarding"]
 
     init(onboardingService: OnboardingService, onComplete: @escaping () -> Void) {
         self.onboardingService = onboardingService
@@ -442,7 +445,7 @@ final class OnboardingViewModel: ObservableObject {
     private func handleToolCallForUI(_ toolCall: ToolCall) {
         // 根据工具调用类型显示相应的UI操作
         switch toolCall.toolCallName {
-        case "auth_health":
+        case "authorize_health_data":
             // 显示健康数据授权按钮
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation {

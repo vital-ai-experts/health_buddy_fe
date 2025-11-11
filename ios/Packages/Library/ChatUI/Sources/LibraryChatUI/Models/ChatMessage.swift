@@ -73,6 +73,8 @@ public struct ChatConfiguration {
     public var messagePadding: CGFloat
     /// 是否在 Bot 回复完成后自动聚焦输入框（弹起键盘）
     public var autoFocusAfterBotMessage: Bool
+    /// 是否在用户发送消息后主动收起键盘
+    public var dismissKeyboardAfterSend: Bool
 
     public init(
         showAvatar: Bool = true,
@@ -86,7 +88,8 @@ public struct ChatConfiguration {
         botTextColor: Color = .primary,
         cornerRadius: CGFloat = 16,
         messagePadding: CGFloat = 12,
-        autoFocusAfterBotMessage: Bool = false
+        autoFocusAfterBotMessage: Bool = false,
+        dismissKeyboardAfterSend: Bool = false
     ) {
         self.showAvatar = showAvatar
         self.showTimestamp = showTimestamp
@@ -100,6 +103,7 @@ public struct ChatConfiguration {
         self.cornerRadius = cornerRadius
         self.messagePadding = messagePadding
         self.autoFocusAfterBotMessage = autoFocusAfterBotMessage
+        self.dismissKeyboardAfterSend = dismissKeyboardAfterSend
     }
 
     public static let `default` = ChatConfiguration()

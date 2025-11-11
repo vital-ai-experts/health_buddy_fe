@@ -4,7 +4,7 @@ import Foundation
 public final class APIClient {
     public static let shared = APIClient()
 
-    private static let DEBUG_LOCAL_SERVER_URL = "http://192.168.1.204:8888/api/v1"
+    private static let DEBUG_LOCAL_SERVER_URL = "http://192.168.31.190:8888/api/v1"
     private static let PROD_SERVER_URL = "https://vital.ninimu.com/api/v1"
     private static let USE_DEBUG_LOCAL_SERVER = true
     private let baseURL: URL = {
@@ -178,6 +178,9 @@ public final class APIClient {
         if endpoint.requiresAuth, let token = authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+
+        // Add X-Vital-Secret header for vital.ninimu requests
+        request.setValue("APTX-4869", forHTTPHeaderField: "X-Vital-Secret")
 
         // Add request body
         if let body = endpoint.body {
