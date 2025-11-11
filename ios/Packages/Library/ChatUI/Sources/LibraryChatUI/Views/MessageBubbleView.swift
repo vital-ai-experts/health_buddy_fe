@@ -1,6 +1,78 @@
 import SwiftUI
 
-/// 带有内联光标的流式文本视图
+/// 简单的 Markdown 文本渲染器
+struct MarkdownText: View {
+    let text: String
+    let font: Font
+    let textColor: Color
+
+    var body: some View {
+        Text(parseMarkdown(text))
+            .font(font)
+            .foregroundColor(textColor)
+    }
+
+    private func parseMarkdown(_ text: String) -> AttributedString {
+        var attributedString = AttributedString(text)
+
+        // 1. 处理 **粗体**
+        if let boldRegex = try? NSRegularExpression(pattern: #"\*\*(.+?)\*\*"#, options: []) {
+            let nsString = text as NSString
+            let matches = boldRegex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: text) {
+                    let content = String(text[range]).replacingOccurrences(of: "**", with: "")
+                    if let attrRange = Range(match.range, in: attributedString) {
+                        attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                        if let contentRange = attributedString.range(of: content) {
+                            attributedString[contentRange].font = font.bold()
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. 处理 *斜体*
+        if let italicRegex = try? NSRegularExpression(pattern: #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)"#, options: []) {
+            let nsString = attributedString.description as NSString
+            let matches = italicRegex.matches(in: attributedString.description, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: attributedString.description),
+                   let attrRange = attributedString.range(of: String(attributedString.description[range])) {
+                    let content = String(attributedString.description[range]).replacingOccurrences(of: "*", with: "")
+                    attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                    if let contentRange = attributedString.range(of: content) {
+                        attributedString[contentRange].font = font.italic()
+                    }
+                }
+            }
+        }
+
+        // 3. 处理 `代码`
+        if let codeRegex = try? NSRegularExpression(pattern: #"`(.+?)`"#, options: []) {
+            let nsString = attributedString.description as NSString
+            let matches = codeRegex.matches(in: attributedString.description, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: attributedString.description),
+                   let attrRange = attributedString.range(of: String(attributedString.description[range])) {
+                    let content = String(attributedString.description[range]).replacingOccurrences(of: "`", with: "")
+                    attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                    if let contentRange = attributedString.range(of: content) {
+                        attributedString[contentRange].font = .system(.body, design: .monospaced)
+                        attributedString[contentRange].backgroundColor = .gray.opacity(0.2)
+                    }
+                }
+            }
+        }
+
+        return attributedString
+    }
+}
+
+/// 带有内联光标的流式文本视图（纯文本）
 struct StreamingTextWithCursor: View {
     let text: String
     let font: Font
@@ -14,22 +86,101 @@ struct StreamingTextWithCursor: View {
     }
 }
 
+/// 带有内联光标的 Markdown 文本视图
+struct MarkdownTextWithCursor: View {
+    let text: String
+    let font: Font
+    let textColor: Color
+
+    var body: some View {
+        // 解析 Markdown 并添加光标
+        Text(parseMarkdown(text)) + Text(" ●")
+            .foregroundColor(textColor)
+    }
+
+    private func parseMarkdown(_ text: String) -> AttributedString {
+        var attributedString = AttributedString(text)
+
+        // 1. 处理 **粗体**
+        if let boldRegex = try? NSRegularExpression(pattern: #"\*\*(.+?)\*\*"#, options: []) {
+            let nsString = text as NSString
+            let matches = boldRegex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: text) {
+                    let content = String(text[range]).replacingOccurrences(of: "**", with: "")
+                    if let attrRange = Range(match.range, in: attributedString) {
+                        attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                        if let contentRange = attributedString.range(of: content) {
+                            attributedString[contentRange].font = font.bold()
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. 处理 *斜体*
+        if let italicRegex = try? NSRegularExpression(pattern: #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)"#, options: []) {
+            let nsString = attributedString.description as NSString
+            let matches = italicRegex.matches(in: attributedString.description, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: attributedString.description),
+                   let attrRange = attributedString.range(of: String(attributedString.description[range])) {
+                    let content = String(attributedString.description[range]).replacingOccurrences(of: "*", with: "")
+                    attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                    if let contentRange = attributedString.range(of: content) {
+                        attributedString[contentRange].font = font.italic()
+                    }
+                }
+            }
+        }
+
+        // 3. 处理 `代码`
+        if let codeRegex = try? NSRegularExpression(pattern: #"`(.+?)`"#, options: []) {
+            let nsString = attributedString.description as NSString
+            let matches = codeRegex.matches(in: attributedString.description, options: [], range: NSRange(location: 0, length: nsString.length))
+
+            for match in matches.reversed() {
+                if let range = Range(match.range, in: attributedString.description),
+                   let attrRange = attributedString.range(of: String(attributedString.description[range])) {
+                    let content = String(attributedString.description[range]).replacingOccurrences(of: "`", with: "")
+                    attributedString.replaceSubrange(attrRange, with: AttributedString(content))
+                    if let contentRange = attributedString.range(of: content) {
+                        attributedString[contentRange].font = .system(.body, design: .monospaced)
+                        attributedString[contentRange].backgroundColor = .gray.opacity(0.2)
+                    }
+                }
+            }
+        }
+
+        return attributedString
+    }
+}
+
 /// 消息气泡视图
 struct MessageBubbleView: View {
     let message: ChatMessage
     let configuration: ChatConfiguration
     let showAvatar: Bool // 是否显示头像
+    let onSpecialMessageAction: ((String, String) -> Void)?  // (messageId, action) -> Void
 
-    init(message: ChatMessage, configuration: ChatConfiguration, showAvatar: Bool = true) {
+    init(
+        message: ChatMessage,
+        configuration: ChatConfiguration,
+        showAvatar: Bool = true,
+        onSpecialMessageAction: ((String, String) -> Void)? = nil
+    ) {
         self.message = message
         self.configuration = configuration
         self.showAvatar = showAvatar
+        self.onSpecialMessageAction = onSpecialMessageAction
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             if message.isFromUser {
-                Spacer(minLength: 60)
+                Spacer(minLength: 20)
             } else if configuration.showAvatar {
                 if showAvatar {
                     avatarView
@@ -46,16 +197,21 @@ struct MessageBubbleView: View {
                 if !message.isFromUser, let thinkingContent = message.thinkingContent, !thinkingContent.isEmpty {
                     thinkingDisclosureGroup(content: thinkingContent)
                 }
-                
-                // 消息气泡
+
+                // 消息气泡（普通内容）
                 if !message.text.isEmpty {
                     messageContentView
                         .padding(configuration.messagePadding)
                         .background(message.isFromUser ? configuration.userMessageColor : configuration.botMessageColor)
                         .cornerRadius(configuration.cornerRadius)
                 }
-                
-                // Tool calls (仅AI消息显示)
+
+                // 特殊消息类型：用户健康档案确认（显示在普通消息下方）
+                if message.specialMessageType == .userHealthProfile {
+                    healthProfileConfirmationView
+                }
+
+                // Tool calls (仅AI消息显示，不包括特殊类型的工具)
                 if !message.isFromUser, let toolCalls = message.toolCalls, !toolCalls.isEmpty {
                     toolCallsDisclosureGroup(toolCalls: toolCalls)
                 }
@@ -67,10 +223,10 @@ struct MessageBubbleView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .frame(maxWidth: 280, alignment: message.isFromUser ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: message.isFromUser ? .trailing : .leading)
 
             if !message.isFromUser {
-                Spacer(minLength: 60)
+                Spacer(minLength: 20)
             } else if configuration.showAvatar {
                 if showAvatar {
                     avatarView
@@ -82,7 +238,7 @@ struct MessageBubbleView: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
     }
 
     // Thinking content disclosure group
@@ -179,18 +335,21 @@ struct MessageBubbleView: View {
 
     @ViewBuilder
     private var messageContentView: some View {
+        // 普通消息：始终支持简单的 Markdown 渲染（包括流式消息）
         if message.isStreaming {
-            // 流式消息：使用 ZStack + GeometryReader 来定位光标
-            StreamingTextWithCursor(
+            // 流式消息：带光标的 Markdown 渲染
+            MarkdownTextWithCursor(
                 text: message.text,
                 font: configuration.messageFont,
                 textColor: message.isFromUser ? configuration.userTextColor : configuration.botTextColor
             )
         } else {
-            // 普通消息
-            Text(message.text)
-                .font(configuration.messageFont)
-                .foregroundColor(message.isFromUser ? configuration.userTextColor : configuration.botTextColor)
+            // 完成的消息：Markdown 渲染
+            MarkdownText(
+                text: message.text,
+                font: configuration.messageFont,
+                textColor: message.isFromUser ? configuration.userTextColor : configuration.botTextColor
+            )
         }
     }
 
@@ -229,12 +388,74 @@ struct MessageBubbleView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+
+    // MARK: - Health Profile Confirmation View
+    @ViewBuilder
+    private var healthProfileConfirmationView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Profile content (only from specialMessageData, not from text)
+            // 支持 Markdown 渲染
+            if let profileData = message.specialMessageData, !profileData.isEmpty {
+                if message.isStreaming {
+                    MarkdownTextWithCursor(
+                        text: profileData,
+                        font: configuration.messageFont,
+                        textColor: Color.orange.opacity(0.9)
+                    )
+                } else {
+                    MarkdownText(
+                        text: profileData,
+                        font: .body,
+                        textColor: Color.orange.opacity(0.9)
+                    )
+                }
+            }
+
+            // Action buttons (only show when not streaming)
+            if !message.isStreaming {
+                HStack(spacing: 12) {
+                    Button(action: {
+                        onSpecialMessageAction?(message.id, "Looks good")
+                    }) {
+                        Text("Looks good")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.green)
+                            .cornerRadius(8)
+                    }
+
+                    Button(action: {
+                        onSpecialMessageAction?(message.id, "Not right")
+                    }) {
+                        Text("Not right")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.red)
+                            .cornerRadius(8)
+                    }
+                }
+            }
+        }
+        .padding(configuration.messagePadding)
+        .background(Color.yellow.opacity(0.15))
+        .cornerRadius(configuration.cornerRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: configuration.cornerRadius)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
+    }
 }
 
 #Preview {
     VStack(spacing: 12) {
         MessageBubbleView(
-            message: ChatMessage(text: "Hello! How can I help you?", isFromUser: false),
+            message: ChatMessage(text: "Hello! How can I help you？？？？?Hello! How can I help you?Hello! How can I help you?", isFromUser: false),
             configuration: .default,
             showAvatar: true
         )
@@ -246,7 +467,7 @@ struct MessageBubbleView: View {
         )
 
         MessageBubbleView(
-            message: ChatMessage(text: "I need help with something", isFromUser: true),
+            message: ChatMessage(text: "I need help with something else. I need help with something", isFromUser: true),
             configuration: .default,
             showAvatar: true
         )

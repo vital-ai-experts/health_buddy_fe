@@ -8,6 +8,7 @@ public struct SimpleChatView: View {
     public let configuration: ChatConfiguration
     public let bottomPadding: CGFloat
     public let onSendMessage: (String) -> Void
+    public let onSpecialMessageAction: ((String, String) -> Void)?
 
     @FocusState private var isInputFocused: Bool
 
@@ -17,7 +18,8 @@ public struct SimpleChatView: View {
         isLoading: Bool = false,
         configuration: ChatConfiguration = .default,
         bottomPadding: CGFloat = 0,
-        onSendMessage: @escaping (String) -> Void
+        onSendMessage: @escaping (String) -> Void,
+        onSpecialMessageAction: ((String, String) -> Void)? = nil
     ) {
         self._messages = messages
         self._inputText = inputText
@@ -25,6 +27,7 @@ public struct SimpleChatView: View {
         self.configuration = configuration
         self.bottomPadding = bottomPadding
         self.onSendMessage = onSendMessage
+        self.onSpecialMessageAction = onSpecialMessageAction
     }
 
     public var body: some View {
@@ -37,7 +40,8 @@ public struct SimpleChatView: View {
                             MessageBubbleView(
                                 message: message,
                                 configuration: configuration,
-                                showAvatar: shouldShowAvatar(at: index)
+                                showAvatar: shouldShowAvatar(at: index),
+                                onSpecialMessageAction: onSpecialMessageAction
                             )
                             .id(message.id)
                         }
@@ -69,9 +73,18 @@ public struct SimpleChatView: View {
                             .padding(.horizontal, 16)
                             .id("loading")
                         }
+
+                        // 底部空白区域锚点（用于滚动定位）
+                        Color.clear
+                            .frame(height: bottomPadding)
+                            .id("bottomSpacer")
                     }
                     .padding(.top, 12)
-                    .padding(.bottom, bottomPadding)  // 可配置的底部空间
+                }
+                .contentShape(Rectangle()) // 确保整个 ScrollView 区域可以接收点击
+                .onTapGesture {
+                    // 点击消息列表区域，收起键盘
+                    isInputFocused = false
                 }
                 .onChange(of: messages.count) { _, _ in
                     scrollToBottom(proxy: proxy, animated: true)
@@ -81,12 +94,17 @@ public struct SimpleChatView: View {
                         scrollToBottom(proxy: proxy, animated: false)
                     }
                 }
-                // 监听流式消息的变化（限流以避免过度滚动）
+                // 监听流式消息的变化（优化滚动频率）
                 .onChange(of: streamingMessageText) { oldValue, newValue in
                     // 只在文本显著变化时滚动（例如，每增加20个字符）
                     if abs(newValue.count - oldValue.count) >= 20 || newValue.count < oldValue.count {
                         scrollToBottom(proxy: proxy, animated: false)
                     }
+                }
+                // 监听最后一条消息的变化（包括 specialMessageType 等字段变化）
+                .onChange(of: messages.last) { _, _ in
+                    // 最后一条消息任何字段变化时都滚动
+                    scrollToBottom(proxy: proxy, animated: false)
                 }
             }
 
@@ -186,13 +204,10 @@ public struct SimpleChatView: View {
         // 减少延迟以提高响应性，并避免过度排队
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             let scrollAction = {
-                if isLoading && !hasStreamingMessage {
-                    proxy.scrollTo("loading", anchor: .top)
-                } else if let lastMessage = messages.last {
-                    proxy.scrollTo(lastMessage.id, anchor: .top)
-                }
+                // 始终滚动到底部空白区域，这样消息会显示得更自然
+                proxy.scrollTo("bottomSpacer", anchor: .bottom)
             }
-            
+
             if animated {
                 withAnimation(.easeOut(duration: 0.3)) {
                     scrollAction()

@@ -6,6 +6,7 @@ import LibraryServiceLoader
 struct HealthKitCoordinator: View {
     @State private var isAuthorized = false
     @State private var isLoading = true
+    @State private var hasCheckedAuthorization = false
 
     private let authorizationService: AuthorizationService
     private let healthKitBuilder: FeatureHealthKitBuildable
@@ -32,8 +33,12 @@ struct HealthKitCoordinator: View {
                 })
             }
         }
-        .task {
-            await checkAuthorization()
+        .onAppear {
+            if !hasCheckedAuthorization {
+                Task {
+                    await checkAuthorization()
+                }
+            }
         }
     }
 
@@ -54,6 +59,7 @@ struct HealthKitCoordinator: View {
         await MainActor.run {
             isAuthorized = (state == .authorized)
             isLoading = false
+            hasCheckedAuthorization = true
         }
     }
 }

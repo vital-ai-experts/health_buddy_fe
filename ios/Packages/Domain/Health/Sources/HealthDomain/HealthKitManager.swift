@@ -83,6 +83,53 @@ public extension HealthKitManager {
 // MARK: - Data Fetching
 
 public extension HealthKitManager {
+    /// 获取最近24小时的健康数据并聚合为JSON字符串
+    func fetchRecentDataAsJSON() async throws -> String {
+        let sections = try await fetchRecentData()
+
+        // 构建聚合数据结构
+        var aggregatedData: [String: Any] = [:]
+
+        for section in sections {
+            let sectionKey: String
+            switch section.kind {
+            case .steps:
+                sectionKey = "steps"
+            case .heartRate:
+                sectionKey = "heartRate"
+            case .activeEnergy:
+                sectionKey = "activeEnergy"
+            case .sleep:
+                sectionKey = "sleep"
+            }
+
+            // 聚合每个section的chartSeries数据点
+            var dataPoints: [[String: Any]] = []
+            for series in section.chartSeries {
+                for point in series.points {
+                    dataPoints.append([
+                        "start": ISO8601DateFormatter().string(from: point.start),
+                        "end": ISO8601DateFormatter().string(from: point.end),
+                        "value": point.value
+                    ])
+                }
+            }
+
+            aggregatedData[sectionKey] = [
+                "title": section.title,
+                "dataPoints": dataPoints
+            ]
+        }
+
+        // 转换为JSON字符串
+        let jsonData = try JSONSerialization.data(withJSONObject: aggregatedData, options: [.sortedKeys, .prettyPrinted])
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw makeError("无法将健康数据转换为JSON字符串")
+        }
+
+        return jsonString
+    }
+
     /// 获取最近24小时的健康数据
     func fetchRecentData() async throws -> [HealthDataSection] {
         guard HKHealthStore.isHealthDataAvailable() else {

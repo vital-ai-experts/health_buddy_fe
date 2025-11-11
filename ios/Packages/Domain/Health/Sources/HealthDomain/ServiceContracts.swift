@@ -94,4 +94,5 @@ public protocol AuthorizationService {
 public protocol HealthDataService {
     func fetchLatestSections() async throws -> [HealthDisplaySection]
     func persist(_ sections: [HealthDisplaySection], into context: ModelContext) throws
+    func fetchRecentDataAsJSON() async throws -> String
 }

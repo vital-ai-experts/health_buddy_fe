@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import DomainHealth
+import FeatureChatImpl
 
 @main
 @MainActor
@@ -21,14 +22,15 @@ struct HealthBuddyApp: App {
             // 配置 SwiftData 模型
             let schema = Schema([
                 HealthSection.self,
-                HealthRow.self
+                HealthRow.self,
+                LocalChatMessage.self
             ])
-            
+
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false
             )
-            
+
             modelContainer = try ModelContainer(
                 for: schema,
                 configurations: [modelConfiguration]

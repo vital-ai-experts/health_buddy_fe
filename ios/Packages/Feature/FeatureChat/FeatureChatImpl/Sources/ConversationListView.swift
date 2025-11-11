@@ -69,8 +69,12 @@ struct ConversationListView: View {
                 Text(viewModel.errorMessage ?? "")
             }
         }
-        .task {
-            await viewModel.loadConversations()
+        .onAppear {
+            if !viewModel.hasLoadedConversations {
+                Task {
+                    await viewModel.loadConversations()
+                }
+            }
         }
     }
 
@@ -121,6 +125,7 @@ final class ConversationListViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var hasLoadedConversations = false
 
     private let chatService: ChatService
 
@@ -134,6 +139,7 @@ final class ConversationListViewModel: ObservableObject {
 
         do {
             conversations = try await chatService.getConversations(limit: 50, offset: nil)
+            hasLoadedConversations = true
         } catch {
             errorMessage = "Failed to load conversations: \(error.localizedDescription)"
         }

@@ -2,6 +2,7 @@ import SwiftUI
 import LibraryServiceLoader
 import DomainOnboarding
 import LibraryChatUI
+import DomainHealth
 
 /// Onboarding view with conversational Q&A flow
 struct OnboardingView: View {
@@ -11,11 +12,15 @@ struct OnboardingView: View {
 
     init(
         onComplete: @escaping () -> Void,
-        onboardingService: OnboardingService = ServiceManager.shared.resolve(OnboardingService.self)
+        onboardingService: OnboardingService = ServiceManager.shared.resolve(OnboardingService.self),
+        authorizationService: AuthorizationService = ServiceManager.shared.resolve(AuthorizationService.self),
+        healthDataService: HealthDataService = ServiceManager.shared.resolve(HealthDataService.self)
     ) {
         self.onComplete = onComplete
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             onboardingService: onboardingService,
+            authorizationService: authorizationService,
+            healthDataService: healthDataService,
             onComplete: onComplete
         ))
     }
@@ -27,12 +32,16 @@ struct OnboardingView: View {
                 inputText: $viewModel.inputText,
                 isLoading: viewModel.isLoading,
                 configuration: ChatConfiguration(
+                    showTimestamp: false,  // Onboarding 过程中不显示时间戳
                     autoFocusAfterBotMessage: false,
                     dismissKeyboardAfterSend: true
                 ),
                 bottomPadding: 200,  // Onboarding 需要底部空间让消息滚动到舒适位置
                 onSendMessage: { text in
                     viewModel.sendMessage(text)
+                },
+                onSpecialMessageAction: { messageId, action in
+                    viewModel.handleSpecialMessageAction(messageId: messageId, action: action)
                 }
             )
 
@@ -110,16 +119,25 @@ final class OnboardingViewModel: ObservableObject {
     private var lastDataId: String?  // 记录最新的data id，用于断线重连
     private var actionButtonAction: BotMessageAction?
     private let onboardingService: OnboardingService
+    private let authorizationService: AuthorizationService
+    private let healthDataService: HealthDataService
     private let onComplete: () -> Void
-    
+
     // 消息ID到ChatMessage的映射，用于处理流式更新
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
-    
+
     // 需要用户交互的工具名称集合
     private let interactiveToolNames: Set<String> = ["authorize_health_data", "noti_permit", "finish_onboarding"]
 
-    init(onboardingService: OnboardingService, onComplete: @escaping () -> Void) {
+    init(
+        onboardingService: OnboardingService,
+        authorizationService: AuthorizationService,
+        healthDataService: HealthDataService,
+        onComplete: @escaping () -> Void
+    ) {
         self.onboardingService = onboardingService
+        self.authorizationService = authorizationService
+        self.healthDataService = healthDataService
         self.onComplete = onComplete
     }
 
@@ -144,12 +162,50 @@ final class OnboardingViewModel: ObservableObject {
 
     func sendMessage(_ text: String) {
         print("💬 [OnboardingViewModel] sendMessage called: \(text.prefix(50))...")
-        
+
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             print("⚠️ [OnboardingViewModel] Empty message, skipping")
             return
         }
-        
+
+        // 特殊逻辑：检测 "skip" 命令，直接跳过 onboarding
+        if text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == "skip" {
+            print("⏭️ [OnboardingViewModel] 检测到 skip 命令，跳过 onboarding")
+
+            // 添加用户消息到UI
+            let userMsg = ChatMessage(
+                id: UUID().uuidString,
+                text: text,
+                isFromUser: true,
+                timestamp: Date(),
+                isStreaming: false
+            )
+            displayMessages.append(userMsg)
+
+            // 清空输入框
+            inputText = ""
+
+            // 添加系统提示消息
+            let systemMsg = ChatMessage(
+                id: UUID().uuidString,
+                text: "已跳过引导流程",
+                isFromUser: false,
+                timestamp: Date(),
+                isStreaming: false
+            )
+            displayMessages.append(systemMsg)
+
+            // 延迟后完成 onboarding
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+                await MainActor.run {
+                    onComplete()
+                }
+            }
+
+            return
+        }
+
         guard let onboardingId = onboardingId else {
             print("❌ [OnboardingViewModel] onboardingId 为空，无法发送消息")
             return
@@ -190,7 +246,7 @@ final class OnboardingViewModel: ObservableObject {
             } catch {
                 print("❌ [OnboardingViewModel] 发送消息失败: \(error)")
                 self.isLoading = false
-                
+
                 // TODO: 可以在这里尝试调用 resumeOnboarding
             }
         }
@@ -264,7 +320,9 @@ final class OnboardingViewModel: ObservableObject {
                         timestamp: updatedMessage.timestamp,
                         isStreaming: false,
                         thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls
+                        toolCalls: updatedMessage.toolCalls,
+                        specialMessageType: updatedMessage.specialMessageType,
+                        specialMessageData: updatedMessage.specialMessageData
                     )
                     displayMessages[index] = updatedMessage
                     print("  → Message at index \(index) set to non-streaming")
@@ -285,13 +343,15 @@ final class OnboardingViewModel: ObservableObject {
                         timestamp: updatedMessage.timestamp,
                         isStreaming: false,
                         thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls
+                        toolCalls: updatedMessage.toolCalls,
+                        specialMessageType: updatedMessage.specialMessageType,
+                        specialMessageData: updatedMessage.specialMessageData
                     )
                     displayMessages[index] = updatedMessage
                 }
             }
             isLoading = false
-            
+
         case .stopped:
             print("⏸️ Agent 停止")
             // 停止时也将所有消息设为非 streaming
@@ -305,7 +365,9 @@ final class OnboardingViewModel: ObservableObject {
                         timestamp: updatedMessage.timestamp,
                         isStreaming: false,
                         thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls
+                        toolCalls: updatedMessage.toolCalls,
+                        specialMessageType: updatedMessage.specialMessageType,
+                        specialMessageData: updatedMessage.specialMessageData
                     )
                     displayMessages[index] = updatedMessage
                 }
@@ -338,11 +400,31 @@ final class OnboardingViewModel: ObservableObject {
         // 使用content，如果为空则使用空字符串（但仍然可以显示thinking和toolCalls）
         let content = data.content ?? ""
         
+        // 检查是否有 generate_user_health_profile 工具调用
+        let hasHealthProfileTool = data.toolCalls?.contains { $0.toolCallName == "generate_user_health_profile" } ?? false
+        var specialMessageType: SpecialMessageType? = nil
+        var specialMessageData: String? = nil
+
+        if hasHealthProfileTool, let toolCall = data.toolCalls?.first(where: { $0.toolCallName == "generate_user_health_profile" }) {
+            specialMessageType = .userHealthProfile
+            // 从 toolCall.toolCallArgs 中提取 user_health_profile 参数
+            if let argsJSON = toolCall.toolCallArgs,
+               let argsData = argsJSON.data(using: .utf8),
+               let argsDict = try? JSONSerialization.jsonObject(with: argsData) as? [String: Any],
+               let profile = argsDict["user_health_profile"] as? String {
+                specialMessageData = profile
+            }
+        }
+
         // 将需要用户交互的工具调用过滤掉（不在消息中显示，通过actionButton显示）
         // 不需要用户交互的工具调用仍然在消息中显示
         let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.compactMap { toolCall in
             // 如果是需要用户交互的工具，返回 nil（过滤掉）
             guard !interactiveToolNames.contains(toolCall.toolCallName) else {
+                return nil
+            }
+            // 如果是 generate_user_health_profile，也过滤掉（会作为特殊消息显示）
+            guard toolCall.toolCallName != "generate_user_health_profile" else {
                 return nil
             }
             // 否则返回 ToolCallInfo（显示在消息中）
@@ -359,21 +441,28 @@ final class OnboardingViewModel: ObservableObject {
         if let index = messageMap[msgId] {
             print("  → Updating existing message at index \(index)")
             // 更新现有消息（每次收到的content都是完整的，不是delta）
-            var message = displayMessages[index]
-            message = ChatMessage(
-                id: message.id,
+            let existingMessage = displayMessages[index]
+
+            // 保留已有的 specialMessageType 和 specialMessageData（如果新数据为 nil）
+            let finalSpecialType = specialMessageType ?? existingMessage.specialMessageType
+            let finalSpecialData = specialMessageData ?? existingMessage.specialMessageData
+
+            let message = ChatMessage(
+                id: existingMessage.id,
                 text: content,
-                isFromUser: message.isFromUser,
-                timestamp: message.timestamp,
+                isFromUser: existingMessage.isFromUser,
+                timestamp: existingMessage.timestamp,
                 isStreaming: true,  // 当前正在处理的消息保持 streaming 状态
                 thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos
+                toolCalls: toolCallInfos,
+                specialMessageType: finalSpecialType,
+                specialMessageData: finalSpecialData
             )
             displayMessages[index] = message
-            
+
         } else {
             print("  → Creating new message")
-            
+
             // 新消息到来时，将之前所有的消息设置为非 streaming 状态
             for (idx, msg) in displayMessages.enumerated() {
                 if msg.isStreaming {
@@ -385,13 +474,15 @@ final class OnboardingViewModel: ObservableObject {
                         timestamp: updatedMsg.timestamp,
                         isStreaming: false,
                         thinkingContent: updatedMsg.thinkingContent,
-                        toolCalls: updatedMsg.toolCalls
+                        toolCalls: updatedMsg.toolCalls,
+                        specialMessageType: updatedMsg.specialMessageType,
+                        specialMessageData: updatedMsg.specialMessageData
                     )
                     displayMessages[idx] = updatedMsg
                     print("  ✅ Previous message at index \(idx) set to non-streaming")
                 }
             }
-            
+
             // 创建新消息，保持 streaming 状态
             let newMessage = ChatMessage(
                 id: msgId,
@@ -400,7 +491,9 @@ final class OnboardingViewModel: ObservableObject {
                 timestamp: Date(),
                 isStreaming: true,  // 新消息以 streaming 状态创建
                 thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos
+                toolCalls: toolCallInfos,
+                specialMessageType: specialMessageType,
+                specialMessageData: specialMessageData
             )
             displayMessages.append(newMessage)
             messageMap[msgId] = displayMessages.count - 1
@@ -493,34 +586,96 @@ final class OnboardingViewModel: ObservableObject {
             showActionButton = false
             
         case .healthPermit:
-            // TODO: 请求健康数据权限，然后调用continueOnboarding传入healthData
-            print("处理健康数据权限")
+            print("🏥 [OnboardingViewModel] 处理健康数据权限")
             showActionButton = false
-            
-            // 示例：授权后继续
+
             Task {
-                guard let onboardingId = onboardingId else { return }
-                
-                // TODO: 实际获取健康数据
-                let healthData = "{\"authorized\": true}"
-                
+                guard let onboardingId = onboardingId else {
+                    print("❌ [OnboardingViewModel] onboardingId为空")
+                    return
+                }
+
                 isLoading = true
+
                 do {
+                    // 1. 请求HealthKit授权
+                    print("📋 [OnboardingViewModel] 请求HealthKit授权...")
+                    let authStatus = try await authorizationService.requestAuthorization()
+                    print("✅ [OnboardingViewModel] HealthKit授权状态: \(authStatus)")
+
+                    // 2. 获取24小时健康数据并聚合为JSON
+                    let healthDataJSON: String
+                    if authStatus == .authorized {
+                        print("📊 [OnboardingViewModel] 获取健康数据...")
+                        do {
+                            healthDataJSON = try await healthDataService.fetchRecentDataAsJSON()
+                            print("✅ [OnboardingViewModel] 健康数据获取成功，JSON长度: \(healthDataJSON.count)")
+                        } catch {
+                            print("⚠️ [OnboardingViewModel] 获取健康数据失败: \(error)")
+                            // 如果获取数据失败，发送授权状态信息
+                            healthDataJSON = "{\"authorized\": true, \"dataFetchError\": \"\(error.localizedDescription)\"}"
+                        }
+                    } else {
+                        print("⚠️ [OnboardingViewModel] 用户未授权或授权失败")
+                        healthDataJSON = "{\"authorized\": false, \"status\": \"\(authStatus)\"}"
+                    }
+
+                    // 3. 添加用户消息 "Done" 到 UI
+                    print("💬 [OnboardingViewModel] 添加用户消息: Done")
+                    let userMessage = ChatMessage(
+                        id: UUID().uuidString,
+                        text: "Done",
+                        isFromUser: true,
+                        timestamp: Date(),
+                        isStreaming: false
+                    )
+                    displayMessages.append(userMessage)
+
+                    // 4. 延迟显示 loading，让用户消息先渲染
+                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
+
+                    // 5. 调用continueOnboarding，同时传入 userInput="Done" 和 healthData
+                    print("📤 [OnboardingViewModel] 发送 'Done' 和健康数据到服务器...")
                     try await onboardingService.continueOnboarding(
                         onboardingId: onboardingId,
-                        userInput: nil,
-                        healthData: healthData,
+                        userInput: "Done",
+                        healthData: healthDataJSON,
                         eventHandler: { [weak self] event in
                             self?.handleStreamEvent(event)
                         }
                     )
+
                     isLoading = false
+                    print("✅ [OnboardingViewModel] 'Done' 和健康数据已发送")
                 } catch {
-                    print("❌ 继续onboarding失败: \(error)")
+                    print("❌ [OnboardingViewModel] 健康数据授权流程失败: \(error)")
                     isLoading = false
+
+                    // 发送错误信息到服务器
+                    do {
+                        let errorJSON = "{\"authorized\": false, \"error\": \"\(error.localizedDescription)\"}"
+                        try await onboardingService.continueOnboarding(
+                            onboardingId: onboardingId,
+                            userInput: nil,
+                            healthData: errorJSON,
+                            eventHandler: { [weak self] event in
+                                self?.handleStreamEvent(event)
+                            }
+                        )
+                    } catch {
+                        print("❌ [OnboardingViewModel] 发送错误信息失败: \(error)")
+                    }
                 }
             }
         }
+    }
+
+    /// 处理特殊消息的按钮操作（如健康档案确认）
+    func handleSpecialMessageAction(messageId: String, action: String) {
+        print("🔘 [OnboardingViewModel] handleSpecialMessageAction: \(action) for message: \(messageId)")
+
+        // 直接将用户的选择作为消息发送
+        sendMessage(action)
     }
 }
 

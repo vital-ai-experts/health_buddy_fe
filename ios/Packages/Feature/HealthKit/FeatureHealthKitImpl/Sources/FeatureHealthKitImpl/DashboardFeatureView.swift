@@ -228,4 +228,8 @@ private final class PreviewDataService: HealthDataService {
     }
 
     func persist(_ sections: [HealthDisplaySection], into context: ModelContext) throws {}
+
+    func fetchRecentDataAsJSON() async throws -> String {
+        return "{\"preview\": true}"
+    }
 }

@@ -96,6 +96,10 @@ final class HealthKitDataService: HealthDataService {
         try context.save()
     }
 
+    func fetchRecentDataAsJSON() async throws -> String {
+        return try await healthKitManager.fetchRecentDataAsJSON()
+    }
+
     private func mapKind(_ kind: HealthKitManager.HealthDataSection.Kind) -> HealthDisplaySection.Kind {
         switch kind {
         case .steps:

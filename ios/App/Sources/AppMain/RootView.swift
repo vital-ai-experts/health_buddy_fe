@@ -11,6 +11,7 @@ import FeatureAccountApi
 import FeatureChatApi
 import FeatureOnboardingApi
 import DomainAuth
+import DomainOnboarding
 import LibraryServiceLoader
 import LibraryNetworking
 
@@ -58,7 +59,8 @@ struct RootView: View {
                 case .onboarding:
                     // Onboarding 引导流程
                     onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后，弹出登录页
+                        // Onboarding 完成后，标记为已完成并弹出登录页
+                        OnboardingStateManager.shared.markOnboardingAsCompleted()
                         showLoginSheet = true
                     }
                     
@@ -106,26 +108,45 @@ struct RootView: View {
 
         // 检查认证状态
         let isAuthenticated = await checkAuthentication()
-        
+
+        // 检查是否需要显示Onboarding
+        let onboardingStateManager = OnboardingStateManager.shared
+        let shouldShowOnboarding = onboardingStateManager.shouldShowOnboarding(isAuthenticated: isAuthenticated)
+
         // 确定应用初始状态
-        let initialState: AppState = isAuthenticated ? .authenticated : .onboarding
+        let initialState: AppState
+        if isAuthenticated {
+            // 已登录，直接进入主界面
+            initialState = .authenticated
+        } else if shouldShowOnboarding {
+            // 未登录且需要Onboarding
+            initialState = .onboarding
+        } else {
+            // 未登录但已完成过Onboarding，直接显示登录页
+            initialState = .authenticated // 先进入authenticated状态，然后立即弹出登录页
+        }
 
         // 等待最少 Splash 时间
         let elapsedTime = DispatchTime.now().uptimeNanoseconds - startTime.uptimeNanoseconds
         if elapsedTime < minimumSplashDuration {
             try? await Task.sleep(nanoseconds: minimumSplashDuration - elapsedTime)
         }
-        
+
         // 关闭 Splash，同时设置应用状态
         await MainActor.run {
             appState = initialState
             showingSplash = false
+
+            // 如果未登录但已完成Onboarding，立即弹出登录页
+            if !isAuthenticated && !shouldShowOnboarding {
+                showLoginSheet = true
+            }
         }
-        
-        // 如果未登录，延迟触发网络权限请求
-        if !isAuthenticated {
+
+        // 如果需要显示Onboarding，延迟触发网络权限请求
+        if shouldShowOnboarding {
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
-            
+
             // 发送健康检查请求，触发网络授权弹窗
             do {
                 try await APIClient.shared.healthCheck()
@@ -138,26 +159,28 @@ struct RootView: View {
     
     /// 检查认证状态，返回是否已登录
     private func checkAuthentication() async -> Bool {
-        // 首先检查是否有 token
+        // 首先检查是否有 token 且未过期
         guard authService.isAuthenticated() else {
+            print("⚠️ 无有效 token，需要登录")
             return false
         }
-        
-        // 验证 token 是否有效，如果即将过期则自动刷新
-        do {
-            let isValid = try await authService.verifyAndRefreshTokenIfNeeded()
-            
-            if isValid {
-                print("✅ Token 验证成功，用户已登录")
-            } else {
-                print("⚠️ Token 已过期或无效，需要重新登录")
+
+        // 如果 token 存在且未过期，直接返回 true
+        // 避免因为网络问题或后端服务未启动导致用户被登出
+        print("✅ 本地 token 有效，用户已登录")
+
+        // 后台异步验证 token（不阻塞启动流程）
+        Task {
+            do {
+                _ = try await authService.verifyAndRefreshTokenIfNeeded()
+                print("✅ Token 远程验证成功")
+            } catch {
+                print("⚠️ Token 远程验证失败（网络或服务器问题）: \(error.localizedDescription)")
+                // 注意：即使远程验证失败，也不登出用户，只要本地 token 未过期
             }
-            
-            return isValid
-        } catch {
-            print("❌ Token 验证失败: \(error.localizedDescription)")
-            return false
         }
+
+        return true
     }
     
     /// 处理退出登录
@@ -262,10 +285,18 @@ private class PreviewAuthService: AuthenticationService {
 
 /// 主界面TabView，包含AI助手、健康数据和我的三个Tab
 struct MainTabView: View {
+    @State private var selectedTab: Tab = .chat
+
     private let healthKitFeature: FeatureHealthKitBuildable
     private let chatFeature: FeatureChatBuildable
     private let onLogout: () -> Void
-    
+
+    enum Tab {
+        case chat
+        case health
+        case profile
+    }
+
     init(
         healthKitFeature: FeatureHealthKitBuildable,
         chatFeature: FeatureChatBuildable,
@@ -275,26 +306,29 @@ struct MainTabView: View {
         self.chatFeature = chatFeature
         self.onLogout = onLogout
     }
-    
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             // AI助手Tab
             chatFeature.makeChatTabView()
                 .tabItem {
                     Label("AI助手", systemImage: "message.fill")
                 }
-            
+                .tag(Tab.chat)
+
             // 健康数据Tab
             healthKitFeature.makeHealthKitTabView()
                 .tabItem {
                     Label("健康", systemImage: "heart.fill")
                 }
-            
+                .tag(Tab.health)
+
             // 我的Tab
             ProfileView(onLogout: onLogout)
                 .tabItem {
                     Label("我的", systemImage: "person.fill")
                 }
+                .tag(Tab.profile)
         }
     }
 }
@@ -360,13 +394,25 @@ struct ProfileView: View {
                     } label: {
                         Label("账号设置", systemImage: "person.crop.circle")
                     }
-                    
+
                     NavigationLink {
                         AboutView()
                     } label: {
                         Label("关于", systemImage: "info.circle")
                     }
                 }
+
+                // 开发者选项
+                #if DEBUG
+                Section("开发者选项") {
+                    Button {
+                        OnboardingStateManager.shared.resetOnboardingState()
+                    } label: {
+                        Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
+                            .foregroundColor(.orange)
+                    }
+                }
+                #endif
                 
                 // 退出登录
                 Section {

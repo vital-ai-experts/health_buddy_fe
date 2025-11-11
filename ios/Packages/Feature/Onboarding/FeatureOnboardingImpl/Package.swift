@@ -9,7 +9,8 @@ let package = Package(
         .package(name: "FeatureOnboardingApi", path: "../FeatureOnboardingApi"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding"),
-        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI")
+        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI"),
+        .package(name: "DomainHealth", path: "../../../Domain/Health")
     ],
     targets: [
         .target(
@@ -18,7 +19,8 @@ let package = Package(
                 .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "DomainOnboarding", package: "DomainOnboarding"),
-                .product(name: "LibraryChatUI", package: "LibraryChatUI")
+                .product(name: "LibraryChatUI", package: "LibraryChatUI"),
+                .product(name: "DomainHealth", package: "DomainHealth")
             ],
             path: "Sources"
         )

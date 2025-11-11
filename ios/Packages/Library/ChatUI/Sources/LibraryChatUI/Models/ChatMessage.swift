@@ -1,6 +1,11 @@
 import Foundation
 import SwiftUI
 
+/// 特殊消息类型
+public enum SpecialMessageType: String, Codable, Equatable {
+    case userHealthProfile = "user_health_profile"  // 用户健康档案确认
+}
+
 /// 聊天消息协议
 public protocol ChatMessageProtocol: Identifiable {
     var id: String { get }
@@ -34,10 +39,12 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let isFromUser: Bool
     public let timestamp: Date
     public let isStreaming: Bool
-    
+
     // AI相关的额外信息
     public let thinkingContent: String?  // AI的思考过程
     public let toolCalls: [ToolCallInfo]? // AI执行的工具调用
+    public let specialMessageType: SpecialMessageType?  // 特殊消息类型
+    public let specialMessageData: String?  // 特殊消息的数据（例如：健康档案的JSON）
 
     public init(
         id: String = UUID().uuidString,
@@ -46,7 +53,9 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         timestamp: Date = Date(),
         isStreaming: Bool = false,
         thinkingContent: String? = nil,
-        toolCalls: [ToolCallInfo]? = nil
+        toolCalls: [ToolCallInfo]? = nil,
+        specialMessageType: SpecialMessageType? = nil,
+        specialMessageData: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -55,6 +64,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.isStreaming = isStreaming
         self.thinkingContent = thinkingContent
         self.toolCalls = toolCalls
+        self.specialMessageType = specialMessageType
+        self.specialMessageData = specialMessageData
     }
 }
 
