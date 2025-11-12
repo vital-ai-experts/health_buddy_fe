@@ -1,6 +1,6 @@
 //
 //  RootView.swift
-//  ThriveBuddy
+//  ThriveBody
 //
 //  Created by Codex on 2025/2/14.
 //
@@ -159,7 +159,7 @@ struct RootView: View {
         }
     }
 
-    /// 等待网络可用（无超时限制）
+    /// 等待网络可用（带30秒超时）
     /// ⭐️ 在这里才初始化 NetworkMonitor，触发网络权限弹窗
     private func waitForNetworkAvailable() async {
         // 延迟初始化 NetworkMonitor - 在需要检测网络时才创建
@@ -185,12 +185,14 @@ struct RootView: View {
 
         print("⏳ [RootView] 等待网络连接...")
 
-        // 持续等待直到网络可用
-        while !monitor.isConnected {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒检查一次
-        }
+        // 使用 NetworkMonitor 的带超时机制的方法（默认30秒超时）
+        let success = await monitor.waitForConnection(timeout: 30)
 
-        print("✅ [RootView] 网络连接已建立")
+        if success {
+            print("✅ [RootView] 网络连接已建立")
+        } else {
+            print("⚠️ [RootView] 网络连接超时，继续启动应用")
+        }
     }
 
     /// 触发网络权限请求，带智能重试

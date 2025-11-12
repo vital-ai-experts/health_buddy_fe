@@ -1,8 +1,8 @@
-# ThriveBuddy Development Guide
+# ThriveBody Development Guide
 
 ## Project Overview
 
-ThriveBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app integrates AI-powered health assistant with HealthKit data tracking.
+ThriveBody is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app integrates AI-powered health assistant with HealthKit data tracking.
 
 **Core Features**:
 - AI Health Assistant: LLM-based conversational health advice
@@ -16,7 +16,7 @@ ThriveBuddy is an intelligent health management iOS app built with SwiftUI and S
 
 ## Architecture Overview
 
-ThriveBuddy follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
+ThriveBody follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
 
 ### Layer Responsibilities
 
@@ -246,7 +246,7 @@ packages:
     path: Packages/Feature/YourFeature/FeatureYourFeatureImpl
 
 targets:
-  ThriveBuddy:
+  ThriveBody:
     dependencies:
       - package: FeatureYourFeatureApi
         product: FeatureYourFeatureApi
@@ -301,7 +301,7 @@ scripts/build.sh -i
 **Running Tests**:
 ```bash
 # Run all project tests
-xcodebuild test -project ThriveBuddy.xcodeproj -scheme ThriveBuddy
+xcodebuild test -project ThriveBody.xcodeproj -scheme ThriveBody
 
 # Run package tests
 swift test --package-path Packages/Feature/<Module>/Api
@@ -309,7 +309,7 @@ swift test --package-path Packages/Feature/<Module>/Api
 
 ## HealthKit Integration
 
-- **Entitlements**: Configured in `App/ThriveBuddy.entitlements`
+- **Entitlements**: Configured in `App/ThriveBody.entitlements`
 - **Usage Descriptions**: Defined in `project.yml`:
   - `NSHealthShareUsageDescription`
   - `NSHealthUpdateUsageDescription`

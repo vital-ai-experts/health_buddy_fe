@@ -11,8 +11,8 @@ NC='\033[0m' # No Color
 # 项目配置
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
-PROJECT_PATH="${REPO_ROOT}/ThriveBuddy.xcodeproj"
-SCHEME="ThriveBuddy"
+PROJECT_PATH="${REPO_ROOT}/ThriveBody.xcodeproj"
+SCHEME="ThriveBody"
 BUILD_DIR="${REPO_ROOT}/build"
 CONFIGURATION="Debug"
 
@@ -352,7 +352,7 @@ if [ "$CREATE_ARCHIVE" = true ]; then
     log_info "开始归档..."
     echo ""
 
-    ARCHIVE_PATH="${BUILD_DIR}/ThriveBuddy.xcarchive"
+    ARCHIVE_PATH="${BUILD_DIR}/ThriveBody.xcarchive"
     EXPORT_PATH="${BUILD_DIR}"
 
     # 创建归档
@@ -494,7 +494,7 @@ if [ $BUILD_RESULT -eq 0 ]; then
             log_info "归档路径: ${ARCHIVE_PATH}"
         fi
 
-        IPA_FILE="${EXPORT_PATH}/ThriveBuddy.ipa"
+        IPA_FILE="${EXPORT_PATH}/ThriveBody.ipa"
         if [ -f "${IPA_FILE}" ]; then
             IPA_SIZE=$(du -sh "${IPA_FILE}" | cut -f1)
             log_info "IPA 大小: ${IPA_SIZE}"
@@ -503,9 +503,9 @@ if [ $BUILD_RESULT -eq 0 ]; then
     else
         # 普通构建模式
         if [ "$DEVICE_TYPE" = "simulator" ]; then
-            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphonesimulator/ThriveBuddy.app"
+            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphonesimulator/ThriveBody.app"
         else
-            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphoneos/ThriveBuddy.app"
+            APP_PATH="${BUILD_DIR}/${CONFIGURATION}-iphoneos/ThriveBody.app"
         fi
 
         if [ -d "${APP_PATH}" ]; then
@@ -514,7 +514,7 @@ if [ $BUILD_RESULT -eq 0 ]; then
             log_info "App 路径: ${APP_PATH}"
         else
             # 尝试查找 .app 文件
-            APP_PATH=$(find "${BUILD_DIR}" -name "ThriveBuddy.app" -type d | head -1)
+            APP_PATH=$(find "${BUILD_DIR}" -name "ThriveBody.app" -type d | head -1)
             if [ -n "${APP_PATH}" ]; then
                 APP_SIZE=$(du -sh "${APP_PATH}" | cut -f1)
                 log_info "App 大小: ${APP_SIZE}"

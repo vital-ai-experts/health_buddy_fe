@@ -7,7 +7,7 @@ public final class NetworkMonitor: ObservableObject {
     public static let shared = NetworkMonitor()
 
     private let monitor: NWPathMonitor
-    private let queue = DispatchQueue(label: "com.high.ThriveBuddy.NetworkMonitor")
+    private let queue = DispatchQueue(label: "com.hehigh.thrivebody.NetworkMonitor")
 
     @Published public private(set) var isConnected: Bool = false
     @Published public private(set) var connectionType: ConnectionType = .unknown

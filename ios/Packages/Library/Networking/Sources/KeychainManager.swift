@@ -5,7 +5,7 @@ import Security
 public final class KeychainManager {
     public static let shared = KeychainManager()
 
-    private let service = "com.thrivebuddy.auth"
+    private let service = "com.hehigh.thrivebody.auth"
     private let tokenKey = "authToken"
     private let tokenExpiryKey = "tokenExpiry"
 

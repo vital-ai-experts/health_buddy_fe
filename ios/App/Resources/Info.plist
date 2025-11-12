@@ -13,9 +13,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>0.0.1</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -24,11 +22,15 @@
 			<key>CFBundleURLName</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			<key>CFBundleURLSchemes</key>
-            <array>
-                <string>thrivebuddy</string>
-            </array>
+			<array>
+				<string>thrivebody</string>
+			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>需要读取您的健康数据用于展示与分析</string>
 	<key>NSHealthUpdateUsageDescription</key>

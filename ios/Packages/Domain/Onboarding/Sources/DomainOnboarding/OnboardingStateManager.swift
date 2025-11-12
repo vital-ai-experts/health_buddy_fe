@@ -6,7 +6,7 @@ public final class OnboardingStateManager {
     public static let shared = OnboardingStateManager()
 
     private let userDefaults = UserDefaults.standard
-    private let hasCompletedOnboardingKey = "com.high.ThriveBuddy.hasCompletedOnboarding"
+    private let hasCompletedOnboardingKey = "com.hehigh.thrivebody.hasCompletedOnboarding"
 
     private init() {}
 

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Overview
 
-ThriveBuddy is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app follows a strict layered architecture with clean separation of concerns.
+ThriveBody is an intelligent health management iOS app built with SwiftUI and Swift Package Manager (SPM). The app follows a strict layered architecture with clean separation of concerns.
 
 **Tech Stack**:
 - iOS 17.0+, Xcode 15.0+

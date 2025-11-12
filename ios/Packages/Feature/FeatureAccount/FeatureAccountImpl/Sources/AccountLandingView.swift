@@ -16,7 +16,7 @@ struct AccountLandingView: View {
                         .font(.system(size: 100))
                         .foregroundColor(.blue)
 
-                    Text("ThriveBuddy")
+                    Text("ThriveBody")
                         .font(.system(size: 42, weight: .bold))
 
                     Text("Your AI Health Assistant")

@@ -1,4 +1,4 @@
-name: ThriveBuddy
+name: ThriveBody
 options:
   minimumXcodeGenVersion: 2.41.0
   configFiles:
@@ -49,11 +49,11 @@ packages:
   FeatureOnboardingImpl:
     path: Packages/Feature/Onboarding/FeatureOnboardingImpl
 targets:
-  ThriveBuddy:
+  ThriveBody:
     templates: [BaseAppTarget]
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.high.ThriveBuddy
-      CODE_SIGN_ENTITLEMENTS: App/ThriveBuddy.entitlements
+      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody
+      CODE_SIGN_ENTITLEMENTS: App/ThriveBody.entitlements
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       INFOPLIST_FILE: App/Resources/Info.plist
       GENERATE_INFOPLIST_FILE: NO
@@ -100,10 +100,10 @@ targets:
       - package: FeatureOnboardingImpl
         product: FeatureOnboardingImpl
 schemes:
-  ThriveBuddy:
+  ThriveBody:
     build:
       targets:
-        ThriveBuddy: all
+        ThriveBody: all
     run:
       config: Debug
     archive:
