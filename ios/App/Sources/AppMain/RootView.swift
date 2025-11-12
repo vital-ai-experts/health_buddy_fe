@@ -378,6 +378,7 @@ struct MainTabView: View {
 
     enum Tab {
         case chat
+        case agenda
         case health
         case profile
     }
@@ -394,33 +395,64 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // AI助手Tab
+            // Talk Tab
             chatFeature.makeChatTabView()
                 .tabItem {
-                    Label("AI助手", systemImage: "message.fill")
+                    Label("Talk", systemImage: "message.fill")
                 }
                 .tag(Tab.chat)
 
-            // 健康数据Tab
+            // Agenda Tab (Placeholder)
+            AgendaPlaceholderView()
+                .tabItem {
+                    Label("Agenda", systemImage: "checklist")
+                }
+                .tag(Tab.agenda)
+
+            // Report Tab
             healthKitFeature.makeHealthKitTabView()
                 .tabItem {
-                    Label("健康", systemImage: "heart.fill")
+                    Label("Report", systemImage: "heart.fill")
                 }
                 .tag(Tab.health)
 
-            // 我的Tab
+            // Me Tab
             ProfileView(onLogout: onLogout)
                 .tabItem {
-                    Label("我的", systemImage: "person.fill")
+                    Label("Me", systemImage: "person.fill")
                 }
                 .tag(Tab.profile)
         }
     }
 }
 
+// MARK: - AgendaPlaceholderView
+
+/// Agenda页面占位视图
+struct AgendaPlaceholderView: View {
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "checklist")
+                    .font(.system(size: 80))
+                    .foregroundColor(.gray)
+
+                Text("Agenda")
+                    .font(.title)
+                    .fontWeight(.semibold)
+
+                Text("Coming Soon")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .navigationTitle("Agenda")
+        }
+    }
+}
+
 // MARK: - ProfileView
 
-/// 我的页面，显示用户信息和设置选项
+/// Me页面，显示用户信息和设置选项
 struct ProfileView: View {
     @State private var user: DomainAuth.User?
     @State private var isLoading = true
@@ -504,7 +536,7 @@ struct ProfileView: View {
                 }
                 #endif
             }
-            .navigationTitle("我的")
+            .navigationTitle("Me")
             .task {
                 await loadUserInfo()
             }
