@@ -13,6 +13,8 @@ public final class HealthKitManager {
     public static let shared = HealthKitManager()
 
     private let healthStore = HKHealthStore()
+    private var observerQueries: [HKObserverQuery] = []
+    private var updateHandlers: [(HKSampleType) -> Void] = []
 
     private let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -30,12 +32,148 @@ public final class HealthKitManager {
 
     private let readTypes: Set<HKObjectType> = {
         var set = Set<HKObjectType>()
+
+        // MARK: - 活动与健身数据
         if let t = HKObjectType.quantityType(forIdentifier: .stepCount) { set.insert(t) }
-        if let t = HKObjectType.quantityType(forIdentifier: .heartRate) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceCycling) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceSwimming) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .distanceWheelchair) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .pushCount) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .flightsClimbed) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .nikeFuel) { set.insert(t) }
         if let t = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) { set.insert(t) }
         if let t = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) { set.insert(t) }
-        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .basalEnergyBurned) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .appleStandTime) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .appleMoveTime) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .appleStandHour) { set.insert(t) }
+
+        // 运动速度与步频
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingSpeed) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingStepLength) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .runningSpeed) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .runningStrideLength) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .runningPower) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .swimmingStrokeCount) { set.insert(t) }
+
+        // Physical Effort - 体力消耗评分 (iOS 17+)
+        if #available(iOS 17.0, *) {
+            if let t = HKObjectType.quantityType(forIdentifier: .physicalEffort) { set.insert(t) }
+            if let t = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) { set.insert(t) }
+        }
+
+        // MARK: - 心肺健康
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRate) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .restingHeartRate) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .vo2Max) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .respiratoryRate) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) { set.insert(t) }
+
+        // 心电图相关
+        if let t = HKObjectType.categoryType(forIdentifier: .lowHeartRateEvent) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .highHeartRateEvent) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .irregularHeartRhythmEvent) { set.insert(t) }
+        set.insert(HKObjectType.electrocardiogramType())
+
+        // MARK: - 身体测量
+        if let t = HKObjectType.quantityType(forIdentifier: .height) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bodyMass) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .leanBodyMass) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .waistCircumference) { set.insert(t) }
+
+        // MARK: - 营养与水分
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryEnergyConsumed) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryFatTotal) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryFatSaturated) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryCholesterol) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryCarbohydrates) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryFiber) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietarySugar) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryProtein) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietarySodium) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryWater) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryCaffeine) { set.insert(t) }
+
+        // 维生素与矿物质
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryVitaminA) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryVitaminC) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryVitaminD) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryCalcium) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryIron) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .dietaryPotassium) { set.insert(t) }
+
+        // MARK: - 睡眠与正念
+        if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .mindfulSession) { set.insert(t) }
+
+        // MARK: - 生殖健康
+        if let t = HKObjectType.categoryType(forIdentifier: .menstrualFlow) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .intermenstrualBleeding) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .cervicalMucusQuality) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .ovulationTestResult) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .sexualActivity) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .basalBodyTemperature) { set.insert(t) }
+
+        // 孕期相关
+        if let t = HKObjectType.categoryType(forIdentifier: .pregnancy) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .lactation) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .contraceptive) { set.insert(t) }
+
+        // MARK: - 听力与环境
+        if let t = HKObjectType.quantityType(forIdentifier: .environmentalAudioExposure) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .environmentalAudioExposureEvent) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .headphoneAudioExposureEvent) { set.insert(t) }
+
+        // MARK: - 移动性指标
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .walkingAsymmetryPercentage) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .sixMinuteWalkTestDistance) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .stairAscentSpeed) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .stairDescentSpeed) { set.insert(t) }
+
+        // MARK: - 其他健康指标
+        if let t = HKObjectType.quantityType(forIdentifier: .bodyTemperature) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bloodGlucose) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .numberOfTimesFallen) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .peakExpiratoryFlowRate) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .forcedExpiratoryVolume1) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .forcedVitalCapacity) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .inhalerUsage) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .insulinDelivery) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .numberOfAlcoholicBeverages) { set.insert(t) }
+
+        // 症状相关
+        if let t = HKObjectType.categoryType(forIdentifier: .abdominalCramps) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .bloating) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .headache) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .fatigue) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .nausea) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .chestTightnessOrPain) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .dizziness) { set.insert(t) }
+        if let t = HKObjectType.categoryType(forIdentifier: .shortnessOfBreath) { set.insert(t) }
+
+        // 牙齿护理
+        if let t = HKObjectType.categoryType(forIdentifier: .toothbrushingEvent) { set.insert(t) }
+
+        // 洗手
+        if let t = HKObjectType.categoryType(forIdentifier: .handwashingEvent) { set.insert(t) }
+
+        // UV暴露
+        if let t = HKObjectType.quantityType(forIdentifier: .uvExposure) { set.insert(t) }
+
+        // 时间在阳光下 (iOS 17+)
+        if #available(iOS 17.0, *) {
+            if let t = HKObjectType.quantityType(forIdentifier: .timeInDaylight) { set.insert(t) }
+        }
+
         return set
     }()
 
@@ -83,51 +221,379 @@ public extension HealthKitManager {
 // MARK: - Data Fetching
 
 public extension HealthKitManager {
-    /// 获取最近24小时的健康数据并聚合为JSON字符串
+    /// 批量获取所有健康数据并转换为JSON字符串
     func fetchRecentDataAsJSON() async throws -> String {
-        let sections = try await fetchRecentData()
+        let end = Date()
+        guard let start = Calendar.current.date(byAdding: .day, value: -1, to: end) else {
+            throw makeError("无法计算时间范围")
+        }
 
-        // 构建聚合数据结构
-        var aggregatedData: [String: Any] = [:]
+        var allData: [String: Any] = [:]
 
-        for section in sections {
-            let sectionKey: String
-            switch section.kind {
-            case .steps:
-                sectionKey = "steps"
-            case .heartRate:
-                sectionKey = "heartRate"
-            case .activeEnergy:
-                sectionKey = "activeEnergy"
-            case .sleep:
-                sectionKey = "sleep"
+        await withTaskGroup(of: (String, [[String: Any]])?.self) { group in
+            // MARK: - 活动与健身数据
+            if let type = HKObjectType.quantityType(forIdentifier: .stepCount) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "stepCount")
+                }
             }
-
-            // 聚合每个section的chartSeries数据点
-            var dataPoints: [[String: Any]] = []
-            for series in section.chartSeries {
-                for point in series.points {
-                    dataPoints.append([
-                        "start": ISO8601DateFormatter().string(from: point.start),
-                        "end": ISO8601DateFormatter().string(from: point.end),
-                        "value": point.value
-                    ])
+            if let type = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceWalkingRunning")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .distanceCycling) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceCycling")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .distanceSwimming) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceSwimming")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .flightsClimbed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "flightsClimbed")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "exerciseTime")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "activeEnergyBurned")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .basalEnergyBurned) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "basalEnergyBurned")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .appleStandTime) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "standTime")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .appleMoveTime) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "moveTime")
                 }
             }
 
-            aggregatedData[sectionKey] = [
-                "title": section.title,
-                "dataPoints": dataPoints
-            ]
+            // 运动指标
+            if let type = HKObjectType.quantityType(forIdentifier: .walkingSpeed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "walkingSpeed")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .runningSpeed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "runningSpeed")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .walkingStepLength) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "walkingStepLength")
+                }
+            }
+
+            // MARK: - 心肺健康
+            if let type = HKObjectType.quantityType(forIdentifier: .heartRate) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "heartRate")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "restingHeartRate")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "walkingHeartRateAverage")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .secondUnit(with: .milli), key: "heartRateVariability")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .vo2Max) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())), key: "vo2Max")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "oxygenSaturation")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .respiratoryRate) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "respiratoryRate")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureSystolic")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureDiastolic")
+                }
+            }
+
+            // MARK: - 身体测量
+            if let type = HKObjectType.quantityType(forIdentifier: .height) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "height")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bodyMass) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "bodyMass")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "bodyMassIndex")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .leanBodyMass) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "leanBodyMass")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "bodyFatPercentage")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .waistCircumference) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "waistCircumference")
+                }
+            }
+
+            // MARK: - 营养
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryEnergyConsumed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "dietaryEnergy")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryWater) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .liter(), key: "dietaryWater")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryProtein) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryProtein")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryCarbohydrates) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryCarbohydrates")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryFatTotal) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFat")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryCaffeine) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "dietaryCaffeine")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietarySugar) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietarySugar")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryFiber) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFiber")
+                }
+            }
+
+            // 维生素
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminA) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminA")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminC) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "vitaminC")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminD) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminD")
+                }
+            }
+
+            // MARK: - 睡眠
+            if let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+                group.addTask {
+                    try? await self.fetchCategoryData(type: type, start: start, end: end, key: "sleepAnalysis")
+                }
+            }
+
+            // MARK: - 正念
+            if let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) {
+                group.addTask {
+                    try? await self.fetchCategoryData(type: type, start: start, end: end, key: "mindfulSession")
+                }
+            }
+
+            // MARK: - 其他健康指标
+            if let type = HKObjectType.quantityType(forIdentifier: .bodyTemperature) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "bodyTemperature")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter()), key: "bloodGlucose")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .numberOfTimesFallen) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "numberOfTimesFallen")
+                }
+            }
+
+            // MARK: - 听力
+            if let type = HKObjectType.quantityType(forIdentifier: .environmentalAudioExposure) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "environmentalAudioExposure")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "headphoneAudioExposure")
+                }
+            }
+
+            // MARK: - 移动性
+            if let type = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingDoubleSupportPercentage")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .walkingAsymmetryPercentage) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingAsymmetryPercentage")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .stairAscentSpeed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairAscentSpeed")
+                }
+            }
+            if let type = HKObjectType.quantityType(forIdentifier: .stairDescentSpeed) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairDescentSpeed")
+                }
+            }
+
+            // MARK: - UV暴露
+            if let type = HKObjectType.quantityType(forIdentifier: .uvExposure) {
+                group.addTask {
+                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "uvExposure")
+                }
+            }
+
+            // iOS 17+ 专属数据
+            if #available(iOS 17.0, *) {
+                if let type = HKObjectType.quantityType(forIdentifier: .physicalEffort) {
+                    group.addTask {
+                        // physicalEffort 的单位是 kcal/(hr·kg)，即千卡/(小时·千克)
+                        let unit = HKUnit.kilocalorie().unitDivided(by: HKUnit.hour()).unitDivided(by: HKUnit.gramUnit(with: .kilo))
+                        return try? await self.fetchQuantityData(type: type, start: start, end: end, unit: unit, key: "physicalEffort")
+                    }
+                }
+                if let type = HKObjectType.quantityType(forIdentifier: .timeInDaylight) {
+                    group.addTask {
+                        try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "timeInDaylight")
+                    }
+                }
+                if let type = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) {
+                    group.addTask {
+                        try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "sleepingWristTemperature")
+                    }
+                }
+            }
+
+            for await result in group {
+                if let (key, data) = result, !data.isEmpty {
+                    allData[key] = data
+                }
+            }
         }
 
         // 转换为JSON字符串
-        let jsonData = try JSONSerialization.data(withJSONObject: aggregatedData, options: [.sortedKeys, .prettyPrinted])
+        let jsonData = try JSONSerialization.data(withJSONObject: allData, options: [.sortedKeys, .prettyPrinted])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             throw makeError("无法将健康数据转换为JSON字符串")
         }
 
         return jsonString
+    }
+
+    /// 获取数量类型的健康数据
+    private func fetchQuantityData(
+        type: HKQuantityType,
+        start: Date,
+        end: Date,
+        unit: HKUnit,
+        key: String
+    ) async throws -> (String, [[String: Any]]) {
+        let samples = try await fetchQuantitySamples(type: type, start: start, end: end, limit: HKObjectQueryNoLimit, unit: unit)
+
+        // 安全地转换数值，跳过单位不兼容的样本
+        let dataPoints: [[String: Any]] = samples.compactMap { sample in
+            do {
+                let value = try sample.quantity.doubleValue(for: unit)
+                return [
+                    "start": ISO8601DateFormatter().string(from: sample.startDate),
+                    "end": ISO8601DateFormatter().string(from: sample.endDate),
+                    "value": value
+                ]
+            } catch {
+                // 单位不兼容时跳过此样本
+                print("⚠️ 跳过单位不兼容的样本 (\(key)): \(error)")
+                return nil
+            }
+        }
+
+        return (key, dataPoints)
+    }
+
+    /// 获取分类类型的健康数据
+    private func fetchCategoryData(
+        type: HKCategoryType,
+        start: Date,
+        end: Date,
+        key: String
+    ) async throws -> (String, [[String: Any]]) {
+        let samples = try await fetchCategorySamples(type: type, start: start, end: end, limit: HKObjectQueryNoLimit)
+
+        let dataPoints: [[String: Any]] = samples.map { sample in
+            [
+                "start": ISO8601DateFormatter().string(from: sample.startDate),
+                "end": ISO8601DateFormatter().string(from: sample.endDate),
+                "value": sample.value
+            ]
+        }
+
+        return (key, dataPoints)
     }
 
     /// 获取最近24小时的健康数据
@@ -367,13 +833,13 @@ private extension HealthKitManager {
         }
     }
 
-    struct HourlyStatistic {
-        let start: Date
-        let end: Date
-        let value: Double
+    public struct HourlyStatistic {
+        public let start: Date
+        public let end: Date
+        public let value: Double
     }
 
-    func fetchHourlyStatistics(
+    internal func fetchHourlyStatistics(
         type: HKQuantityType,
         start: Date,
         end: Date,
@@ -440,7 +906,7 @@ private extension HealthKitManager {
         }
     }
 
-    func fetchQuantitySamples(
+    internal func fetchQuantitySamples(
         type: HKQuantityType,
         start: Date,
         end: Date,
@@ -467,7 +933,7 @@ private extension HealthKitManager {
         }
     }
 
-    func fetchCategorySamples(
+    internal func fetchCategorySamples(
         type: HKCategoryType,
         start: Date,
         end: Date,
@@ -521,11 +987,40 @@ public extension HealthKitManager {
     }
 
     struct HealthDataSection: Identifiable {
-        public enum Kind: Int {
-            case steps
-            case heartRate
-            case activeEnergy
-            case sleep
+        public enum Kind: String, CaseIterable {
+            // 活动与健身
+            case steps, distance, cycling, swimming, flights, exerciseTime, activeEnergy, basalEnergy, standTime, moveTime
+
+            // 心肺健康
+            case heartRate, restingHeartRate, walkingHeartRate, hrv, vo2Max, oxygenSaturation, respiratoryRate, bloodPressure
+
+            // 身体测量
+            case height, weight, bmi, leanBodyMass, bodyFat, waistCircumference
+
+            // 营养
+            case dietaryEnergy, water, protein, carbs, fat, caffeine, vitamins
+
+            // 睡眠与正念
+            case sleep, mindfulness
+
+            // 生殖健康
+            case menstrualFlow, basalBodyTemperature
+
+            // 听力与环境
+            case audioExposure, uvExposure
+
+            // 移动性
+            case walkingSpeed, walkingAsymmetry, stairSpeed
+
+            // 其他健康指标
+            case bodyTemperature, bloodGlucose, numberOfTimesFallen
+
+            // 症状
+            case symptoms
+
+            public var jsonKey: String {
+                return self.rawValue
+            }
         }
 
         public var id: Kind { kind }
@@ -559,5 +1054,91 @@ public extension HealthKitManager {
         public let start: Date
         public let end: Date
         public let value: Double
+    }
+}
+
+// MARK: - Background Delivery
+
+public extension HealthKitManager {
+    /// 启用后台数据推送，监听健康数据变化
+    func enableBackgroundDelivery(updateHandler: @escaping (HKSampleType) -> Void) {
+        updateHandlers.append(updateHandler)
+
+        // 为所有读取类型启用后台推送
+        let quantityTypes = readTypes.compactMap { $0 as? HKQuantityType }
+        let categoryTypes = readTypes.compactMap { $0 as? HKCategoryType }
+
+        // 启用步数后台推送
+        for type in quantityTypes {
+            enableBackgroundDelivery(for: type)
+        }
+
+        // 启用分类类型（如睡眠）的后台推送
+        for type in categoryTypes {
+            enableBackgroundDelivery(for: type)
+        }
+    }
+
+    /// 为特定类型启用后台推送
+    private func enableBackgroundDelivery(for sampleType: HKSampleType) {
+        // 启用后台推送频率（immediate 表示立即推送）
+        healthStore.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { success, error in
+            if success {
+                print("✅ 已启用 \(sampleType.identifier) 的后台推送")
+                self.startObserverQuery(for: sampleType)
+            } else if let error = error {
+                print("❌ 启用后台推送失败: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// 启动观察者查询
+    private func startObserverQuery(for sampleType: HKSampleType) {
+        let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] query, completionHandler, error in
+            guard let self = self else {
+                completionHandler()
+                return
+            }
+
+            if let error = error {
+                print("❌ 观察者查询错误: \(error.localizedDescription)")
+                completionHandler()
+                return
+            }
+
+            print("📱 检测到 \(sampleType.identifier) 数据更新")
+
+            // 通知所有注册的处理器
+            for handler in self.updateHandlers {
+                handler(sampleType)
+            }
+
+            // 完成后台任务
+            completionHandler()
+        }
+
+        observerQueries.append(query)
+        healthStore.execute(query)
+    }
+
+    /// 停止所有观察者查询
+    func stopBackgroundDelivery() {
+        for query in observerQueries {
+            healthStore.stop(query)
+        }
+        observerQueries.removeAll()
+        updateHandlers.removeAll()
+
+        // 禁用所有类型的后台推送
+        let quantityTypes = readTypes.compactMap { $0 as? HKQuantityType }
+        let categoryTypes = readTypes.compactMap { $0 as? HKCategoryType }
+
+        for type in quantityTypes {
+            healthStore.disableBackgroundDelivery(for: type) { _, _ in }
+        }
+
+        for type in categoryTypes {
+            healthStore.disableBackgroundDelivery(for: type) { _, _ in }
+        }
     }
 }

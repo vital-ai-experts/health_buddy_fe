@@ -6,7 +6,7 @@ public final class APIClient {
 
     private static let DEBUG_LOCAL_SERVER_URL = "http://192.168.31.190:8888/api/v1"
     private static let PROD_SERVER_URL = "https://vital.ninimu.com/api/v1"
-    private static let USE_DEBUG_LOCAL_SERVER = false
+    private static let USE_DEBUG_LOCAL_SERVER = true
     private let baseURL: URL = {
         if USE_DEBUG_LOCAL_SERVER {
             return URL(string: DEBUG_LOCAL_SERVER_URL)!

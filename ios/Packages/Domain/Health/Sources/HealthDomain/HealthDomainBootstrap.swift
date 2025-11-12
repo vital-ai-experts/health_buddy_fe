@@ -110,6 +110,9 @@ final class HealthKitDataService: HealthDataService {
             return .activeEnergy
         case .sleep:
             return .sleep
+        // 其他所有新类型默认映射为 steps（仅用于兼容性，实际使用 JSON 接口）
+        default:
+            return .steps
         }
     }
 
