@@ -19,6 +19,7 @@ struct RootView: View {
     @State private var showingSplash: Bool = true
     @State private var appState: AppState = .initializing
     @State private var showLoginSheet: Bool = false
+    @State private var showLoginFullScreen: Bool = false
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
 
     private let healthKitFeature: FeatureHealthKitBuildable
@@ -60,9 +61,9 @@ struct RootView: View {
                 case .onboarding:
                     // Onboarding 引导流程
                     onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后，标记为已完成并弹出登录页
+                        // Onboarding 完成后，标记为已完成并弹出全屏登录页
                         OnboardingStateManager.shared.markOnboardingAsCompleted()
-                        showLoginSheet = true
+                        showLoginFullScreen = true
                     }
                     
                 case .authenticated:
@@ -75,12 +76,20 @@ struct RootView: View {
                 }
             }
             .sheet(isPresented: $showLoginSheet) {
-                // 登录页面以 Sheet 形式按需弹出
-                accountFeature.makeAccountLandingView {
+                // 登录页面以 Sheet 形式按需弹出（可关闭）
+                accountFeature.makeAccountLandingView(onSuccess: {
                     // 登录成功
                     showLoginSheet = false
                     appState = .authenticated
-                }
+                }, isDismissable: true)
+            }
+            .fullScreenCover(isPresented: $showLoginFullScreen) {
+                // Onboarding 后的全屏登录页面（不可关闭）
+                accountFeature.makeAccountLandingView(onSuccess: {
+                    // 登录成功
+                    showLoginFullScreen = false
+                    appState = .authenticated
+                }, isDismissable: false)
             }
 
             // Splash 启动画面 - 完全覆盖在最上层
@@ -291,7 +300,7 @@ private struct PreviewHealthKitFeature: FeatureHealthKitBuildable {
 }
 
 private struct PreviewAccountFeature: FeatureAccountBuildable {
-    func makeLoginView(onLoginSuccess: @escaping () -> Void) -> AnyView {
+    func makeLoginView(onLoginSuccess: @escaping () -> Void, isDismissable: Bool = true) -> AnyView {
         AnyView(Text("Login Preview"))
     }
 
@@ -299,7 +308,7 @@ private struct PreviewAccountFeature: FeatureAccountBuildable {
         AnyView(Text("Register Preview"))
     }
 
-    func makeAccountLandingView(onSuccess: @escaping () -> Void) -> AnyView {
+    func makeAccountLandingView(onSuccess: @escaping () -> Void, isDismissable: Bool = true) -> AnyView {
         AnyView(Text("Account Landing Preview"))
     }
 }

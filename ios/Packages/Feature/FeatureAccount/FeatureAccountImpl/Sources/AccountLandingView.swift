@@ -2,8 +2,15 @@ import SwiftUI
 
 struct AccountLandingView: View {
     let onSuccess: () -> Void
+    let isDismissable: Bool
+    @Environment(\.dismiss) private var dismiss
     @State private var showingLogin = false
     @State private var showingRegister = false
+
+    init(onSuccess: @escaping () -> Void, isDismissable: Bool = true) {
+        self.onSuccess = onSuccess
+        self.isDismissable = isDismissable
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,7 +36,7 @@ struct AccountLandingView: View {
                 // Action buttons
                 VStack(spacing: 16) {
                     // Login button
-                    NavigationLink(destination: LoginView(onLoginSuccess: onSuccess)) {
+                    NavigationLink(destination: LoginView(onLoginSuccess: onSuccess, isDismissable: false)) {
                         Text("Sign In")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
@@ -67,7 +74,17 @@ struct AccountLandingView: View {
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
             }
-            .navigationBarHidden(true)
+            .navigationBarHidden(!isDismissable)
+            .toolbar {
+                if isDismissable {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("关闭") {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .interactiveDismissDisabled(!isDismissable)
         }
     }
 }

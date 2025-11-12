@@ -4,32 +4,36 @@ import LibraryServiceLoader
 
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
+    @Environment(\.dismiss) private var dismiss
     let onLoginSuccess: () -> Void
+    let isDismissable: Bool
 
-    init(onLoginSuccess: @escaping () -> Void) {
+    init(onLoginSuccess: @escaping () -> Void, isDismissable: Bool = true) {
         let authService = ServiceManager.shared.resolve(AuthenticationService.self)
         _viewModel = StateObject(wrappedValue: LoginViewModel(authService: authService))
         self.onLoginSuccess = onLoginSuccess
+        self.isDismissable = isDismissable
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.blue)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.blue)
 
-                    Text("Welcome Back")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        Text("Welcome Back")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
 
-                    Text("Sign in to continue")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 40)
+                        Text("Sign in to continue")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 40)
 
                 // Form
                 VStack(spacing: 16) {
@@ -103,6 +107,18 @@ struct LoginView: View {
             }
         }
         .navigationTitle("Login")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isDismissable {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .interactiveDismissDisabled(!isDismissable)
+    }
     }
 }
 
