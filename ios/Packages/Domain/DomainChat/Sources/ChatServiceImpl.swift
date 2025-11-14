@@ -11,7 +11,7 @@ public final class ChatServiceImpl: ChatService {
 
     // MARK: - ChatService Implementation
 
-    /// 发送对话消息（IDL: /api/v1/conversations/message/send）
+    /// 发送对话消息（IDL: /conversations/message/send）
     public func sendMessage(
         userInput: String?,
         conversationId: String?,
@@ -23,7 +23,7 @@ public final class ChatServiceImpl: ChatService {
         )
 
         let endpoint = APIEndpoint(
-            path: "/api/v1/conversations/message/send",
+            path: "/conversations/message/send",
             method: .post,
             body: request,
             requiresAuth: true
@@ -34,7 +34,7 @@ public final class ChatServiceImpl: ChatService {
         }
     }
 
-    /// 恢复对话（IDL: /api/v1/conversations/message/resume）
+    /// 恢复对话（IDL: /conversations/message/resume）
     public func resumeConversation(
         conversationId: String,
         lastDataId: String?,
@@ -46,7 +46,7 @@ public final class ChatServiceImpl: ChatService {
         )
 
         let endpoint = APIEndpoint(
-            path: "/api/v1/conversations/message/resume",
+            path: "/conversations/message/resume",
             method: .post,
             body: request,
             requiresAuth: true
@@ -57,7 +57,7 @@ public final class ChatServiceImpl: ChatService {
         }
     }
 
-    /// 获取对话列表（IDL: /api/v1/conversations/list）
+    /// 获取对话列表（IDL: /conversations/list）
     public func getConversations(limit: Int? = nil, offset: Int? = nil) async throws -> [Conversation] {
         var queryItems: [URLQueryItem] = []
         if let limit = limit {
@@ -68,9 +68,9 @@ public final class ChatServiceImpl: ChatService {
         }
 
         let endpoint = APIEndpoint(
-            path: "/api/v1/conversations/list",
+            path: "/conversations/list",
             method: .get,
-            queryItems: queryItems.isEmpty ? nil : queryItems,
+            queryItems: queryItems,
             requiresAuth: true
         )
 
@@ -81,10 +81,10 @@ public final class ChatServiceImpl: ChatService {
         return response.conversations.map { Conversation(from: $0) }
     }
 
-    /// 获取对话历史（IDL: /api/v1/conversations/history）
+    /// 获取对话历史（IDL: /conversations/history）
     public func getConversationHistory(id: String) async throws -> [Message] {
         let endpoint = APIEndpoint(
-            path: "/api/v1/conversations/history",
+            path: "/conversations/history",
             method: .get,
             queryItems: [URLQueryItem(name: "id", value: id)],
             requiresAuth: true
@@ -101,7 +101,7 @@ public final class ChatServiceImpl: ChatService {
     /// 删除对话
     public func deleteConversation(id: String) async throws {
         let endpoint = APIEndpoint(
-            path: "/api/v1/conversations/\(id)",
+            path: "/conversations/\(id)",
             method: .delete,
             requiresAuth: true
         )

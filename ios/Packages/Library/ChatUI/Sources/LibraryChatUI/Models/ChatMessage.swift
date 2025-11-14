@@ -114,7 +114,7 @@ public struct ChatConfiguration {
         cornerRadius: CGFloat = 16,
         messagePadding: CGFloat = 12,
         autoFocusAfterBotMessage: Bool = false,
-        dismissKeyboardAfterSend: Bool = false
+        dismissKeyboardAfterSend: Bool = true
     ) {
         self.showAvatar = showAvatar
         self.showTimestamp = showTimestamp

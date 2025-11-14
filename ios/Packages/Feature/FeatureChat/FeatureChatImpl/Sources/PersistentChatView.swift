@@ -61,7 +61,6 @@ struct PersistentChatView: View {
 @MainActor
 final class PersistentChatViewModel: ObservableObject {
     @Published var displayMessages: [ChatMessage] = []
-    @Published var streamingContent = ""
     @Published var isSending = false
     @Published var errorMessage: String?
     @Published var conversationId: String? // 长期持有的对话ID
@@ -71,6 +70,8 @@ final class PersistentChatViewModel: ObservableObject {
     private let chatService: ChatService
     private var storageService: ChatStorageService?
     private var hasInitialized = false
+    private var messageMap: [String: Int] = [:]
+    private var savedMessageIds: Set<String> = []
 
     init(chatService: ChatService) {
         self.chatService = chatService
@@ -107,6 +108,9 @@ final class PersistentChatViewModel: ObservableObject {
                 conversationId = convId
             }
 
+            savedMessageIds = Set(localMessages.map { $0.id })
+            rebuildMessageMap()
+
             print("✅ 加载了 \(localMessages.count) 条本地消息")
         } catch {
             print("❌ 加载本地消息失败: \(error.localizedDescription)")
@@ -140,11 +144,10 @@ final class PersistentChatViewModel: ObservableObject {
         // 3. 发送到服务器
         isSending = true
         errorMessage = nil
-        streamingContent = ""
 
         do {
             try await chatService.sendMessage(
-                message: text,
+                userInput: text,
                 conversationId: conversationId
             ) { [weak self] event in
                 Task { @MainActor in
@@ -159,86 +162,158 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 处理流式响应事件
-    private func handleStreamEvent(_ event: ChatStreamEvent) {
+    private func handleStreamEvent(_ event: ConversationStreamEvent) {
         switch event {
-        case .conversationStart(let id):
-            // 保存conversationId用于后续消息
-            if conversationId == nil {
-                conversationId = id
-                print("✅ 新对话ID: \(id)")
-            }
+        case .streamMessage(let streamMessage):
+            handleStreamMessage(streamMessage)
 
-        case .messageStart(let messageId):
-            streamingContent = ""
-            // 添加流式消息占位符
-            let streamingMsg = ChatMessage(
-                id: messageId,
-                text: "",
+        case .error(let message):
+            print("❌ 流式错误: \(message)")
+            errorMessage = message
+            isSending = false
+        }
+    }
+
+    private func handleStreamMessage(_ streamMessage: StreamMessage) {
+        let data = streamMessage.data
+
+        if let cid = data.conversationId, conversationId != cid {
+            conversationId = cid
+        }
+
+        switch data.dataType {
+        case .agentStatus:
+            handleAgentStatus(data.agentStatus)
+
+        case .agentMessage:
+            handleAgentMessage(data)
+
+        case .agentToolCall:
+            handleToolCall(data)
+        }
+    }
+
+    private func handleAgentStatus(_ status: AgentStatus?) {
+        guard let status = status else { return }
+
+        switch status {
+        case .generating:
+            break
+        case .finished, .stopped:
+            finalizeStreamingMessages(shouldPersist: true)
+            isSending = false
+        case .error:
+            markStreamingMessageAsError("Agent error")
+            isSending = false
+        }
+    }
+
+    private func handleAgentMessage(_ data: StreamMessageData) {
+        let msgId = data.msgId
+
+        let hasContent = data.content?.isEmpty == false
+        let hasThinking = data.thinkingContent?.isEmpty == false
+        let hasToolCalls = data.toolCalls?.isEmpty == false
+
+        guard hasContent || hasThinking || hasToolCalls else {
+            return
+        }
+
+        let content = data.content ?? ""
+
+        let toolCallInfos = data.toolCalls?.map { toolCall in
+            ToolCallInfo(
+                id: toolCall.toolCallId,
+                name: toolCall.toolCallName,
+                args: toolCall.toolCallArgs,
+                status: toolCall.toolCallStatus?.description,
+                result: toolCall.toolCallResult
+            )
+        }
+
+        if let index = messageMap[msgId] {
+            let existingMessage = displayMessages[index]
+            displayMessages[index] = ChatMessage(
+                id: existingMessage.id,
+                text: content,
+                isFromUser: false,
+                timestamp: existingMessage.timestamp,
+                isStreaming: true,
+                thinkingContent: data.thinkingContent ?? existingMessage.thinkingContent,
+                toolCalls: toolCallInfos ?? existingMessage.toolCalls
+            )
+        } else {
+            finalizeStreamingMessages(shouldPersist: true)
+
+            let newMessage = ChatMessage(
+                id: msgId,
+                text: content,
                 isFromUser: false,
                 timestamp: Date(),
-                isStreaming: true
+                isStreaming: true,
+                thinkingContent: data.thinkingContent,
+                toolCalls: toolCallInfos
             )
-            displayMessages.append(streamingMsg)
+            displayMessages.append(newMessage)
+            messageMap[msgId] = displayMessages.count - 1
+        }
+    }
 
-        case .contentDelta(let content):
-            streamingContent += content
+    private func handleToolCall(_ data: StreamMessageData) {
+        print("🔧 收到工具调用事件: \(data.toolCalls?.count ?? 0) 个调用")
+    }
 
-            // 如果没有流式消息，创建一个
-            if !displayMessages.contains(where: { $0.isStreaming }) {
-                let streamingMsg = ChatMessage(
-                    id: UUID().uuidString,
-                    text: content,
-                    isFromUser: false,
-                    timestamp: Date(),
-                    isStreaming: true
-                )
-                displayMessages.append(streamingMsg)
-            } else {
-                // 更新流式消息
-                if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
-                    displayMessages[index] = ChatMessage(
-                        id: displayMessages[index].id,
-                        text: streamingContent,
-                        isFromUser: false,
-                        timestamp: displayMessages[index].timestamp,
-                        isStreaming: true
-                    )
-                }
+    private func finalizeStreamingMessages(shouldPersist: Bool) {
+        for index in displayMessages.indices {
+            guard displayMessages[index].isStreaming else { continue }
+
+            let message = displayMessages[index]
+            let finalMessage = ChatMessage(
+                id: message.id,
+                text: message.text,
+                isFromUser: message.isFromUser,
+                timestamp: message.timestamp,
+                isStreaming: false,
+                thinkingContent: message.thinkingContent,
+                toolCalls: message.toolCalls
+            )
+            displayMessages[index] = finalMessage
+
+            if shouldPersist {
+                persistAssistantMessageIfNeeded(finalMessage)
             }
+        }
+    }
 
-        case .messageEnd:
-            // 完成流式消息，保存到本地
-            if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
-                let finalMessage = ChatMessage(
-                    id: displayMessages[index].id,
-                    text: streamingContent,
-                    isFromUser: false,
-                    timestamp: displayMessages[index].timestamp,
-                    isStreaming: false
-                )
-                displayMessages[index] = finalMessage
+    private func markStreamingMessageAsError(_ message: String) {
+        if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+            let failedMessage = displayMessages[index]
+            displayMessages[index] = ChatMessage(
+                id: failedMessage.id,
+                text: failedMessage.text,
+                isFromUser: false,
+                timestamp: failedMessage.timestamp,
+                isStreaming: false,
+                hasError: true,
+                errorMessage: message
+            )
+        }
+    }
 
-                // 保存AI消息到本地
-                Task {
-                    await saveMessageToLocal(
-                        id: finalMessage.id,
-                        content: finalMessage.text,
-                        isFromUser: false,
-                        timestamp: finalMessage.timestamp
-                    )
-                }
+    private func persistAssistantMessageIfNeeded(_ message: ChatMessage) {
+        guard !message.isFromUser else { return }
+        guard !savedMessageIds.contains(message.id) else { return }
+        savedMessageIds.insert(message.id)
 
-                streamingContent = ""
-            }
-
-        case .conversationEnd:
-            break
-
-        case .error(let error):
-            errorMessage = error
-
-        case .ignored:
-            break
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self.saveMessageToLocal(
+                id: message.id,
+                content: message.text,
+                isFromUser: false,
+                timestamp: message.timestamp,
+                conversationId: self.conversationId
+            )
         }
     }
 
@@ -247,7 +322,8 @@ final class PersistentChatViewModel: ObservableObject {
         id: String,
         content: String,
         isFromUser: Bool,
-        timestamp: Date
+        timestamp: Date,
+        conversationId: String? = nil
     ) async {
         guard let storageService = storageService else { return }
 
@@ -256,11 +332,12 @@ final class PersistentChatViewModel: ObservableObject {
             content: content,
             isFromUser: isFromUser,
             timestamp: timestamp,
-            conversationId: conversationId
+            conversationId: conversationId ?? self.conversationId
         )
 
         do {
             try storageService.saveMessage(localMessage)
+            savedMessageIds.insert(id)
             print("✅ 消息已保存到本地: \(content.prefix(20))...")
         } catch {
             print("❌ 保存消息失败: \(error.localizedDescription)")
@@ -275,10 +352,19 @@ final class PersistentChatViewModel: ObservableObject {
             try storageService.deleteAllMessages()
             displayMessages.removeAll()
             conversationId = nil
+            messageMap.removeAll()
+            savedMessageIds.removeAll()
             print("✅ 历史记录已清除")
         } catch {
             print("❌ 清除历史记录失败: \(error.localizedDescription)")
             errorMessage = "清除历史记录失败"
+        }
+    }
+
+    private func rebuildMessageMap() {
+        messageMap = [:]
+        for (index, message) in displayMessages.enumerated() where !message.isFromUser {
+            messageMap[message.id] = index
         }
     }
 }
