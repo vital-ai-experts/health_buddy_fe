@@ -3,10 +3,12 @@ import SwiftData
 import DomainChat
 import LibraryServiceLoader
 import LibraryChatUI
+import LibraryNotification
 
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.notificationParameters) private var notificationParameters
     @StateObject private var viewModel: PersistentChatViewModel
 
     init() {
@@ -60,6 +62,24 @@ struct PersistentChatView: View {
         .task {
             await viewModel.initialize(modelContext: modelContext)
         }
+        .onChange(of: notificationParameters) { _, newParams in
+            handleNotificationParameters(newParams)
+        }
+    }
+
+    /// 处理通知参数
+    private func handleNotificationParameters(_ params: [String: String]?) {
+        guard let params = params else { return }
+
+        let msgId = params["msg_id"] ?? ""
+        let from = params["from"] ?? ""
+
+        print("📬 Chat Tab 收到通知参数:")
+        print("   msg_id: \(msgId)")
+        print("   from: \(from)")
+
+        // TODO: 根据 msg_id 和 from 执行相应的操作
+        // 例如：滚动到特定消息、显示特定内容等
     }
 }
 

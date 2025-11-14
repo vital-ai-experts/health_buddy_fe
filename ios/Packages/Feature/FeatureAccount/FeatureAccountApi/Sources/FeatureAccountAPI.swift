@@ -16,4 +16,8 @@ public protocol FeatureAccountBuildable {
     ///   - onSuccess: Callback when auth succeeds
     ///   - isDismissable: Whether the view can be dismissed (default: true)
     func makeAccountLandingView(onSuccess: @escaping () -> Void, isDismissable: Bool) -> AnyView
+
+    /// Build the profile view
+    /// - Parameter onLogout: Callback when user logs out
+    func makeProfileView(onLogout: @escaping () -> Void) -> AnyView
 }

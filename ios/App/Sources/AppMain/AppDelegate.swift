@@ -7,6 +7,7 @@
 
 import UIKit
 import UserNotifications
+import LibraryNotification
 
 /// 应用代理
 /// 处理推送通知相关的系统回调

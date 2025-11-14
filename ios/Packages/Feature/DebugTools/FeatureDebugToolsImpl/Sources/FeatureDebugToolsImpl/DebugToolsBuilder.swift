@@ -7,8 +7,4 @@ public final class DebugToolsBuilder: FeatureDebugToolsBuildable {
     public func makeDebugToolsView() -> AnyView {
         AnyView(DebugToolsView())
     }
-
-    public func makeChatDebugView() -> AnyView {
-        AnyView(ChatDebugView())
-    }
 }

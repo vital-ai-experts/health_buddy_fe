@@ -26,4 +26,12 @@ public final class ServiceManager {
         }
         return service
     }
+
+    public func resolveOptional<Service>(_ serviceType: Service.Type) -> Service? {
+        let key = ObjectIdentifier(serviceType)
+        lock.lock()
+        defer { lock.unlock() }
+
+        return factories[key]?() as? Service
+    }
 }

@@ -16,4 +16,8 @@ public final class AccountBuilder: FeatureAccountBuildable {
     public func makeAccountLandingView(onSuccess: @escaping () -> Void, isDismissable: Bool = true) -> AnyView {
         AnyView(AccountLandingView(onSuccess: onSuccess, isDismissable: isDismissable))
     }
+
+    public func makeProfileView(onLogout: @escaping () -> Void) -> AnyView {
+        AnyView(ProfileView(onLogout: onLogout))
+    }
 }
