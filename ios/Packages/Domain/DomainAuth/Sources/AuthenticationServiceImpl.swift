@@ -30,8 +30,8 @@ public final class AuthenticationServiceImpl: AuthenticationService {
         }
     }
 
-    public func register(email: String, password: String, fullName: String?) async throws -> User {
-        let request = UserRegisterRequest(email: email, password: password, fullName: fullName)
+    public func register(email: String, password: String, fullName: String?, onboardingId: String) async throws -> User {
+        let request = UserRegisterRequest(email: email, password: password, fullName: fullName, onboardingId: onboardingId)
 
         let endpoint = APIEndpoint(
             path: "/auth/register",

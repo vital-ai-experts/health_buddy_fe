@@ -3,7 +3,7 @@ import Foundation
 /// Authentication service protocol
 public protocol AuthenticationService {
     /// Register a new user
-    func register(email: String, password: String, fullName: String?) async throws -> User
+    func register(email: String, password: String, fullName: String?, onboardingId: String) async throws -> User
 
     /// Login with email and password
     func login(email: String, password: String) async throws -> User
