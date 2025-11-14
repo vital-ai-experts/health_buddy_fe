@@ -173,6 +173,18 @@ struct RootView: View {
                 showLoginSheet = true
             }
         }
+
+        // 请求推送通知权限
+        await requestNotificationPermission()
+    }
+
+    /// 请求推送通知权限
+    private func requestNotificationPermission() async {
+        do {
+            try await NotificationManager.shared.requestAuthorization()
+        } catch {
+            print("❌ 请求通知权限失败: \(error.localizedDescription)")
+        }
     }
 
     /// 等待网络可用（带30秒超时）
