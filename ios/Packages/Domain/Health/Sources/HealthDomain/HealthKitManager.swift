@@ -243,9 +243,9 @@ public extension HealthKitManager {
         }
 
         // 获取三个时间段的数据
-        let yesterdayData = try await fetchAllHealthDataForPeriod(start: yesterdayStart, end: yesterdayEnd)
-        let todayData = try await fetchAllHealthDataForPeriod(start: todayStart, end: todayEnd)
-        let recentData = try await fetchAllHealthDataForPeriod(start: recent3HoursStart, end: now)
+        let yesterdayData = try await fetchAllHealthDataForPeriod(start: yesterdayStart, end: yesterdayEnd, isDateRange: true)
+        let todayData = try await fetchAllHealthDataForPeriod(start: todayStart, end: todayEnd, isDateRange: true)
+        let recentData = try await fetchAllHealthDataForPeriod(start: recent3HoursStart, end: now, isDateRange: false)
 
         // 转换为JSON字符串
         let yesterdayJSON = try convertToJSONString(yesterdayData)
@@ -285,8 +285,12 @@ public extension HealthKitManager {
     }
 
     /// 获取指定时间段的所有健康数据（新格式）
-    /// 返回格式: { "date": "20251114", "indicators": [...] }
-    private func fetchAllHealthDataForPeriod(start: Date, end: Date) async throws -> [String: Any] {
+    /// - Parameters:
+    ///   - start: 开始时间
+    ///   - end: 结束时间
+    ///   - isDateRange: 是否为日期范围(true则返回date字段，false则返回start_time/end_time)
+    /// - Returns: 格式化的健康数据字典
+    private func fetchAllHealthDataForPeriod(start: Date, end: Date, isDateRange: Bool) async throws -> [String: Any] {
         var indicators: [[String: Any]] = []
 
         await withTaskGroup(of: [String: Any]?.self) { group in
@@ -598,10 +602,26 @@ public extension HealthKitManager {
         }
 
         // 构建最终数据结构
-        return [
-            "date": formatDateToLocalDate(start),
-            "indicators": indicators
-        ]
+        var result: [String: Any] = [:]
+
+        if isDateRange {
+            // 日期范围模式：使用 date 字段
+            result["date"] = formatDateToLocalDate(start)
+        } else {
+            // 时间范围模式：使用 start_time 和 end_time 字段
+            result["start_time"] = formatDateToISO8601(start)
+            result["end_time"] = formatDateToISO8601(end)
+        }
+
+        result["indicators"] = indicators
+        return result
+    }
+
+    /// 格式化日期为ISO8601字符串
+    private func formatDateToISO8601(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
     }
 
     /// 获取数量类型的健康数据
@@ -670,7 +690,7 @@ public extension HealthKitManager {
         key: String,
         displayName: String,
         options: HKStatisticsOptions = .cumulativeSum
-    ) async throws -> [String: Any] {
+    ) async throws -> [String: Any]? {
         let statistics = try await fetchHourlyStatistics(
             type: type,
             start: start,
@@ -678,6 +698,11 @@ public extension HealthKitManager {
             unit: unit,
             options: options
         )
+
+        // 如果没有数据,返回nil而不是空数据
+        guard !statistics.isEmpty else {
+            return nil
+        }
 
         let hourlyData = statistics.map { stat in
             [
@@ -687,24 +712,31 @@ public extension HealthKitManager {
         }
 
         // 计算总值
-        let totalValue: Double
+        let value: Double
         let aggregationMethod: String
         if options.contains(.cumulativeSum) {
-            totalValue = statistics.reduce(0) { $0 + $1.value }
+            value = statistics.reduce(0) { $0 + $1.value }
             aggregationMethod = "sum"
         } else {
-            totalValue = statistics.isEmpty ? 0 : statistics.reduce(0) { $0 + $1.value } / Double(statistics.count)
+            value = statistics.reduce(0) { $0 + $1.value } / Double(statistics.count)
             aggregationMethod = "average"
         }
 
-        return [
+        // 构建结果,只有当有多个小时数据时才添加hour_items
+        var result: [String: Any] = [
             "key": key,
             "name": displayName,
             "unit": unit.unitString,
-            "total_value": totalValue,
-            "aggregation_method": aggregationMethod,
-            "hour_items": hourlyData
+            "value": value,
+            "aggregation_method": aggregationMethod
         ]
+
+        // 只有当有小时级数据且数量>1时才添加hour_items
+        if hourlyData.count > 1 {
+            result["hour_items"] = hourlyData
+        }
+
+        return result
     }
 
     /// 获取按小时聚合的数量类型健康数据（使用样本查询，适用于不支持统计选项的类型）
@@ -716,7 +748,7 @@ public extension HealthKitManager {
         key: String,
         displayName: String,
         aggregation: SampleAggregation = .sum
-    ) async throws -> [String: Any] {
+    ) async throws -> [String: Any]? {
         let samples = try await fetchQuantitySamples(
             type: type,
             start: start,
@@ -724,6 +756,11 @@ public extension HealthKitManager {
             limit: HKObjectQueryNoLimit,
             unit: unit
         )
+
+        // 如果没有数据,返回nil
+        guard !samples.isEmpty else {
+            return nil
+        }
 
         // 将samples按小时聚合
         var hourlyDict: [String: [Double]] = [:]
@@ -751,28 +788,35 @@ public extension HealthKitManager {
         }.sorted { ($0["hour"] as? String ?? "") < ($1["hour"] as? String ?? "") }
 
         // 计算总值
-        let totalValue: Double
+        let value: Double
         let aggregationMethod: String
         switch aggregation {
         case .sum:
-            totalValue = hourlyData.reduce(0) { $0 + ($1["value"] as? Double ?? 0) }
+            value = hourlyData.reduce(0) { $0 + ($1["value"] as? Double ?? 0) }
             aggregationMethod = "sum"
         case .average:
-            totalValue = hourlyData.isEmpty ? 0 : hourlyData.reduce(0) { $0 + ($1["value"] as? Double ?? 0) } / Double(hourlyData.count)
+            value = hourlyData.reduce(0) { $0 + ($1["value"] as? Double ?? 0) } / Double(hourlyData.count)
             aggregationMethod = "average"
         case .latest:
-            totalValue = hourlyData.last?["value"] as? Double ?? 0
+            value = hourlyData.last?["value"] as? Double ?? 0
             aggregationMethod = "latest"
         }
 
-        return [
+        // 构建结果
+        var result: [String: Any] = [
             "key": key,
             "name": displayName,
             "unit": unit.unitString,
-            "total_value": totalValue,
-            "aggregation_method": aggregationMethod,
-            "hour_items": hourlyData
+            "value": value,
+            "aggregation_method": aggregationMethod
         ]
+
+        // 只有当有小时级数据且数量>1时才添加hour_items
+        if hourlyData.count > 1 {
+            result["hour_items"] = hourlyData
+        }
+
+        return result
     }
 
     /// 样本聚合方式
@@ -789,13 +833,18 @@ public extension HealthKitManager {
         end: Date,
         key: String,
         displayName: String
-    ) async throws -> [String: Any] {
+    ) async throws -> [String: Any]? {
         let samples = try await fetchCategorySamples(
             type: type,
             start: start,
             end: end,
             limit: HKObjectQueryNoLimit
         )
+
+        // 如果没有数据,返回nil
+        guard !samples.isEmpty else {
+            return nil
+        }
 
         // 将分类数据按小时聚合
         var hourlyDict: [String: Int] = [:]
@@ -813,14 +862,21 @@ public extension HealthKitManager {
 
         let totalCount = hourlyData.reduce(0) { $0 + ($1["count"] as? Int ?? 0) }
 
-        return [
+        // 构建结果
+        var result: [String: Any] = [
             "key": key,
             "name": displayName,
             "unit": "次",
-            "total_value": totalCount,
-            "aggregation_method": "count",
-            "hour_items": hourlyData
+            "value": totalCount,
+            "aggregation_method": "count"
         ]
+
+        // 只有当有小时级数据且数量>1时才添加hour_items
+        if hourlyData.count > 1 {
+            result["hour_items"] = hourlyData
+        }
+
+        return result
     }
 
     /// 获取最近24小时的健康数据
