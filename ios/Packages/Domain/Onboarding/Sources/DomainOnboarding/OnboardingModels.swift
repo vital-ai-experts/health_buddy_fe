@@ -104,33 +104,36 @@ public struct ToolCall: Codable {
 
 /// 流消息数据
 public struct StreamMessageData: Codable {
+    public let conversationId: String?  // 对话ID
+    public let onboardingId: String?    // Onboarding ID
     public let msgId: String
     public let dataType: DataType
     public let msgIdx: Int?
     public let agentStatus: AgentStatus?
     public let messageType: MessageType?
-    public let onboardingId: String?
     public let thinkingContent: String?
     public let content: String?
     public let toolCalls: [ToolCall]?
-    
+
     public init(
+        conversationId: String? = nil,
+        onboardingId: String? = nil,
         msgId: String,
         dataType: DataType,
         msgIdx: Int? = nil,
         agentStatus: AgentStatus? = nil,
         messageType: MessageType? = nil,
-        onboardingId: String? = nil,
         thinkingContent: String? = nil,
         content: String? = nil,
         toolCalls: [ToolCall]? = nil
     ) {
+        self.conversationId = conversationId
+        self.onboardingId = onboardingId
         self.msgId = msgId
         self.dataType = dataType
         self.msgIdx = msgIdx
         self.agentStatus = agentStatus
         self.messageType = messageType
-        self.onboardingId = onboardingId
         self.thinkingContent = thinkingContent
         self.content = content
         self.toolCalls = toolCalls

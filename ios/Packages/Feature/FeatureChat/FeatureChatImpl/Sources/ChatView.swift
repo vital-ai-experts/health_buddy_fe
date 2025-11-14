@@ -1,5 +1,6 @@
 import SwiftUI
 import DomainChat
+import DomainOnboarding  // 导入StreamMessage等共享模型
 import LibraryServiceLoader
 import LibraryChatUI
 
@@ -45,7 +46,6 @@ struct ChatView: View {
 @MainActor
 final class ChatViewModel: ObservableObject {
     @Published var displayMessages: [ChatMessage] = []
-    @Published var streamingContent = ""
     @Published var isSending = false
     @Published var errorMessage: String?
     @Published var conversationId: String?
@@ -53,6 +53,8 @@ final class ChatViewModel: ObservableObject {
 
     private let chatService: ChatService
     private var lastUserMessage: String?  // 保存最后发送的消息用于重试
+    private var lastDataId: String?  // 用于断线重连
+    private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
 
     init(chatService: ChatService, conversationId: String? = nil) {
         self.chatService = chatService
@@ -63,15 +65,35 @@ final class ChatViewModel: ObservableObject {
         guard let conversationId = conversationId else { return }
 
         do {
-            let (_, messages) = try await chatService.getConversation(id: conversationId)
-            self.displayMessages = messages.map { msg in
-                ChatMessage(
-                    id: msg.id,
-                    text: msg.content,
-                    isFromUser: msg.role == .user,
-                    timestamp: parseDate(msg.createdAt),
-                    isStreaming: false
+            let messages = try await chatService.getConversationHistory(id: conversationId)
+
+            // 清空现有消息和映射
+            displayMessages = []
+            messageMap = [:]
+
+            // 转换历史消息为ChatMessage
+            for message in messages {
+                let chatMessage = ChatMessage(
+                    id: message.id,
+                    text: message.content,
+                    isFromUser: message.role == .user,
+                    timestamp: parseDate(message.createdAt),
+                    isStreaming: false,
+                    thinkingContent: message.thinkingContent,
+                    toolCalls: message.toolCalls?.map { ToolCallInfo(
+                        id: $0.toolCallId,
+                        name: $0.toolCallName,
+                        args: $0.toolCallArgs,
+                        status: $0.toolCallStatus?.description,
+                        result: $0.toolCallResult
+                    )}
                 )
+                displayMessages.append(chatMessage)
+
+                // 非用户消息添加到messageMap
+                if message.role != .user {
+                    messageMap[message.id] = displayMessages.count - 1
+                }
             }
         } catch {
             errorMessage = "Failed to load conversation: \(error.localizedDescription)"
@@ -96,11 +118,10 @@ final class ChatViewModel: ObservableObject {
 
         isSending = true
         errorMessage = nil
-        streamingContent = ""
 
         do {
             try await chatService.sendMessage(
-                message: text,
+                userInput: text,
                 conversationId: conversationId
             ) { [weak self] event in
                 Task { @MainActor in
@@ -126,6 +147,30 @@ final class ChatViewModel: ObservableObject {
             await sendMessage(lastMessage)
         }
     }
+
+    func resumeConversation() async {
+        guard let conversationId = conversationId else { return }
+
+        isSending = true
+        errorMessage = nil
+
+        do {
+            try await chatService.resumeConversation(
+                conversationId: conversationId,
+                lastDataId: lastDataId
+            ) { [weak self] event in
+                Task { @MainActor in
+                    self?.handleStreamEvent(event)
+                }
+            }
+        } catch {
+            handleError(error: error)
+        }
+
+        isSending = false
+    }
+
+    // MARK: - Private Methods
 
     private func handleError(error: Error) {
         errorMessage = "Failed to send message: \(error.localizedDescription)"
@@ -157,99 +202,192 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func handleStreamEvent(_ event: ChatStreamEvent) {
+    /// 处理流事件（参考OnboardingViewModel的实现）
+    private func handleStreamEvent(_ event: ConversationStreamEvent) {
         switch event {
-        case .conversationStart(let id):
-            if conversationId == nil {
-                conversationId = id
+        case .streamMessage(let streamMessage):
+            print("📩 [ChatViewModel] Received stream message")
+
+            // 1. 记录最新data id（用于断线重连）
+            lastDataId = streamMessage.id
+
+            let data = streamMessage.data
+
+            // 2. 保存conversationId
+            if let cid = data.conversationId {
+                conversationId = cid
             }
 
-        case .messageStart(let messageId):
-            streamingContent = ""
-            // Add streaming message placeholder
-            let streamingMsg = ChatMessage(
-                id: messageId,
-                text: "",
-                isFromUser: false,
-                timestamp: Date(),
-                isStreaming: true
-            )
-            displayMessages.append(streamingMsg)
+            // 3. 根据dataType分派处理
+            switch data.dataType {
+            case .agentStatus:
+                handleAgentStatus(data.agentStatus)
 
-        case .contentDelta(let content):
-            streamingContent += content
+            case .agentMessage:
+                handleAgentMessage(data)
 
-            // 如果还没有流式消息，先创建一个（处理服务端没有发送 messageStart 的情况）
-            if !displayMessages.contains(where: { $0.isStreaming }) {
-                let streamingMsg = ChatMessage(
-                    id: UUID().uuidString,
-                    text: content,
-                    isFromUser: false,
-                    timestamp: Date(),
-                    isStreaming: true
-                )
-                displayMessages.append(streamingMsg)
-            } else {
-                // Update the streaming message
-                if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+            case .agentToolCall:
+                handleToolCall(data)
+            }
+
+        case .error(let message):
+            print("❌ [ChatViewModel] Stream error: \(message)")
+            isSending = false
+            errorMessage = message
+        }
+    }
+
+    /// Agent状态处理
+    private func handleAgentStatus(_ status: AgentStatus?) {
+        guard let status = status else { return }
+
+        switch status {
+        case .generating:
+            print("🤖 Agent 生成中...")
+
+        case .finished:
+            print("✅ Agent 完成")
+            // 将所有streaming消息设为non-streaming
+            for (index, message) in displayMessages.enumerated() {
+                if message.isStreaming {
                     displayMessages[index] = ChatMessage(
-                        id: displayMessages[index].id,
-                        text: streamingContent,
-                        isFromUser: false,
-                        timestamp: Date(),
-                        isStreaming: true
+                        id: message.id,
+                        text: message.text,
+                        isFromUser: message.isFromUser,
+                        timestamp: message.timestamp,
+                        isStreaming: false,
+                        thinkingContent: message.thinkingContent,
+                        toolCalls: message.toolCalls
                     )
                 }
             }
+            isSending = false
 
-        case .messageEnd:
-            // Replace streaming message with final message
-            if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
-                displayMessages[index] = ChatMessage(
-                    id: displayMessages[index].id,
-                    text: streamingContent,
-                    isFromUser: false,
-                    timestamp: Date(),
-                    isStreaming: false
-                )
-                streamingContent = ""
-            }
-
-        case .conversationEnd:
-            break
-
-        case .error(let errorMsg):
-            errorMessage = errorMsg
-            // 标记当前消息为失败
+        case .error:
+            print("❌ Agent 错误")
+            // 标记消息为失败
             if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
                 let failedMessage = displayMessages[index]
                 displayMessages[index] = ChatMessage(
                     id: failedMessage.id,
-                    text: streamingContent.isEmpty ? "" : streamingContent,
+                    text: failedMessage.text,
                     isFromUser: false,
                     timestamp: failedMessage.timestamp,
                     isStreaming: false,
                     hasError: true,
-                    errorMessage: errorMsg
+                    errorMessage: "Agent error"
                 )
-            } else {
-                // 如果没有流式消息，创建一个新的错误消息
-                let errorMessage = ChatMessage(
-                    id: UUID().uuidString,
-                    text: "",
-                    isFromUser: false,
-                    timestamp: Date(),
-                    isStreaming: false,
-                    hasError: true,
-                    errorMessage: errorMsg
-                )
-                displayMessages.append(errorMessage)
             }
-            streamingContent = ""
+            isSending = false
 
-        case .ignored:
-            break // Silently ignore unknown SSE events
+        case .stopped:
+            print("⏸️ Agent 停止")
+            // 停止时也将所有消息设为非streaming
+            for (index, message) in displayMessages.enumerated() {
+                if message.isStreaming {
+                    displayMessages[index] = ChatMessage(
+                        id: message.id,
+                        text: message.text,
+                        isFromUser: message.isFromUser,
+                        timestamp: message.timestamp,
+                        isStreaming: false,
+                        thinkingContent: message.thinkingContent,
+                        toolCalls: message.toolCalls
+                    )
+                }
+            }
+            isSending = false
         }
+    }
+
+    /// Agent消息处理（核心逻辑，参考OnboardingViewModel）
+    private func handleAgentMessage(_ data: StreamMessageData) {
+        let msgId = data.msgId
+
+        print("💭 [ChatViewModel] handleAgentMessage")
+        print("  msgId: \(msgId)")
+        print("  messageType: \(String(describing: data.messageType))")
+
+        // 检查是否有内容
+        let hasContent = data.content != nil && !data.content!.isEmpty
+        let hasThinking = data.thinkingContent != nil && !data.thinkingContent!.isEmpty
+        let hasToolCalls = data.toolCalls != nil && !data.toolCalls!.isEmpty
+
+        guard hasContent || hasThinking || hasToolCalls else {
+            return
+        }
+
+        let content = data.content ?? ""
+
+        // 转换工具调用
+        let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.map { toolCall in
+            ToolCallInfo(
+                id: toolCall.toolCallId,
+                name: toolCall.toolCallName,
+                args: toolCall.toolCallArgs,
+                status: toolCall.toolCallStatus?.description,
+                result: toolCall.toolCallResult
+            )
+        }
+
+        // 查找或创建消息
+        if let index = messageMap[msgId] {
+            print("  → Updating existing message at index \(index)")
+            // 更新现有消息
+            let existingMessage = displayMessages[index]
+
+            let message = ChatMessage(
+                id: existingMessage.id,
+                text: content,
+                isFromUser: existingMessage.isFromUser,
+                timestamp: existingMessage.timestamp,
+                isStreaming: true,  // 保持streaming状态直到Agent.finished
+                thinkingContent: data.thinkingContent,
+                toolCalls: toolCallInfos
+            )
+            displayMessages[index] = message
+
+        } else {
+            print("  → Creating new message")
+
+            // 新消息到来时，将之前所有消息设为非streaming
+            for (idx, msg) in displayMessages.enumerated() {
+                if msg.isStreaming {
+                    displayMessages[idx] = ChatMessage(
+                        id: msg.id,
+                        text: msg.text,
+                        isFromUser: msg.isFromUser,
+                        timestamp: msg.timestamp,
+                        isStreaming: false,
+                        thinkingContent: msg.thinkingContent,
+                        toolCalls: msg.toolCalls
+                    )
+                }
+            }
+
+            // 创建新消息
+            let newMessage = ChatMessage(
+                id: msgId,
+                text: content,
+                isFromUser: false,
+                timestamp: Date(),
+                isStreaming: true,  // 新消息以streaming状态创建
+                thinkingContent: data.thinkingContent,
+                toolCalls: toolCallInfos
+            )
+            displayMessages.append(newMessage)
+            messageMap[msgId] = displayMessages.count - 1
+        }
+    }
+
+    /// 工具调用处理
+    private func handleToolCall(_ data: StreamMessageData) {
+        print("🔧 [ChatViewModel] handleToolCall")
+        print("  msgId: \(data.msgId)")
+        print("  toolCalls: \(data.toolCalls?.count ?? 0)")
+
+        // 对话中的工具调用可能需要特殊处理
+        // 目前暂时不做额外处理，工具调用信息会在handleAgentMessage中显示
     }
 
     private func parseDate(_ dateString: String) -> Date {
