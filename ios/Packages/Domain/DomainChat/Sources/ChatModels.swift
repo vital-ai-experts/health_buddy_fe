@@ -1,5 +1,117 @@
 import Foundation
-import DomainOnboarding  // 导入共享的StreamMessage等模型
+
+// MARK: - Shared SSE Stream Models (used by both Chat and Onboarding)
+
+/// 消息类型：CHUNK（分片）或 WHOLE（完整）
+public enum MessageType: Int, Codable {
+    case chunk = 1   // 分片数据
+    case whole = 2   // 完整数据
+}
+
+/// 数据类型
+public enum DataType: Int, Codable {
+    case agentStatus = 1     // Agent状态
+    case agentMessage = 2    // Agent消息
+    case agentToolCall = 3   // Agent工具调用
+}
+
+/// Agent状态
+public enum AgentStatus: Int, Codable {
+    case generating = 1  // 生成中
+    case finished = 2    // 已完成
+    case error = 3       // 错误
+    case stopped = 4     // 已停止
+}
+
+/// 工具调用状态
+public enum ToolCallStatus: Int, Codable {
+    case started = 1   // 开始
+    case success = 2   // 成功
+    case failed = 3    // 失败
+
+    public var description: String {
+        switch self {
+        case .started:
+            return "开始"
+        case .success:
+            return "成功"
+        case .failed:
+            return "失败"
+        }
+    }
+}
+
+/// 工具调用
+public struct ToolCall: Codable {
+    public let toolCallId: String
+    public let toolCallName: String
+    public let toolCallArgs: String?  // JSON字符串
+    public let toolCallStatus: ToolCallStatus?
+    public let toolCallResult: String?  // JSON字符串
+
+    public init(
+        toolCallId: String,
+        toolCallName: String,
+        toolCallArgs: String? = nil,
+        toolCallStatus: ToolCallStatus? = nil,
+        toolCallResult: String? = nil
+    ) {
+        self.toolCallId = toolCallId
+        self.toolCallName = toolCallName
+        self.toolCallArgs = toolCallArgs
+        self.toolCallStatus = toolCallStatus
+        self.toolCallResult = toolCallResult
+    }
+}
+
+/// 流消息数据
+public struct StreamMessageData: Codable {
+    public let conversationId: String?  // 对话ID
+    public let onboardingId: String?    // Onboarding ID
+    public let msgId: String
+    public let dataType: DataType
+    public let msgIdx: Int?
+    public let agentStatus: AgentStatus?
+    public let messageType: MessageType?
+    public let thinkingContent: String?
+    public let content: String?
+    public let toolCalls: [ToolCall]?
+
+    public init(
+        conversationId: String? = nil,
+        onboardingId: String? = nil,
+        msgId: String,
+        dataType: DataType,
+        msgIdx: Int? = nil,
+        agentStatus: AgentStatus? = nil,
+        messageType: MessageType? = nil,
+        thinkingContent: String? = nil,
+        content: String? = nil,
+        toolCalls: [ToolCall]? = nil
+    ) {
+        self.conversationId = conversationId
+        self.onboardingId = onboardingId
+        self.msgId = msgId
+        self.dataType = dataType
+        self.msgIdx = msgIdx
+        self.agentStatus = agentStatus
+        self.messageType = messageType
+        self.thinkingContent = thinkingContent
+        self.content = content
+        self.toolCalls = toolCalls
+    }
+}
+
+/// 流消息（SSE事件的data字段反序列化后的结构）
+public struct StreamMessage: Codable {
+    public let id: String  // SSE event的id
+    public let data: StreamMessageData
+
+    public init(id: String, data: StreamMessageData) {
+        self.id = id
+        self.data = data
+    }
+}
 
 // MARK: - Request Models
 
@@ -153,8 +265,8 @@ public struct Message: Identifiable {
 
 // MARK: - Streaming Events
 
-/// 对话流事件（类似OnboardingStreamEvent）
+/// 对话流事件
 public enum ConversationStreamEvent {
-    case streamMessage(StreamMessage)  // 复用DomainOnboarding的StreamMessage
+    case streamMessage(StreamMessage)
     case error(String)
 }

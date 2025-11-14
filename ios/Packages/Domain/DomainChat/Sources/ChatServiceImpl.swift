@@ -1,6 +1,5 @@
 import Foundation
 import LibraryNetworking
-import DomainOnboarding
 
 /// Default implementation of ChatService
 public final class ChatServiceImpl: ChatService {

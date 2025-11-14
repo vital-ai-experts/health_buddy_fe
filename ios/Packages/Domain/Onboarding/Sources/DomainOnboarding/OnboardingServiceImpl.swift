@@ -1,5 +1,6 @@
 import Foundation
 import LibraryNetworking
+import DomainChat  // 导入StreamMessage
 
 /// Onboarding服务实现
 public final class OnboardingServiceImpl: OnboardingService {

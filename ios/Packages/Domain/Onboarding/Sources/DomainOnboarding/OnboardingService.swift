@@ -1,4 +1,5 @@
 import Foundation
+import DomainChat  // 导入StreamMessage
 
 /// Onboarding 流式事件
 public enum OnboardingStreamEvent {

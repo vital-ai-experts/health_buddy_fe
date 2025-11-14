@@ -1,6 +1,5 @@
 import SwiftUI
 import DomainChat
-import DomainOnboarding  // 导入StreamMessage等共享模型
 import LibraryServiceLoader
 import LibraryChatUI
 
