@@ -335,7 +335,7 @@ private struct PreviewOnboardingFeature: FeatureOnboardingBuildable {
 }
 
 private class PreviewAuthService: AuthenticationService {
-    func register(email: String, password: String, fullName: String?) async throws -> DomainAuth.User {
+    func register(email: String, password: String, fullName: String?, onboardingId: String) async throws -> DomainAuth.User {
         fatalError("Preview only")
     }
 
