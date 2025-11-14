@@ -491,7 +491,7 @@ struct ProfileView: View {
                                         .font(.title2)
                                         .fontWeight(.semibold)
 
-                                    Text(user.email)
+                                    Text(user.email.isEmpty ? "user@example.com" : user.email)
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
@@ -694,7 +694,7 @@ struct AccountSettingsView: View {
                                     .font(.title2)
                                     .fontWeight(.semibold)
 
-                                Text(user.email)
+                                Text(user.email.isEmpty ? "user@example.com" : user.email)
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
