@@ -9,6 +9,7 @@ public struct SimpleChatView: View {
     public let bottomPadding: CGFloat
     public let onSendMessage: (String) -> Void
     public let onSpecialMessageAction: ((String, String) -> Void)?
+    public let onRetry: ((String) -> Void)?
 
     @FocusState private var isInputFocused: Bool
 
@@ -19,7 +20,8 @@ public struct SimpleChatView: View {
         configuration: ChatConfiguration = .default,
         bottomPadding: CGFloat = 0,
         onSendMessage: @escaping (String) -> Void,
-        onSpecialMessageAction: ((String, String) -> Void)? = nil
+        onSpecialMessageAction: ((String, String) -> Void)? = nil,
+        onRetry: ((String) -> Void)? = nil
     ) {
         self._messages = messages
         self._inputText = inputText
@@ -28,6 +30,7 @@ public struct SimpleChatView: View {
         self.bottomPadding = bottomPadding
         self.onSendMessage = onSendMessage
         self.onSpecialMessageAction = onSpecialMessageAction
+        self.onRetry = onRetry
     }
 
     public var body: some View {
@@ -42,7 +45,8 @@ public struct SimpleChatView: View {
                 },
                 onHealthProfileReject: {
                     onSpecialMessageAction?("userHealthProfile", "reject")
-                }
+                },
+                onRetry: onRetry
             )
             .contentShape(Rectangle())
             .onTapGesture {

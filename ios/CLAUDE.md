@@ -69,6 +69,10 @@ import FeatureAccountApi        // Feature modules
 
 ## Build Script Quick Reference
 
+**CRITICAL - Always Build and Install After Code Changes**:
+
+After writing or modifying ANY code, you MUST run `scripts/build.sh -i` to verify your changes compile and run correctly.
+
 ```bash
 # Most common: Build and install to simulator
 scripts/build.sh -i

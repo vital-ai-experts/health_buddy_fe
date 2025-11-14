@@ -10,6 +10,7 @@ public struct MessageListView: UIViewRepresentable {
     let onLoadMoreHistory: (() -> Void)?
     let onHealthProfileConfirm: (() -> Void)?
     let onHealthProfileReject: (() -> Void)?
+    let onRetry: ((String) -> Void)?
 
     // MARK: - Initialization
 
@@ -18,13 +19,15 @@ public struct MessageListView: UIViewRepresentable {
         configuration: ChatConfiguration = .default,
         onLoadMoreHistory: (() -> Void)? = nil,
         onHealthProfileConfirm: (() -> Void)? = nil,
-        onHealthProfileReject: (() -> Void)? = nil
+        onHealthProfileReject: (() -> Void)? = nil,
+        onRetry: ((String) -> Void)? = nil
     ) {
         self.messages = messages
         self.configuration = configuration
         self.onLoadMoreHistory = onLoadMoreHistory
         self.onHealthProfileConfirm = onHealthProfileConfirm
         self.onHealthProfileReject = onHealthProfileReject
+        self.onRetry = onRetry
     }
 
     // MARK: - UIViewRepresentable
@@ -35,6 +38,7 @@ public struct MessageListView: UIViewRepresentable {
         collectionView.onLoadMoreHistory = onLoadMoreHistory
         collectionView.onHealthProfileConfirm = onHealthProfileConfirm
         collectionView.onHealthProfileReject = onHealthProfileReject
+        collectionView.onRetry = onRetry
 
         // Initial data
         collectionView.updateMessages(messages, animated: false)
@@ -48,6 +52,7 @@ public struct MessageListView: UIViewRepresentable {
         uiView.onLoadMoreHistory = onLoadMoreHistory
         uiView.onHealthProfileConfirm = onHealthProfileConfirm
         uiView.onHealthProfileReject = onHealthProfileReject
+        uiView.onRetry = onRetry
 
         // Update messages
         uiView.updateMessages(messages, animated: context.transaction.animation != nil)

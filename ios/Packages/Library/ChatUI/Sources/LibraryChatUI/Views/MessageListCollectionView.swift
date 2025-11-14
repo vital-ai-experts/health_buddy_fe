@@ -27,6 +27,7 @@ public final class MessageListCollectionView: UICollectionView {
     public var onLoadMoreHistory: (() -> Void)?
     public var onHealthProfileConfirm: (() -> Void)?
     public var onHealthProfileReject: (() -> Void)?
+    public var onRetry: ((String) -> Void)?  // Retry callback with failed message ID
 
     // Configuration
     public var configuration: ChatConfiguration = .default
@@ -95,6 +96,7 @@ public final class MessageListCollectionView: UICollectionView {
         let userCellRegistration = createUserCellRegistration()
         let systemCellRegistration = createSystemCellRegistration()
         let loadingCellRegistration = createLoadingCellRegistration()
+        let errorCellRegistration = createErrorCellRegistration()
 
         // Create data source
         diffableDataSource = DataSource(collectionView: self) { collectionView, indexPath, item in
@@ -114,6 +116,12 @@ public final class MessageListCollectionView: UICollectionView {
             case .loading:
                 return collectionView.dequeueConfiguredReusableCell(
                     using: loadingCellRegistration,
+                    for: indexPath,
+                    item: item
+                )
+            case .error:
+                return collectionView.dequeueConfiguredReusableCell(
+                    using: errorCellRegistration,
                     for: indexPath,
                     item: item
                 )
@@ -172,6 +180,25 @@ public final class MessageListCollectionView: UICollectionView {
 
             cell.contentConfiguration = UIHostingConfiguration {
                 SystemLoadingView(loading: loading, configuration: self.configuration)
+            }
+            .margins(.all, 0)
+
+            cell.backgroundColor = .clear
+        }
+    }
+
+    private func createErrorCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
+        UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { [weak self] cell, indexPath, item in
+            guard case .error(let error) = item,
+                  let self = self else { return }
+
+            cell.contentConfiguration = UIHostingConfiguration {
+                SystemErrorView(error: error, configuration: self.configuration) {
+                    // Call retry callback with failed message ID
+                    if let messageId = error.failedMessageId {
+                        self.onRetry?(messageId)
+                    }
+                }
             }
             .margins(.all, 0)
 

@@ -46,6 +46,10 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let specialMessageType: SpecialMessageType?  // 特殊消息类型
     public let specialMessageData: String?  // 特殊消息的数据（例如：健康档案的JSON）
 
+    // 错误相关
+    public let hasError: Bool  // 消息是否有错误
+    public let errorMessage: String?  // 错误信息
+
     public init(
         id: String = UUID().uuidString,
         text: String,
@@ -55,7 +59,9 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         thinkingContent: String? = nil,
         toolCalls: [ToolCallInfo]? = nil,
         specialMessageType: SpecialMessageType? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        hasError: Bool = false,
+        errorMessage: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -66,6 +72,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.hasError = hasError
+        self.errorMessage = errorMessage
     }
 }
 

@@ -23,6 +23,11 @@ struct ChatView: View {
                 Task {
                     await viewModel.sendMessage(text)
                 }
+            },
+            onRetry: { messageId in
+                Task {
+                    await viewModel.retryMessage(messageId)
+                }
             }
         )
         .navigationTitle(viewModel.conversationId == nil ? "New Chat" : "Chat")
@@ -47,6 +52,7 @@ final class ChatViewModel: ObservableObject {
     @Published var inputText = ""
 
     private let chatService: ChatService
+    private var lastUserMessage: String?  // 保存最后发送的消息用于重试
 
     init(chatService: ChatService, conversationId: String? = nil) {
         self.chatService = chatService
@@ -75,6 +81,9 @@ final class ChatViewModel: ObservableObject {
     func sendMessage(_ text: String) async {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
+        // 保存用户消息用于重试
+        lastUserMessage = text
+
         // Add user message
         let userMessage = ChatMessage(
             id: UUID().uuidString,
@@ -99,10 +108,53 @@ final class ChatViewModel: ObservableObject {
                 }
             }
         } catch {
-            errorMessage = "Failed to send message: \(error.localizedDescription)"
+            // 处理错误：标记当前流式消息为失败
+            handleError(error: error)
         }
 
         isSending = false
+    }
+
+    func retryMessage(_ failedMessageId: String) async {
+        // 移除错误消息
+        displayMessages.removeAll { message in
+            message.id == failedMessageId || message.hasError
+        }
+
+        // 重新发送最后的用户消息
+        if let lastMessage = lastUserMessage {
+            await sendMessage(lastMessage)
+        }
+    }
+
+    private func handleError(error: Error) {
+        errorMessage = "Failed to send message: \(error.localizedDescription)"
+
+        // 如果有流式消息正在进行，标记为失败
+        if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+            let failedMessage = displayMessages[index]
+            displayMessages[index] = ChatMessage(
+                id: failedMessage.id,
+                text: failedMessage.text,
+                isFromUser: false,
+                timestamp: failedMessage.timestamp,
+                isStreaming: false,
+                hasError: true,
+                errorMessage: error.localizedDescription
+            )
+        } else {
+            // 如果没有流式消息，创建一个新的错误消息
+            let errorMsg = ChatMessage(
+                id: UUID().uuidString,
+                text: "",
+                isFromUser: false,
+                timestamp: Date(),
+                isStreaming: false,
+                hasError: true,
+                errorMessage: error.localizedDescription
+            )
+            displayMessages.append(errorMsg)
+        }
     }
 
     private func handleStreamEvent(_ event: ChatStreamEvent) {
@@ -166,8 +218,34 @@ final class ChatViewModel: ObservableObject {
         case .conversationEnd:
             break
 
-        case .error(let error):
-            errorMessage = error
+        case .error(let errorMsg):
+            errorMessage = errorMsg
+            // 标记当前消息为失败
+            if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+                let failedMessage = displayMessages[index]
+                displayMessages[index] = ChatMessage(
+                    id: failedMessage.id,
+                    text: streamingContent.isEmpty ? "" : streamingContent,
+                    isFromUser: false,
+                    timestamp: failedMessage.timestamp,
+                    isStreaming: false,
+                    hasError: true,
+                    errorMessage: errorMsg
+                )
+            } else {
+                // 如果没有流式消息，创建一个新的错误消息
+                let errorMessage = ChatMessage(
+                    id: UUID().uuidString,
+                    text: "",
+                    isFromUser: false,
+                    timestamp: Date(),
+                    isStreaming: false,
+                    hasError: true,
+                    errorMessage: errorMsg
+                )
+                displayMessages.append(errorMessage)
+            }
+            streamingContent = ""
 
         case .ignored:
             break // Silently ignore unknown SSE events

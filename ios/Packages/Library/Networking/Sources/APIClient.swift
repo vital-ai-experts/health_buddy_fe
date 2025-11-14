@@ -76,8 +76,15 @@ public final class APIClient {
 
         print("🌐 [APIClient] Starting request")
         print("  URL: \(request.url?.absoluteString ?? "nil")")
-        
-        let (data, response) = try await session.data(for: request)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as NSError {
+            // 捕获网络层错误（超时、无连接等）
+            print("❌ [APIClient] Network error: \(error.localizedDescription)")
+            throw APIError.networkError(error)
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -106,7 +113,7 @@ public final class APIClient {
         onEvent: @escaping (ServerSentEvent) -> Void
     ) async throws {
         let request = try buildRequest(endpoint)
-        
+
         print("🌐 [APIClient] Starting stream request")
         print("  URL: \(request.url?.absoluteString ?? "nil")")
         print("  Method: \(request.httpMethod ?? "nil")")
@@ -115,13 +122,22 @@ public final class APIClient {
             print("  Body: \(bodyString)")
         }
 
-        let (bytes, response) = try await session.bytes(for: request)
+        let (bytes, response): (URLSession.AsyncBytes, URLResponse)
+        do {
+            (bytes, response) = try await session.bytes(for: request)
+        } catch let error as NSError {
+            // 捕获网络层错误（超时、无连接等）
+            print("❌ [APIClient] Network error during stream initialization: \(error.localizedDescription)")
+            print("  Error code: \(error.code)")
+            print("  Error domain: \(error.domain)")
+            throw APIError.networkError(error)
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             print("❌ [APIClient] Invalid response type")
             throw APIError.invalidResponse
         }
-        
+
         print("✅ [APIClient] Response received")
         print("  Status: \(httpResponse.statusCode)")
         print("  Headers: \(httpResponse.allHeaderFields)")
@@ -134,41 +150,49 @@ public final class APIClient {
         print("📡 [APIClient] Starting to receive SSE stream...")
         var buffer = Data()
         var eventCount = 0
-        
-        for try await byte in bytes {
-            buffer.append(byte)
-            
-            // 检查是否遇到 SSE 事件分隔符 "\n\n"
-            if buffer.count >= 2 {
-                let lastTwoBytes = buffer.suffix(2)
-                if lastTwoBytes[lastTwoBytes.startIndex] == 0x0A && 
-                   lastTwoBytes[lastTwoBytes.index(after: lastTwoBytes.startIndex)] == 0x0A {
-                    // 找到 "\n\n"，处理这个事件
-                    eventCount += 1
-                    
-                    // 将 Data 转换为 UTF-8 字符串
-                    if let eventString = String(data: buffer, encoding: .utf8) {
-                        print("📨 [APIClient] Received SSE event #\(eventCount)")
-                        print("  Raw: \(eventString.replacingOccurrences(of: "\n", with: "\\n"))")
-                        
-                        let event = parseServerSentEvent(eventString)
-                        if let event = event {
-                            print("  ✅ Parsed successfully")
-                            print("  Event type: \(event.event)")
-                            print("  Data length: \(event.data.count) chars")
-                            onEvent(event)
+
+        do {
+            for try await byte in bytes {
+                buffer.append(byte)
+
+                // 检查是否遇到 SSE 事件分隔符 "\n\n"
+                if buffer.count >= 2 {
+                    let lastTwoBytes = buffer.suffix(2)
+                    if lastTwoBytes[lastTwoBytes.startIndex] == 0x0A &&
+                       lastTwoBytes[lastTwoBytes.index(after: lastTwoBytes.startIndex)] == 0x0A {
+                        // 找到 "\n\n"，处理这个事件
+                        eventCount += 1
+
+                        // 将 Data 转换为 UTF-8 字符串
+                        if let eventString = String(data: buffer, encoding: .utf8) {
+                            print("📨 [APIClient] Received SSE event #\(eventCount)")
+                            print("  Raw: \(eventString.replacingOccurrences(of: "\n", with: "\\n"))")
+
+                            let event = parseServerSentEvent(eventString)
+                            if let event = event {
+                                print("  ✅ Parsed successfully")
+                                print("  Event type: \(event.event)")
+                                print("  Data length: \(event.data.count) chars")
+                                onEvent(event)
+                            } else {
+                                print("  ⚠️ Failed to parse SSE event")
+                            }
                         } else {
-                            print("  ⚠️ Failed to parse SSE event")
+                            print("  ❌ Failed to decode UTF-8 data")
                         }
-                    } else {
-                        print("  ❌ Failed to decode UTF-8 data")
+
+                        buffer = Data()
                     }
-                    
-                    buffer = Data()
                 }
             }
+        } catch let error as NSError {
+            // 捕获流读取过程中的网络错误
+            print("❌ [APIClient] Network error during stream reading: \(error.localizedDescription)")
+            print("  Error code: \(error.code)")
+            print("  Error domain: \(error.domain)")
+            throw APIError.networkError(error)
         }
-        
+
         print("🏁 [APIClient] Stream ended. Total events: \(eventCount)")
     }
 
@@ -297,7 +321,22 @@ public enum APIError: LocalizedError {
         case .encodingError(let error):
             return "Failed to encode request: \(error.localizedDescription)"
         case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+            let nsError = error as NSError
+            // 处理常见的网络错误码
+            switch nsError.code {
+            case NSURLErrorTimedOut:
+                return "Request timed out. Please check your connection and try again."
+            case NSURLErrorNotConnectedToInternet:
+                return "No internet connection. Please check your network settings."
+            case NSURLErrorNetworkConnectionLost:
+                return "Network connection lost. Please try again."
+            case NSURLErrorCannotConnectToHost:
+                return "Cannot connect to server. Please try again later."
+            case NSURLErrorDNSLookupFailed:
+                return "Cannot reach server. Please check your connection."
+            default:
+                return "Network error: \(error.localizedDescription)"
+            }
         }
     }
 }

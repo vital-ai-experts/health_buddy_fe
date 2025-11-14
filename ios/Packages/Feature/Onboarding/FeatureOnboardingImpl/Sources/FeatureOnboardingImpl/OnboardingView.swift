@@ -79,6 +79,11 @@ struct OnboardingView: View {
                     },
                     onSpecialMessageAction: { messageId, action in
                         viewModel.handleSpecialMessageAction(messageId: messageId, action: action)
+                    },
+                    onRetry: { messageId in
+                        Task {
+                            await viewModel.retryMessage(messageId)
+                        }
                     }
                 )
 
@@ -174,6 +179,7 @@ final class OnboardingViewModel: ObservableObject {
     private let authorizationService: AuthorizationService
     private let healthDataService: HealthDataService
     private let onComplete: () -> Void
+    private var lastUserMessage: String?  // 保存最后发送的消息用于重试
 
     // 消息ID到ChatMessage的映射，用于处理流式更新
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
@@ -270,6 +276,9 @@ final class OnboardingViewModel: ObservableObject {
             return
         }
 
+        // 保存用户消息用于重试
+        lastUserMessage = text
+
         // 1. 立即添加用户消息到 UI
         let userMsg = ChatMessage(
             id: UUID().uuidString,
@@ -305,9 +314,52 @@ final class OnboardingViewModel: ObservableObject {
             } catch {
                 print("❌ [OnboardingViewModel] 发送消息失败: \(error)")
                 self.isLoading = false
-
-                // TODO: 可以在这里尝试调用 resumeOnboarding
+                self.handleError(error: error)
             }
+        }
+    }
+
+    func retryMessage(_ failedMessageId: String) async {
+        // 移除错误消息
+        displayMessages.removeAll { message in
+            message.id == failedMessageId || message.hasError
+        }
+
+        // 重新发送最后的用户消息
+        if let lastMessage = lastUserMessage {
+            sendMessage(lastMessage)
+        }
+    }
+
+    private func handleError(error: Error) {
+        // 如果有流式消息正在进行，标记为失败
+        if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+            let failedMessage = displayMessages[index]
+            displayMessages[index] = ChatMessage(
+                id: failedMessage.id,
+                text: failedMessage.text,
+                isFromUser: false,
+                timestamp: failedMessage.timestamp,
+                isStreaming: false,
+                thinkingContent: failedMessage.thinkingContent,
+                toolCalls: failedMessage.toolCalls,
+                specialMessageType: failedMessage.specialMessageType,
+                specialMessageData: failedMessage.specialMessageData,
+                hasError: true,
+                errorMessage: error.localizedDescription
+            )
+        } else {
+            // 如果没有流式消息，创建一个新的错误消息
+            let errorMsg = ChatMessage(
+                id: UUID().uuidString,
+                text: "",
+                isFromUser: false,
+                timestamp: Date(),
+                isStreaming: false,
+                hasError: true,
+                errorMessage: error.localizedDescription
+            )
+            displayMessages.append(errorMsg)
         }
     }
 
@@ -355,6 +407,35 @@ final class OnboardingViewModel: ObservableObject {
             case .error(let message):
                 print("❌ [OnboardingViewModel] Stream error: \(message)")
                 isLoading = false
+
+                // 显示错误消息
+                if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
+                    let failedMessage = displayMessages[index]
+                    displayMessages[index] = ChatMessage(
+                        id: failedMessage.id,
+                        text: failedMessage.text,
+                        isFromUser: false,
+                        timestamp: failedMessage.timestamp,
+                        isStreaming: false,
+                        thinkingContent: failedMessage.thinkingContent,
+                        toolCalls: failedMessage.toolCalls,
+                        specialMessageType: failedMessage.specialMessageType,
+                        specialMessageData: failedMessage.specialMessageData,
+                        hasError: true,
+                        errorMessage: message
+                    )
+                } else {
+                    let errorMsg = ChatMessage(
+                        id: UUID().uuidString,
+                        text: "",
+                        isFromUser: false,
+                        timestamp: Date(),
+                        isStreaming: false,
+                        hasError: true,
+                        errorMessage: message
+                    )
+                    displayMessages.append(errorMsg)
+                }
             }
         }
     }
@@ -391,7 +472,7 @@ final class OnboardingViewModel: ObservableObject {
             
         case .error:
             print("❌ Agent 错误")
-            // 错误时也将所有消息设为非 streaming
+            // 错误时将所有流式消息标记为失败
             for (index, message) in displayMessages.enumerated() {
                 if message.isStreaming {
                     var updatedMessage = message
@@ -404,7 +485,9 @@ final class OnboardingViewModel: ObservableObject {
                         thinkingContent: updatedMessage.thinkingContent,
                         toolCalls: updatedMessage.toolCalls,
                         specialMessageType: updatedMessage.specialMessageType,
-                        specialMessageData: updatedMessage.specialMessageData
+                        specialMessageData: updatedMessage.specialMessageData,
+                        hasError: true,
+                        errorMessage: "Agent processing failed"
                     )
                     displayMessages[index] = updatedMessage
                 }

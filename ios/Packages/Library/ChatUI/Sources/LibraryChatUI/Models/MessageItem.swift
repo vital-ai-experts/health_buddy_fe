@@ -7,6 +7,7 @@ public enum MessageItem: Hashable, Identifiable {
     case user(UserMessage)
     case system(SystemMessage)
     case loading(SystemLoading)
+    case error(SystemError)
 
     public var id: String {
         switch self {
@@ -16,6 +17,8 @@ public enum MessageItem: Hashable, Identifiable {
             return "system_\(message.id)"
         case .loading(let loading):
             return "loading_\(loading.id)"
+        case .error(let error):
+            return "error_\(error.id)"
         }
     }
 }
@@ -80,6 +83,28 @@ public struct SystemLoading: Hashable, Identifiable {
     }
 }
 
+// MARK: - SystemError
+
+/// Represents an error message with retry capability
+public struct SystemError: Hashable, Identifiable {
+    public let id: String
+    public let errorMessage: String
+    public let timestamp: Date
+    public let failedMessageId: String?  // ID of the message that failed
+
+    public init(
+        id: String = UUID().uuidString,
+        errorMessage: String,
+        timestamp: Date = Date(),
+        failedMessageId: String? = nil
+    ) {
+        self.id = id
+        self.errorMessage = errorMessage
+        self.timestamp = timestamp
+        self.failedMessageId = failedMessageId
+    }
+}
+
 // MARK: - Supporting Types
 
 // Note: ToolCallInfo and SpecialMessageType are defined in ChatMessage.swift
@@ -89,6 +114,16 @@ public struct SystemLoading: Hashable, Identifiable {
 extension MessageItem {
     /// Converts a ChatMessage to a MessageItem
     public static func from(chatMessage: ChatMessage) -> MessageItem {
+        // 如果消息有错误，返回错误类型
+        if chatMessage.hasError {
+            return .error(SystemError(
+                id: chatMessage.id,
+                errorMessage: chatMessage.errorMessage ?? "Unknown error",
+                timestamp: chatMessage.timestamp,
+                failedMessageId: chatMessage.id
+            ))
+        }
+
         if chatMessage.isFromUser {
             return .user(UserMessage(
                 id: chatMessage.id,
