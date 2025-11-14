@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import FeatureHealthKitApi
 import FeatureAccountApi
 import FeatureChatApi
@@ -15,6 +16,7 @@ import DomainHealth
 import DomainOnboarding
 import LibraryServiceLoader
 import LibraryNetworking
+import FeatureChatImpl
 
 struct RootView: View {
     @State private var showingSplash: Bool = true
@@ -527,6 +529,12 @@ struct ProfileView: View {
                 // 开发者选项
                 #if DEBUG
                 Section("开发者选项") {
+                    NavigationLink {
+                        ChatDebugView()
+                    } label: {
+                        Label("SwiftData 调试", systemImage: "internaldrive")
+                    }
+
                     Button {
                         OnboardingStateManager.shared.resetOnboardingState()
                     } label: {
