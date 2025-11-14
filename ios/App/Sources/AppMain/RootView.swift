@@ -28,6 +28,7 @@ struct RootView: View {
     @State private var showLoginSheet: Bool = false
     @State private var showLoginFullScreen: Bool = false
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
+    @ObservedObject private var notificationManager = NotificationManager.shared
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let accountFeature: FeatureAccountBuildable
@@ -172,6 +173,18 @@ struct RootView: View {
             if !isAuthenticated && !shouldShowOnboarding {
                 showLoginSheet = true
             }
+        }
+
+        // 请求推送通知权限
+        await requestNotificationPermission()
+    }
+
+    /// 请求推送通知权限
+    private func requestNotificationPermission() async {
+        do {
+            try await NotificationManager.shared.requestAuthorization()
+        } catch {
+            print("❌ 请求通知权限失败: \(error.localizedDescription)")
         }
     }
 
@@ -535,6 +548,7 @@ struct ProfileView: View {
                 Section("开发者选项") {
                     NavigationLink {
                         DebugToolsBuilder().makeDebugToolsView()
+                            .environment(\.deviceToken, notificationManager.deviceToken)
                     } label: {
                         Label("开发者工具", systemImage: "wrench.and.screwdriver")
                     }

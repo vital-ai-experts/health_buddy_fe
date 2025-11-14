@@ -13,6 +13,8 @@ import FeatureChatImpl
 @main
 @MainActor
 struct MainApp: App {
+    // 集成 AppDelegate 处理推送通知
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     // 创建 SwiftData 模型容器
     let modelContainer: ModelContainer
 
