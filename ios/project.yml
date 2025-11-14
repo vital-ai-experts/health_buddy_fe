@@ -4,7 +4,6 @@ options:
   configFiles:
     Debug: Configs/Debug.xcconfig
     Release: Configs/Release.xcconfig
-    AdHoc: Configs/AdHoc.xcconfig
 fileGroups:
   - App/Sources
   - App/Resources
@@ -16,7 +15,6 @@ targetTemplates:
     configFiles:
       Debug: Configs/Debug.xcconfig
       Release: Configs/Release.xcconfig
-      AdHoc: Configs/AdHoc.xcconfig
 packages:
   LibraryServiceLoader:
     path: Packages/Library/ServiceLoader
@@ -118,11 +116,3 @@ schemes:
       config: Debug
     archive:
       config: Release
-  ThriveBody-AdHoc:
-    build:
-      targets:
-        ThriveBody: all
-    run:
-      config: AdHoc
-    archive:
-      config: AdHoc
