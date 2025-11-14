@@ -1,5 +1,6 @@
 import SwiftUI
 import DomainAuth
+import DomainOnboarding
 import LibraryServiceLoader
 
 struct RegisterView: View {
@@ -169,12 +170,20 @@ final class RegisterViewModel: ObservableObject {
             return
         }
 
+        // 获取 onboarding_id
+        guard let onboardingId = OnboardingStateManager.shared.getOnboardingID() else {
+            errorMessage = "Onboarding ID not found. Please restart the onboarding process."
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
         do {
-            _ = try await authService.register(email: email, password: password, fullName: fullName)
+            _ = try await authService.register(email: email, password: password, fullName: fullName, onboardingId: onboardingId)
             isRegisterSuccessful = true
+            // 注册成功后清除 onboarding_id
+            OnboardingStateManager.shared.clearOnboardingID()
         } catch {
             errorMessage = error.localizedDescription
             isRegisterSuccessful = false

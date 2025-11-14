@@ -8,7 +8,8 @@ let package = Package(
     dependencies: [
         .package(name: "FeatureAccountApi", path: "../FeatureAccountApi"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
-        .package(name: "DomainAuth", path: "../../../Domain/DomainAuth")
+        .package(name: "DomainAuth", path: "../../../Domain/DomainAuth"),
+        .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding")
     ],
     targets: [
         .target(
@@ -16,7 +17,8 @@ let package = Package(
             dependencies: [
                 .product(name: "FeatureAccountApi", package: "FeatureAccountApi"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
-                .product(name: "DomainAuth", package: "DomainAuth")
+                .product(name: "DomainAuth", package: "DomainAuth"),
+                .product(name: "DomainOnboarding", package: "DomainOnboarding")
             ],
             path: "Sources"
         )

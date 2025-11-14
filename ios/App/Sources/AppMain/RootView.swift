@@ -335,7 +335,7 @@ private struct PreviewOnboardingFeature: FeatureOnboardingBuildable {
 }
 
 private class PreviewAuthService: AuthenticationService {
-    func register(email: String, password: String, fullName: String?) async throws -> DomainAuth.User {
+    func register(email: String, password: String, fullName: String?, onboardingId: String) async throws -> DomainAuth.User {
         fatalError("Preview only")
     }
 
@@ -491,7 +491,7 @@ struct ProfileView: View {
                                         .font(.title2)
                                         .fontWeight(.semibold)
 
-                                    Text(user.email)
+                                    Text(user.email.isEmpty ? "user@example.com" : user.email)
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
@@ -694,7 +694,7 @@ struct AccountSettingsView: View {
                                     .font(.title2)
                                     .fontWeight(.semibold)
 
-                                Text(user.email)
+                                Text(user.email.isEmpty ? "user@example.com" : user.email)
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }

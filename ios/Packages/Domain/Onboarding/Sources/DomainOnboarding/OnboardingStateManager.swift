@@ -7,6 +7,7 @@ public final class OnboardingStateManager {
 
     private let userDefaults = UserDefaults.standard
     private let hasCompletedOnboardingKey = "com.hehigh.thrivebody.hasCompletedOnboarding"
+    private let onboardingIDKey = "com.hehigh.thrivebody.onboardingID"
 
     private init() {}
 
@@ -52,5 +53,30 @@ public final class OnboardingStateManager {
         // 未登录且未完成Onboarding，需要显示
         print("ℹ️ 新用户，需要显示Onboarding")
         return true
+    }
+
+    // MARK: - Onboarding ID Management
+
+    /// 保存 Onboarding ID
+    public func saveOnboardingID(_ id: String) {
+        userDefaults.set(id, forKey: onboardingIDKey)
+        print("✅ Onboarding ID 已保存: \(id)")
+    }
+
+    /// 获取 Onboarding ID
+    public func getOnboardingID() -> String? {
+        let id = userDefaults.string(forKey: onboardingIDKey)
+        if let id = id {
+            print("ℹ️ 获取 Onboarding ID: \(id)")
+        } else {
+            print("⚠️ 没有找到 Onboarding ID")
+        }
+        return id
+    }
+
+    /// 清除 Onboarding ID
+    public func clearOnboardingID() {
+        userDefaults.removeObject(forKey: onboardingIDKey)
+        print("✅ Onboarding ID 已清除")
     }
 }
