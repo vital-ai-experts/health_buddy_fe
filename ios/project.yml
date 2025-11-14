@@ -56,11 +56,16 @@ targets:
   ThriveBody:
     templates: [BaseAppTarget]
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody
-      CODE_SIGN_ENTITLEMENTS: App/ThriveBody.entitlements
-      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-      INFOPLIST_FILE: App/Resources/Info.plist
-      GENERATE_INFOPLIST_FILE: NO
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: App/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: App/ThriveBody-Debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: App/ThriveBody-Release.entitlements
     sources:
       - path: App/Sources
       - path: App/Resources/Assets.xcassets
