@@ -33,10 +33,8 @@ struct ChatView: View {
         .navigationTitle(viewModel.conversationId == nil ? "New Chat" : "Chat")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            if let conversationId = viewModel.conversationId {
-                Task {
-                    await viewModel.loadConversation()
-                }
+            Task {
+                await viewModel.initializeConversation()
             }
         }
     }
@@ -60,33 +58,90 @@ final class ChatViewModel: ObservableObject {
         self.conversationId = conversationId
     }
 
+    /// 初始化对话（在onAppear时调用）
+    func initializeConversation() async {
+        // 如果已经有conversationId，加载对话
+        if conversationId != nil {
+            await loadConversation()
+            return
+        }
+
+        // 如果没有conversationId，尝试获取最新的conversation
+        do {
+            let conversations = try await chatService.getConversations(limit: 1, offset: nil)
+            if let latestConversation = conversations.first {
+                print("📝 [ChatViewModel] No conversation ID provided, using latest: \(latestConversation.id)")
+                conversationId = latestConversation.id
+                await loadConversation()
+            } else {
+                print("📝 [ChatViewModel] No existing conversations, starting fresh")
+                // 没有conversation，保持nil（新对话）
+            }
+        } catch {
+            print("⚠️ [ChatViewModel] Failed to get latest conversation: \(error)")
+            // 失败也不影响，保持nil（新对话）
+        }
+    }
+
     func loadConversation() async {
         guard let conversationId = conversationId else { return }
 
         do {
-            let messages = try await chatService.getConversationHistory(id: conversationId)
+            // 1. 检查是否是最新的conversation
+            await checkAndUpdateToLatestConversation()
 
-            // 清空现有消息和映射
+            // 2. 加载历史消息并同步
+            try await syncConversationMessages()
+
+            // 3. 检查是否需要恢复streaming
+            await checkAndResumeIfNeeded()
+
+        } catch {
+            errorMessage = "Failed to load conversation: \(error.localizedDescription)"
+        }
+    }
+
+    /// 检查并更新到最新的conversation
+    private func checkAndUpdateToLatestConversation() async {
+        do {
+            let conversations = try await chatService.getConversations(limit: 1, offset: nil)
+
+            // 如果有conversation且与当前不同，更新为最新的
+            if let latestConversation = conversations.first {
+                if latestConversation.id != conversationId {
+                    print("📝 [ChatViewModel] Updating to latest conversation: \(latestConversation.id)")
+                    conversationId = latestConversation.id
+                }
+            }
+        } catch {
+            print("⚠️ [ChatViewModel] Failed to check latest conversation: \(error)")
+            // 不阻塞加载流程，继续使用当前conversationId
+        }
+    }
+
+    /// 同步conversation消息
+    private func syncConversationMessages() async throws {
+        guard let conversationId = conversationId else { return }
+
+        let serverMessages = try await chatService.getConversationHistory(id: conversationId)
+
+        // 创建本地消息ID集合
+        let localMessageIds = Set(displayMessages.map { $0.id })
+
+        // 找出服务端有但本地没有的消息
+        let missingMessages = serverMessages.filter { !localMessageIds.contains($0.id) }
+
+        if !missingMessages.isEmpty {
+            print("📥 [ChatViewModel] Syncing \(missingMessages.count) missing messages")
+        }
+
+        // 如果本地为空，直接加载所有消息
+        if displayMessages.isEmpty {
             displayMessages = []
             messageMap = [:]
 
-            // 转换历史消息为ChatMessage
-            for message in messages {
-                let chatMessage = ChatMessage(
-                    id: message.id,
-                    text: message.content,
-                    isFromUser: message.role == .user,
-                    timestamp: parseDate(message.createdAt),
-                    isStreaming: false,
-                    thinkingContent: message.thinkingContent,
-                    toolCalls: message.toolCalls?.map { ToolCallInfo(
-                        id: $0.toolCallId,
-                        name: $0.toolCallName,
-                        args: $0.toolCallArgs,
-                        status: $0.toolCallStatus?.description,
-                        result: $0.toolCallResult
-                    )}
-                )
+            for message in serverMessages {
+                let chatMessage = convertToChatMessage(message)
                 displayMessages.append(chatMessage)
 
                 // 非用户消息添加到messageMap
@@ -94,8 +149,104 @@ final class ChatViewModel: ObservableObject {
                     messageMap[message.id] = displayMessages.count - 1
                 }
             }
-        } catch {
-            errorMessage = "Failed to load conversation: \(error.localizedDescription)"
+        } else {
+            // 同步缺失的消息
+            for message in missingMessages {
+                let chatMessage = convertToChatMessage(message)
+
+                // 按时间顺序插入
+                if let insertIndex = displayMessages.firstIndex(where: {
+                    $0.timestamp > chatMessage.timestamp
+                }) {
+                    displayMessages.insert(chatMessage, at: insertIndex)
+                    // 更新messageMap
+                    rebuildMessageMap()
+                } else {
+                    displayMessages.append(chatMessage)
+                    if message.role != .user {
+                        messageMap[message.id] = displayMessages.count - 1
+                    }
+                }
+            }
+        }
+    }
+
+    /// 检查是否需要恢复streaming状态
+    private func checkAndResumeIfNeeded() async {
+        guard let conversationId = conversationId else { return }
+        guard !displayMessages.isEmpty else { return }
+
+        // 检查最后一条消息
+        let lastMessage = displayMessages.last!
+
+        // 情况1: 最后一条是用户消息，说明还没有收到assistant回复
+        // 这种情况肯定需要resume
+        if lastMessage.isFromUser {
+            print("⏸️ [ChatViewModel] Last message is from user, resuming to get assistant response...")
+            await tryResumeConversation()
+            return
+        }
+
+        // 情况2: 最后一条是assistant消息
+        // 我们无法从历史消息中准确判断消息是否完整
+        // 但可以检查一些指标：
+
+        // 2.1 检查消息是否为空（可能被中断）
+        if lastMessage.text.isEmpty && lastMessage.thinkingContent == nil {
+            print("⚠️ [ChatViewModel] Last assistant message is empty, resuming...")
+            await tryResumeConversation()
+            return
+        }
+
+        // 2.2 如果有本地保存的lastDataId，说明之前有streaming session
+        if lastDataId != nil {
+            print("🔄 [ChatViewModel] Found lastDataId from previous session, resuming...")
+            await tryResumeConversation()
+            return
+        }
+
+        // 2.3 检查是否有streaming标记（虽然从历史加载的消息都是false，但以防万一）
+        if lastMessage.isStreaming {
+            print("🔄 [ChatViewModel] Last message has streaming flag, resuming...")
+            await tryResumeConversation()
+            return
+        }
+
+        print("✅ [ChatViewModel] Last message appears complete, no need to resume")
+    }
+
+    /// 尝试恢复对话streaming
+    private func tryResumeConversation() async {
+        print("🔄 [ChatViewModel] Attempting to resume conversation")
+        await resumeConversation()
+    }
+
+    /// 转换Message为ChatMessage
+    private func convertToChatMessage(_ message: Message) -> ChatMessage {
+        return ChatMessage(
+            id: message.id,
+            text: message.content,
+            isFromUser: message.role == .user,
+            timestamp: parseDate(message.createdAt),
+            isStreaming: false,  // 历史消息都是完成状态
+            thinkingContent: message.thinkingContent,
+            toolCalls: message.toolCalls?.map { ToolCallInfo(
+                id: $0.toolCallId,
+                name: $0.toolCallName,
+                args: $0.toolCallArgs,
+                status: $0.toolCallStatus?.description,
+                result: $0.toolCallResult
+            )}
+        )
+    }
+
+    /// 重建messageMap
+    private func rebuildMessageMap() {
+        messageMap = [:]
+        for (index, message) in displayMessages.enumerated() {
+            if !message.isFromUser {
+                messageMap[message.id] = index
+            }
         }
     }
 
