@@ -116,6 +116,10 @@ public final class HealthKitManager {
         // MARK: - 生殖健康
         if let t = HKObjectType.categoryType(forIdentifier: .menstrualFlow) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .intermenstrualBleeding) { set.insert(t) }
+
+        // MARK: - 个人特征（年龄、性别）
+        if let t = HKObjectType.characteristicType(forIdentifier: .dateOfBirth) { set.insert(t) }
+        if let t = HKObjectType.characteristicType(forIdentifier: .biologicalSex) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .cervicalMucusQuality) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .ovulationTestResult) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .sexualActivity) { set.insert(t) }
@@ -501,10 +505,10 @@ public extension HealthKitManager {
                 }
             }
 
-            // MARK: - 睡眠
+            // MARK: - 睡眠 (使用离散数据,保留睡眠阶段信息)
             if let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
                 group.addTask {
-                    try? await self.fetchHourlyCategoryData(type: type, start: start, end: end, key: "sleepAnalysis", displayName: "睡眠分析")
+                    try? await self.fetchSleepAnalysisData(type: type, start: start, end: end)
                 }
             }
 
@@ -613,6 +617,25 @@ public extension HealthKitManager {
             result["end_time"] = formatDateToISO8601(end)
         }
 
+        // 添加个人特征信息（仅在日期范围模式下添加一次）
+        if isDateRange {
+            var characteristics: [String: Any] = [:]
+
+            // 获取年龄
+            if let age = try? getAge() {
+                characteristics["age"] = age
+            }
+
+            // 获取性别
+            if let biologicalSex = try? getBiologicalSex() {
+                characteristics["biological_sex"] = biologicalSex
+            }
+
+            if !characteristics.isEmpty {
+                result["characteristics"] = characteristics
+            }
+        }
+
         result["indicators"] = indicators
         return result
     }
@@ -622,6 +645,33 @@ public extension HealthKitManager {
         let formatter = ISO8601DateFormatter()
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
+    }
+
+    /// 获取用户年龄
+    private func getAge() throws -> Int? {
+        guard let dateOfBirth = try? healthStore.dateOfBirthComponents().date else {
+            return nil
+        }
+        let calendar = Calendar.current
+        let ageComponents = calendar.dateComponents([.year], from: dateOfBirth, to: Date())
+        return ageComponents.year
+    }
+
+    /// 获取用户生理性别
+    private func getBiologicalSex() throws -> String? {
+        let biologicalSex = try healthStore.biologicalSex()
+        switch biologicalSex.biologicalSex {
+        case .notSet:
+            return nil
+        case .female:
+            return "female"
+        case .male:
+            return "male"
+        case .other:
+            return "other"
+        @unknown default:
+            return nil
+        }
     }
 
     /// 获取数量类型的健康数据
@@ -824,6 +874,62 @@ public extension HealthKitManager {
         case sum      // 求和（用于累积类型如营养摄入）
         case average  // 平均值（用于离散类型如体温、血压）
         case latest   // 最新值（用于身体测量如体重、身高）
+    }
+
+    /// 获取睡眠分析数据（离散数据，保留睡眠阶段信息）
+    private func fetchSleepAnalysisData(
+        type: HKCategoryType,
+        start: Date,
+        end: Date
+    ) async throws -> [String: Any]? {
+        let samples = try await fetchCategorySamples(
+            type: type,
+            start: start,
+            end: end,
+            limit: HKObjectQueryNoLimit
+        )
+
+        // 如果没有数据,返回nil
+        guard !samples.isEmpty else {
+            return nil
+        }
+
+        // 睡眠阶段映射
+        let sleepStageNames: [Int: String] = [
+            0: "in_bed",           // HKCategoryValueSleepAnalysis.inBed
+            1: "asleep_unspecified", // HKCategoryValueSleepAnalysis.asleepUnspecified
+            2: "awake",            // HKCategoryValueSleepAnalysis.awake
+            3: "asleep_core",      // HKCategoryValueSleepAnalysis.asleepCore
+            4: "asleep_deep",      // HKCategoryValueSleepAnalysis.asleepDeep
+            5: "asleep_rem"        // HKCategoryValueSleepAnalysis.asleepREM
+        ]
+
+        // 转换为离散数据
+        let sleepSamples = samples.map { sample -> [String: Any] in
+            let stage = sleepStageNames[sample.value] ?? "unknown"
+            return [
+                "stage": stage,
+                "start_time": formatDateToISO8601(sample.startDate),
+                "end_time": formatDateToISO8601(sample.endDate),
+                "duration_minutes": sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+            ]
+        }.sorted {
+            ($0["start_time"] as? String ?? "") < ($1["start_time"] as? String ?? "")
+        }
+
+        // 统计总睡眠时长（不包括清醒和在床上）
+        let totalSleepMinutes = samples
+            .filter { [2, 3, 4, 5].contains($0.value) } // 排除in_bed(0)和awake(1)
+            .reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) / 60.0 }
+
+        return [
+            "key": "sleepAnalysis",
+            "name": "睡眠分析",
+            "unit": "分钟",
+            "value": totalSleepMinutes,
+            "aggregation_method": "sum",
+            "samples": sleepSamples  // 使用samples而不是hour_items
+        ]
     }
 
     /// 获取按小时聚合的分类类型健康数据（如站立小时）

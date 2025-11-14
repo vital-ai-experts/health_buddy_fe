@@ -17,6 +17,10 @@
 ```json
 {
   "date": "20251114",           // 用户时区的日期 (yyyyMMdd格式)
+  "characteristics": {          // 个人特征信息(可选)
+    "age": 28,                  // 年龄
+    "biological_sex": "male"    // 生理性别: male/female/other
+  },
   "indicators": [               // 指标列表(只包含有数据的指标)
     {
       "key": "stepCount",       // 指标唯一标识
@@ -32,6 +36,27 @@
         {
           "hour": "2025-11-14 01:00",
           "value": 123.0
+        }
+      ]
+    },
+    {
+      "key": "sleepAnalysis",   // 睡眠分析(特殊处理,保留离散数据)
+      "name": "睡眠分析",
+      "unit": "分钟",
+      "value": 456.0,           // 总睡眠时长
+      "aggregation_method": "sum",
+      "samples": [              // 离散的睡眠阶段数据
+        {
+          "stage": "asleep_deep",
+          "start_time": "2025-11-14T23:30:00+08:00",
+          "end_time": "2025-11-14T01:15:00+08:00",
+          "duration_minutes": 105.0
+        },
+        {
+          "stage": "asleep_rem",
+          "start_time": "2025-11-14T01:15:00+08:00",
+          "end_time": "2025-11-14T02:30:00+08:00",
+          "duration_minutes": 75.0
         }
       ]
     }
@@ -77,6 +102,15 @@
 | `end_time` | String | ISO8601格式的结束时间,如 `2025-11-14T16:30:00+08:00` |
 | `indicators` | Array | 指标数组,**只包含有数据的指标** |
 
+#### Characteristics 对象 (个人特征)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `age` | Number (可选) | 用户年龄 |
+| `biological_sex` | String (可选) | 生理性别: `male`(男), `female`(女), `other`(其他) |
+
+**注意**: characteristics 仅在日期范围数据中出现,recent_data 不包含此字段。
+
 ### Indicator 对象
 
 | 字段 | 类型 | 说明 |
@@ -87,6 +121,7 @@
 | `value` | Number | 总聚合值 |
 | `aggregation_method` | String | 聚合方法: `sum`(累加), `average`(平均), `latest`(最新值), `count`(计数) |
 | `hour_items` | Array (可选) | 按小时细分的数据,**仅当有多个小时数据时才存在** |
+| `samples` | Array (可选) | **仅用于睡眠数据**,包含离散的睡眠阶段信息 |
 
 ### Hour Item 对象
 
@@ -95,6 +130,15 @@
 | `hour` | String | 小时时间戳,格式为 `yyyy-MM-dd HH:mm` |
 | `value` | Number | 该小时的聚合值 |
 | `count` | Number | (仅分类数据)该小时的计数 |
+
+### Sleep Sample 对象 (睡眠阶段)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `stage` | String | 睡眠阶段: `in_bed`(在床上), `awake`(清醒), `asleep_unspecified`(未分类睡眠), `asleep_core`(核心睡眠), `asleep_deep`(深度睡眠), `asleep_rem`(快速眼动睡眠) |
+| `start_time` | String | ISO8601格式的开始时间 |
+| `end_time` | String | ISO8601格式的结束时间 |
+| `duration_minutes` | Number | 持续时长(分钟) |
 
 ## 聚合方法说明
 
@@ -235,6 +279,8 @@
 3. **时间范围区分**:
    - 日期范围 (yesterday/today) 使用 `date` 字段
    - 时间范围 (recent) 使用 `start_time` 和 `end_time` 字段
+4. **睡眠数据特殊处理**: 睡眠数据使用 `samples` 字段保留离散的睡眠阶段信息,而不是按小时聚合
+5. **个人特征**: 年龄和性别信息仅在日期范围数据中包含
 
 ### 示例数据
 
@@ -243,6 +289,10 @@
 ```json
 {
   "date": "20251114",
+  "characteristics": {
+    "age": 28,
+    "biological_sex": "male"
+  },
   "indicators": [
     {
       "key": "stepCount",
@@ -258,6 +308,39 @@
         {
           "hour": "2025-11-14 09:00",
           "value": 2134.0
+        }
+      ]
+    },
+    {
+      "key": "sleepAnalysis",
+      "name": "睡眠分析",
+      "unit": "分钟",
+      "value": 456.0,
+      "aggregation_method": "sum",
+      "samples": [
+        {
+          "stage": "asleep_deep",
+          "start_time": "2025-11-13T23:30:00+08:00",
+          "end_time": "2025-11-14T01:15:00+08:00",
+          "duration_minutes": 105.0
+        },
+        {
+          "stage": "asleep_rem",
+          "start_time": "2025-11-14T01:15:00+08:00",
+          "end_time": "2025-11-14T02:30:00+08:00",
+          "duration_minutes": 75.0
+        },
+        {
+          "stage": "awake",
+          "start_time": "2025-11-14T02:30:00+08:00",
+          "end_time": "2025-11-14T02:45:00+08:00",
+          "duration_minutes": 15.0
+        },
+        {
+          "stage": "asleep_core",
+          "start_time": "2025-11-14T02:45:00+08:00",
+          "end_time": "2025-11-14T06:00:00+08:00",
+          "duration_minutes": 195.0
         }
       ]
     },
