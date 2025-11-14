@@ -81,9 +81,11 @@ final class PersistentChatViewModel: ObservableObject {
     private var savedMessageIds: Set<String> = []  // 已保存到本地的消息ID
     private var loadedMessageCount = 0  // 已加载的消息数量
     private var totalMessageCount = 0  // 数据库中的总消息数量
+    private var conversationUpdatedAt: Date?  // 对话的最后更新时间
 
     private let initialLoadLimit = 10  // 初次加载消息数量
     private let loadMoreLimit = 20  // 每次加载更多的消息数量
+    private let conversationTimeoutHours: TimeInterval = 4 * 3600  // 4小时超时
 
     init(chatService: ChatService) {
         self.chatService = chatService
@@ -213,17 +215,39 @@ final class PersistentChatViewModel: ObservableObject {
         // 1. 首先检查是否有最新的conversation
         do {
             let conversations = try await chatService.getConversations(limit: 1, offset: nil)
-            if let latestConversation = conversations.first {
-                // 如果本地没有conversationId，使用最新的
-                if conversationId == nil {
+            guard let latestConversation = conversations.first else {
+                print("📝 [PersistentChat] 服务端没有对话记录")
+                return
+            }
+
+            let serverUpdatedAt = parseDate(latestConversation.updatedAt)
+
+            // 如果本地没有conversationId，直接使用服务端最新的
+            if conversationId == nil {
+                conversationId = latestConversation.id
+                conversationUpdatedAt = serverUpdatedAt
+                print("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.updatedAt)")
+            }
+            // 如果本地有conversationId，比较更新时间
+            else if let localUpdatedAt = conversationUpdatedAt {
+                // 比较本地和服务端的更新时间，选择更新的那个
+                if serverUpdatedAt > localUpdatedAt {
+                    print("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.updatedAt))，切换到最新对话: \(latestConversation.id)")
                     conversationId = latestConversation.id
-                    print("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id)")
+                    conversationUpdatedAt = serverUpdatedAt
+                } else {
+                    print("📝 [PersistentChat] 保持本地对话: \(conversationId!), 本地更新时间更近")
                 }
-                // 如果本地的conversationId与最新不同，更新为最新
-                else if conversationId != latestConversation.id {
-                    print("📝 [PersistentChat] 更新到最新的conversation: \(latestConversation.id)")
-                    conversationId = latestConversation.id
-                }
+            }
+            // 本地有conversationId但没有时间戳，比较ID后使用服务端时间
+            else if conversationId != latestConversation.id {
+                print("📝 [PersistentChat] 本地对话ID与服务端不同，切换到最新对话: \(latestConversation.id)")
+                conversationId = latestConversation.id
+                conversationUpdatedAt = serverUpdatedAt
+            } else {
+                // ID相同，更新时间戳
+                conversationUpdatedAt = serverUpdatedAt
+                print("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.updatedAt)")
             }
         } catch {
             print("⚠️ [PersistentChat] 获取最新conversation失败: \(error)")
@@ -355,7 +379,21 @@ final class PersistentChatViewModel: ObservableObject {
     func sendMessage(_ text: String) async {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        // 1. 创建用户消息
+        // 1. 检查对话是否超时（超过4小时）
+        var effectiveConversationId = conversationId
+        if let conversationId = conversationId, let updatedAt = conversationUpdatedAt {
+            let timeSinceLastUpdate = Date().timeIntervalSince(updatedAt)
+            if timeSinceLastUpdate > conversationTimeoutHours {
+                print("⏰ [PersistentChat] 对话超时 (\(Int(timeSinceLastUpdate/3600))小时)，开始新对话")
+                effectiveConversationId = nil
+                self.conversationId = nil
+                self.conversationUpdatedAt = nil
+            } else {
+                print("✅ [PersistentChat] 使用现有对话: \(conversationId), 距上次更新: \(Int(timeSinceLastUpdate/60))分钟")
+            }
+        }
+
+        // 2. 创建用户消息
         let userMessageId = UUID().uuidString
         let userMessage = ChatMessage(
             id: userMessageId,
@@ -366,7 +404,7 @@ final class PersistentChatViewModel: ObservableObject {
         )
         displayMessages.append(userMessage)
 
-        // 2. 保存用户消息到本地
+        // 3. 保存用户消息到本地
         await saveMessageToLocal(
             id: userMessageId,
             content: text,
@@ -374,14 +412,14 @@ final class PersistentChatViewModel: ObservableObject {
             timestamp: userMessage.timestamp
         )
 
-        // 3. 发送到服务器
+        // 4. 发送到服务器
         isSending = true
         errorMessage = nil
 
         do {
             try await chatService.sendMessage(
                 userInput: text,
-                conversationId: conversationId
+                conversationId: effectiveConversationId
             ) { [weak self] event in
                 Task { @MainActor in
                     self?.handleStreamEvent(event)
@@ -405,11 +443,15 @@ final class PersistentChatViewModel: ObservableObject {
 
             let data = streamMessage.data
 
-            // 保存conversationId
+            // 保存conversationId并更新时间戳
             if let cid = data.conversationId {
                 if conversationId == nil || conversationId != cid {
                     conversationId = cid
-                    print("✅ 对话ID: \(cid)")
+                    conversationUpdatedAt = Date()
+                    print("✅ 对话ID: \(cid), 更新时间: \(Date())")
+                } else {
+                    // 即使是同一个对话，也更新时间戳
+                    conversationUpdatedAt = Date()
                 }
             }
 
@@ -620,6 +662,7 @@ final class PersistentChatViewModel: ObservableObject {
             try storageService.deleteAllMessages()
             displayMessages.removeAll()
             conversationId = nil
+            conversationUpdatedAt = nil
             messageMap.removeAll()
             savedMessageIds.removeAll()
             loadedMessageCount = 0
