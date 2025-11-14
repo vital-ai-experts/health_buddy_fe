@@ -25,6 +25,11 @@ struct PersistentChatView: View {
                 Task {
                     await viewModel.sendMessage(text)
                 }
+            },
+            onLoadMoreHistory: {
+                Task {
+                    await viewModel.loadMoreMessages()
+                }
             }
         )
         .navigationTitle("AI助手")
@@ -66,6 +71,7 @@ final class PersistentChatViewModel: ObservableObject {
     @Published var conversationId: String? // 长期持有的对话ID
     @Published var inputText = ""
     @Published var showClearHistoryAlert = false
+    @Published var isLoadingMore = false  // 正在加载更多消息
 
     private let chatService: ChatService
     private var storageService: ChatStorageService?
@@ -73,9 +79,18 @@ final class PersistentChatViewModel: ObservableObject {
     private var lastDataId: String?  // 用于断线重连
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
     private var savedMessageIds: Set<String> = []  // 已保存到本地的消息ID
+    private var loadedMessageCount = 0  // 已加载的消息数量
+    private var totalMessageCount = 0  // 数据库中的总消息数量
+
+    private let initialLoadLimit = 10  // 初次加载消息数量
+    private let loadMoreLimit = 20  // 每次加载更多的消息数量
 
     init(chatService: ChatService) {
         self.chatService = chatService
+    }
+
+    var hasMoreMessages: Bool {
+        loadedMessageCount < totalMessageCount
     }
 
     func initialize(modelContext: ModelContext) async {
@@ -94,12 +109,20 @@ final class PersistentChatViewModel: ObservableObject {
         await checkAndResumeIfNeeded()
     }
 
-    /// 从本地数据库加载历史消息
+    /// 从本地数据库加载历史消息（分页加载，初次只加载最近10条）
     private func loadLocalHistory() async {
         guard let storageService = storageService else { return }
 
         do {
-            let localMessages = try storageService.fetchAllMessages()
+            // 获取总消息数量
+            totalMessageCount = try storageService.getMessageCount()
+
+            // 只加载最近的10条消息
+            let localMessages = try storageService.fetchRecentMessages(
+                limit: initialLoadLimit,
+                offset: 0
+            )
+
             displayMessages = localMessages.map { localMsg in
                 ChatMessage(
                     id: localMsg.id,
@@ -110,6 +133,8 @@ final class PersistentChatViewModel: ObservableObject {
                 )
             }
 
+            loadedMessageCount = localMessages.count
+
             // 如果有消息，尝试恢复conversationId
             if let lastMsg = localMessages.last, let convId = lastMsg.conversationId {
                 conversationId = convId
@@ -118,11 +143,69 @@ final class PersistentChatViewModel: ObservableObject {
             savedMessageIds = Set(localMessages.map { $0.id })
             rebuildMessageMap()
 
-            print("✅ 加载了 \(localMessages.count) 条本地消息")
+            print("✅ 加载了 \(localMessages.count) 条本地消息（共 \(totalMessageCount) 条）")
+            if hasMoreMessages {
+                print("📚 还有 \(totalMessageCount - loadedMessageCount) 条更早的消息")
+            }
         } catch {
             print("❌ 加载本地消息失败: \(error.localizedDescription)")
             errorMessage = "加载历史消息失败"
         }
+    }
+
+    /// 加载更多历史消息（用户往上滑动时调用）
+    func loadMoreMessages() async {
+        guard !isLoadingMore else {
+            print("⏳ 正在加载中，跳过重复请求")
+            return
+        }
+        guard hasMoreMessages else {
+            print("📭 没有更多消息了")
+            return
+        }
+        guard let storageService = storageService else { return }
+
+        isLoadingMore = true
+        print("📥 开始加载更多消息，当前已加载: \(loadedMessageCount)")
+
+        do {
+            // 从当前已加载的位置继续加载
+            let olderMessages = try storageService.fetchRecentMessages(
+                limit: loadMoreLimit,
+                offset: loadedMessageCount
+            )
+
+            if olderMessages.isEmpty {
+                print("📭 没有更多消息了")
+            } else {
+                // 将更早的消息插入到列表前面
+                let newChatMessages = olderMessages.map { localMsg in
+                    ChatMessage(
+                        id: localMsg.id,
+                        text: localMsg.content,
+                        isFromUser: localMsg.isFromUser,
+                        timestamp: localMsg.timestamp,
+                        isStreaming: false
+                    )
+                }
+
+                displayMessages.insert(contentsOf: newChatMessages, at: 0)
+                loadedMessageCount += olderMessages.count
+
+                // 更新savedMessageIds
+                savedMessageIds.formUnion(olderMessages.map { $0.id })
+
+                // 重建messageMap（索引变了）
+                rebuildMessageMap()
+
+                print("✅ 加载了 \(olderMessages.count) 条更早的消息，总计: \(loadedMessageCount)/\(totalMessageCount)")
+            }
+        } catch {
+            print("❌ 加载更多消息失败: \(error.localizedDescription)")
+            errorMessage = "加载更多消息失败"
+        }
+
+        isLoadingMore = false
     }
 
     /// 从服务端同步消息
@@ -199,6 +282,12 @@ final class PersistentChatViewModel: ObservableObject {
                         isFromUser: message.role == .user,
                         timestamp: chatMessage.timestamp
                     )
+                }
+
+                // 更新计数器
+                loadedMessageCount += missingMessages.count
+                if let storageService = storageService {
+                    totalMessageCount = (try? storageService.getMessageCount()) ?? totalMessageCount
                 }
             }
         } catch {
@@ -309,36 +398,6 @@ final class PersistentChatViewModel: ObservableObject {
     private func handleStreamEvent(_ event: ConversationStreamEvent) {
         switch event {
         case .streamMessage(let streamMessage):
-<<<<<<< Updated upstream
-            handleStreamMessage(streamMessage)
-
-        case .error(let message):
-            print("❌ 流式错误: \(message)")
-            errorMessage = message
-            isSending = false
-        }
-    }
-
-    private func handleStreamMessage(_ streamMessage: StreamMessage) {
-        let data = streamMessage.data
-
-        if let cid = data.conversationId, conversationId != cid {
-            conversationId = cid
-        }
-
-        switch data.dataType {
-        case .agentStatus:
-            handleAgentStatus(data.agentStatus)
-
-        case .agentMessage:
-            handleAgentMessage(data)
-
-        case .agentToolCall:
-            handleToolCall(data)
-        }
-    }
-
-=======
             print("📩 [PersistentChat] Received stream message")
 
             // 记录lastDataId用于断线重连
@@ -348,9 +407,9 @@ final class PersistentChatViewModel: ObservableObject {
 
             // 保存conversationId
             if let cid = data.conversationId {
-                if conversationId == nil {
+                if conversationId == nil || conversationId != cid {
                     conversationId = cid
-                    print("✅ 新对话ID: \(cid)")
+                    print("✅ 对话ID: \(cid)")
                 }
             }
 
@@ -369,74 +428,35 @@ final class PersistentChatViewModel: ObservableObject {
         case .error(let message):
             print("❌ [PersistentChat] Stream error: \(message)")
             errorMessage = message
+            isSending = false
         }
     }
 
     /// 处理Agent状态
->>>>>>> Stashed changes
     private func handleAgentStatus(_ status: AgentStatus?) {
         guard let status = status else { return }
 
         switch status {
         case .generating:
-<<<<<<< Updated upstream
-            break
-        case .finished, .stopped:
-            finalizeStreamingMessages(shouldPersist: true)
-            isSending = false
-        case .error:
-            markStreamingMessageAsError("Agent error")
-=======
             print("🤖 Agent 生成中...")
 
         case .finished:
             print("✅ Agent 完成")
-            // 将所有streaming消息设为non-streaming并保存
-            for (index, message) in displayMessages.enumerated() {
-                if message.isStreaming {
-                    let finalMessage = ChatMessage(
-                        id: message.id,
-                        text: message.text,
-                        isFromUser: message.isFromUser,
-                        timestamp: message.timestamp,
-                        isStreaming: false,
-                        thinkingContent: message.thinkingContent,
-                        toolCalls: message.toolCalls
-                    )
-                    displayMessages[index] = finalMessage
-
-                    // 保存到本地
-                    Task {
-                        await saveMessageToLocal(
-                            id: finalMessage.id,
-                            content: finalMessage.text,
-                            isFromUser: false,
-                            timestamp: finalMessage.timestamp
-                        )
-                    }
-                }
-            }
+            finalizeStreamingMessages(shouldPersist: true)
             isSending = false
 
         case .error:
             print("❌ Agent 错误")
+            markStreamingMessageAsError("Agent error")
             isSending = false
 
         case .stopped:
             print("⏸️ Agent 停止")
->>>>>>> Stashed changes
+            finalizeStreamingMessages(shouldPersist: true)
             isSending = false
         }
     }
 
-<<<<<<< Updated upstream
-    private func handleAgentMessage(_ data: StreamMessageData) {
-        let msgId = data.msgId
-
-        let hasContent = data.content?.isEmpty == false
-        let hasThinking = data.thinkingContent?.isEmpty == false
-        let hasToolCalls = data.toolCalls?.isEmpty == false
-=======
     /// 处理Agent消息
     private func handleAgentMessage(_ data: StreamMessageData) {
         let msgId = data.msgId
@@ -449,7 +469,6 @@ final class PersistentChatViewModel: ObservableObject {
         let hasContent = data.content != nil && !data.content!.isEmpty
         let hasThinking = data.thinkingContent != nil && !data.thinkingContent!.isEmpty
         let hasToolCalls = data.toolCalls != nil && !data.toolCalls!.isEmpty
->>>>>>> Stashed changes
 
         guard hasContent || hasThinking || hasToolCalls else {
             return
@@ -457,12 +476,8 @@ final class PersistentChatViewModel: ObservableObject {
 
         let content = data.content ?? ""
 
-<<<<<<< Updated upstream
-        let toolCallInfos = data.toolCalls?.map { toolCall in
-=======
         // 转换工具调用
         let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.map { toolCall in
->>>>>>> Stashed changes
             ToolCallInfo(
                 id: toolCall.toolCallId,
                 name: toolCall.toolCallName,
@@ -472,22 +487,6 @@ final class PersistentChatViewModel: ObservableObject {
             )
         }
 
-<<<<<<< Updated upstream
-        if let index = messageMap[msgId] {
-            let existingMessage = displayMessages[index]
-            displayMessages[index] = ChatMessage(
-                id: existingMessage.id,
-                text: content,
-                isFromUser: false,
-                timestamp: existingMessage.timestamp,
-                isStreaming: true,
-                thinkingContent: data.thinkingContent ?? existingMessage.thinkingContent,
-                toolCalls: toolCallInfos ?? existingMessage.toolCalls
-            )
-        } else {
-            finalizeStreamingMessages(shouldPersist: true)
-
-=======
         // 查找或创建消息
         if let index = messageMap[msgId] {
             print("  → Updating existing message at index \(index)")
@@ -499,31 +498,18 @@ final class PersistentChatViewModel: ObservableObject {
                 isFromUser: existingMessage.isFromUser,
                 timestamp: existingMessage.timestamp,
                 isStreaming: true,
-                thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos
+                thinkingContent: data.thinkingContent ?? existingMessage.thinkingContent,
+                toolCalls: toolCallInfos ?? existingMessage.toolCalls
             )
             displayMessages[index] = message
 
         } else {
             print("  → Creating new message")
 
-            // 新消息到来时，将之前所有消息设为非streaming
-            for (idx, msg) in displayMessages.enumerated() {
-                if msg.isStreaming {
-                    displayMessages[idx] = ChatMessage(
-                        id: msg.id,
-                        text: msg.text,
-                        isFromUser: msg.isFromUser,
-                        timestamp: msg.timestamp,
-                        isStreaming: false,
-                        thinkingContent: msg.thinkingContent,
-                        toolCalls: msg.toolCalls
-                    )
-                }
-            }
+            // 新消息到来时，将之前所有消息设为非streaming并保存
+            finalizeStreamingMessages(shouldPersist: true)
 
             // 创建新消息
->>>>>>> Stashed changes
             let newMessage = ChatMessage(
                 id: msgId,
                 text: content,
@@ -535,12 +521,14 @@ final class PersistentChatViewModel: ObservableObject {
             )
             displayMessages.append(newMessage)
             messageMap[msgId] = displayMessages.count - 1
-<<<<<<< Updated upstream
         }
     }
 
+    /// 处理工具调用
     private func handleToolCall(_ data: StreamMessageData) {
-        print("🔧 收到工具调用事件: \(data.toolCalls?.count ?? 0) 个调用")
+        print("🔧 [PersistentChat] handleToolCall")
+        print("  msgId: \(data.msgId)")
+        print("  toolCalls: \(data.toolCalls?.count ?? 0)")
     }
 
     private func finalizeStreamingMessages(shouldPersist: Bool) {
@@ -594,16 +582,7 @@ final class PersistentChatViewModel: ObservableObject {
                 timestamp: message.timestamp,
                 conversationId: self.conversationId
             )
-=======
->>>>>>> Stashed changes
         }
-    }
-
-    /// 处理工具调用
-    private func handleToolCall(_ data: StreamMessageData) {
-        print("🔧 [PersistentChat] handleToolCall")
-        print("  msgId: \(data.msgId)")
-        print("  toolCalls: \(data.toolCalls?.count ?? 0)")
     }
 
     /// 保存消息到本地数据库
@@ -643,6 +622,8 @@ final class PersistentChatViewModel: ObservableObject {
             conversationId = nil
             messageMap.removeAll()
             savedMessageIds.removeAll()
+            loadedMessageCount = 0
+            totalMessageCount = 0
             print("✅ 历史记录已清除")
         } catch {
             print("❌ 清除历史记录失败: \(error.localizedDescription)")
