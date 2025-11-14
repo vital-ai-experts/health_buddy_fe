@@ -2,3 +2,4 @@
 #include "Signing.xcconfig"
 
 SWIFT_OPTIMIZATION_LEVEL = -O
+APS_ENVIRONMENT = development
