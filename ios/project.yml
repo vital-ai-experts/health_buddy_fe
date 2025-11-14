@@ -48,6 +48,10 @@ packages:
     path: Packages/Feature/Onboarding/FeatureOnboardingApi
   FeatureOnboardingImpl:
     path: Packages/Feature/Onboarding/FeatureOnboardingImpl
+  FeatureDebugToolsApi:
+    path: Packages/Feature/DebugTools/FeatureDebugToolsApi
+  FeatureDebugToolsImpl:
+    path: Packages/Feature/DebugTools/FeatureDebugToolsImpl
 targets:
   ThriveBody:
     templates: [BaseAppTarget]
@@ -99,6 +103,10 @@ targets:
         product: FeatureOnboardingApi
       - package: FeatureOnboardingImpl
         product: FeatureOnboardingImpl
+      - package: FeatureDebugToolsApi
+        product: FeatureDebugToolsApi
+      - package: FeatureDebugToolsImpl
+        product: FeatureDebugToolsImpl
 schemes:
   ThriveBody:
     build:

@@ -1,17 +1,16 @@
 import SwiftUI
 import SwiftData
+import FeatureChatImpl
 
 /// 调试视图：查看本地存储的聊天消息
-public struct ChatDebugView: View {
+struct ChatDebugView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var messages: [LocalChatMessage] = []
     @State private var messageCount: Int = 0
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    public init() {}
-
-    public var body: some View {
+    var body: some View {
         List {
             Section("数据库统计") {
                 HStack {

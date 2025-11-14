@@ -16,7 +16,11 @@ import DomainHealth
 import DomainOnboarding
 import LibraryServiceLoader
 import LibraryNetworking
-import FeatureChatImpl
+
+#if DEBUG
+import FeatureDebugToolsApi
+import FeatureDebugToolsImpl
+#endif
 
 struct RootView: View {
     @State private var showingSplash: Bool = true
@@ -530,9 +534,9 @@ struct ProfileView: View {
                 #if DEBUG
                 Section("开发者选项") {
                     NavigationLink {
-                        ChatDebugView()
+                        DebugToolsBuilder().makeDebugToolsView()
                     } label: {
-                        Label("SwiftData 调试", systemImage: "internaldrive")
+                        Label("开发者工具", systemImage: "wrench.and.screwdriver")
                     }
 
                     Button {
