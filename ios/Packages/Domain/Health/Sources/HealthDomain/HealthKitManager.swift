@@ -222,291 +222,341 @@ public extension HealthKitManager {
 
 public extension HealthKitManager {
     /// 批量获取所有健康数据并转换为JSON字符串
+    /// 返回格式：{ yesterday_data: "", today_data: "", recent_data: "" }
     func fetchRecentDataAsJSON() async throws -> String {
-        let end = Date()
-        guard let start = Calendar.current.date(byAdding: .day, value: -1, to: end) else {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // 计算昨天：昨天0点到昨天23:59:59
+        guard let todayStart = calendar.startOfDay(for: now),
+              let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: todayStart),
+              let yesterdayEnd = calendar.date(byAdding: .second, value: -1, to: todayStart) else {
             throw makeError("无法计算时间范围")
         }
 
+        // 计算今天：今天0点到现在
+        let todayEnd = now
+
+        // 计算最近3小时
+        guard let recent3HoursStart = calendar.date(byAdding: .hour, value: -3, to: now) else {
+            throw makeError("无法计算最近3小时范围")
+        }
+
+        // 获取三个时间段的数据
+        let yesterdayData = try await fetchAllHealthDataForPeriod(start: yesterdayStart, end: yesterdayEnd)
+        let todayData = try await fetchAllHealthDataForPeriod(start: todayStart, end: todayEnd)
+        let recentData = try await fetchAllHealthDataForPeriod(start: recent3HoursStart, end: now)
+
+        // 转换为JSON字符串
+        let yesterdayJSON = try convertToJSONString(yesterdayData)
+        let todayJSON = try convertToJSONString(todayData)
+        let recentJSON = try convertToJSONString(recentData)
+
+        // 构建最终的数据包
+        let finalData: [String: String] = [
+            "yesterday_data": yesterdayJSON,
+            "today_data": todayJSON,
+            "recent_data": recentJSON
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: finalData, options: [.sortedKeys, .prettyPrinted])
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw makeError("无法将健康数据转换为JSON字符串")
+        }
+
+        return jsonString
+    }
+
+    /// 将数据字典转换为JSON字符串
+    private func convertToJSONString(_ data: [String: Any]) throws -> String {
+        let jsonData = try JSONSerialization.data(withJSONObject: data, options: [.sortedKeys])
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw makeError("无法将数据转换为JSON字符串")
+        }
+        return jsonString
+    }
+
+    /// 获取指定时间段的所有健康数据（按小时聚合）
+    private func fetchAllHealthDataForPeriod(start: Date, end: Date) async throws -> [String: Any] {
         var allData: [String: Any] = [:]
 
         await withTaskGroup(of: (String, [[String: Any]])?.self) { group in
             // MARK: - 活动与健身数据
             if let type = HKObjectType.quantityType(forIdentifier: .stepCount) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "stepCount")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count(), key: "stepCount")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceWalkingRunning")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceWalkingRunning")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .distanceCycling) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceCycling")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceCycling")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .distanceSwimming) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceSwimming")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "distanceSwimming")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .flightsClimbed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "flightsClimbed")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count(), key: "flightsClimbed")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "exerciseTime")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .minute(), key: "exerciseTime")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "activeEnergyBurned")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "activeEnergyBurned")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .basalEnergyBurned) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "basalEnergyBurned")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "basalEnergyBurned")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .appleStandTime) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "standTime")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .minute(), key: "standTime")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .appleMoveTime) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "moveTime")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .minute(), key: "moveTime")
                 }
             }
 
             // 运动指标
             if let type = HKObjectType.quantityType(forIdentifier: .walkingSpeed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "walkingSpeed")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "walkingSpeed")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .runningSpeed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "runningSpeed")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "runningSpeed")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .walkingStepLength) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "walkingStepLength")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "walkingStepLength")
                 }
             }
 
             // MARK: - 心肺健康
             if let type = HKObjectType.quantityType(forIdentifier: .heartRate) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "heartRate")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "heartRate", options: .discreteAverage)
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .restingHeartRate) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "restingHeartRate")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "restingHeartRate", options: .discreteAverage)
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "walkingHeartRateAverage")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "walkingHeartRateAverage", options: .discreteAverage)
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .secondUnit(with: .milli), key: "heartRateVariability")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .secondUnit(with: .milli), key: "heartRateVariability")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .vo2Max) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())), key: "vo2Max")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute())), key: "vo2Max")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "oxygenSaturation")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .percent(), key: "oxygenSaturation")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .respiratoryRate) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "respiratoryRate")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count().unitDivided(by: .minute()), key: "respiratoryRate")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureSystolic")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureSystolic")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureDiastolic")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .millimeterOfMercury(), key: "bloodPressureDiastolic")
                 }
             }
 
             // MARK: - 身体测量
             if let type = HKObjectType.quantityType(forIdentifier: .height) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "height")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "height")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bodyMass) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "bodyMass")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "bodyMass")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "bodyMassIndex")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count(), key: "bodyMassIndex")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .leanBodyMass) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "leanBodyMass")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .kilo), key: "leanBodyMass")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "bodyFatPercentage")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .percent(), key: "bodyFatPercentage")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .waistCircumference) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter(), key: "waistCircumference")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter(), key: "waistCircumference")
                 }
             }
 
             // MARK: - 营养
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryEnergyConsumed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "dietaryEnergy")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .kilocalorie(), key: "dietaryEnergy")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryWater) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .liter(), key: "dietaryWater")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .liter(), key: "dietaryWater")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryProtein) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryProtein")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryProtein")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryCarbohydrates) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryCarbohydrates")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryCarbohydrates")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryFatTotal) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFat")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFat")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryCaffeine) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "dietaryCaffeine")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "dietaryCaffeine")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietarySugar) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietarySugar")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietarySugar")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryFiber) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFiber")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gram(), key: "dietaryFiber")
                 }
             }
 
             // 维生素
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminA) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminA")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminA")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminC) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "vitaminC")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .milli), key: "vitaminC")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .dietaryVitaminD) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminD")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .gramUnit(with: .micro), key: "vitaminD")
                 }
             }
 
             // MARK: - 睡眠
             if let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
                 group.addTask {
-                    try? await self.fetchCategoryData(type: type, start: start, end: end, key: "sleepAnalysis")
+                    try? await self.fetchHourlyCategoryData(type: type, start: start, end: end, key: "sleepAnalysis")
                 }
             }
 
             // MARK: - 正念
             if let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) {
                 group.addTask {
-                    try? await self.fetchCategoryData(type: type, start: start, end: end, key: "mindfulSession")
+                    try? await self.fetchHourlyCategoryData(type: type, start: start, end: end, key: "mindfulSession")
                 }
             }
 
             // MARK: - 其他健康指标
             if let type = HKObjectType.quantityType(forIdentifier: .bodyTemperature) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "bodyTemperature")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "bodyTemperature")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter()), key: "bloodGlucose")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose).unitDivided(by: .liter()), key: "bloodGlucose")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .numberOfTimesFallen) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "numberOfTimesFallen")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count(), key: "numberOfTimesFallen")
                 }
             }
 
             // MARK: - 听力
             if let type = HKObjectType.quantityType(forIdentifier: .environmentalAudioExposure) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "environmentalAudioExposure")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "environmentalAudioExposure")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .headphoneAudioExposure) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "headphoneAudioExposure")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .decibelAWeightedSoundPressureLevel(), key: "headphoneAudioExposure")
                 }
             }
 
             // MARK: - 移动性
             if let type = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingDoubleSupportPercentage")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingDoubleSupportPercentage")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .walkingAsymmetryPercentage) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingAsymmetryPercentage")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .percent(), key: "walkingAsymmetryPercentage")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .stairAscentSpeed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairAscentSpeed")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairAscentSpeed")
                 }
             }
             if let type = HKObjectType.quantityType(forIdentifier: .stairDescentSpeed) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairDescentSpeed")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .meter().unitDivided(by: .second()), key: "stairDescentSpeed")
                 }
             }
 
             // MARK: - UV暴露
             if let type = HKObjectType.quantityType(forIdentifier: .uvExposure) {
                 group.addTask {
-                    try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .count(), key: "uvExposure")
+                    try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .count(), key: "uvExposure")
                 }
             }
 
@@ -516,17 +566,17 @@ public extension HealthKitManager {
                     group.addTask {
                         // physicalEffort 的单位是 kcal/(hr·kg)，即千卡/(小时·千克)
                         let unit = HKUnit.kilocalorie().unitDivided(by: HKUnit.hour()).unitDivided(by: HKUnit.gramUnit(with: .kilo))
-                        return try? await self.fetchQuantityData(type: type, start: start, end: end, unit: unit, key: "physicalEffort")
+                        return try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: unit, key: "physicalEffort")
                     }
                 }
                 if let type = HKObjectType.quantityType(forIdentifier: .timeInDaylight) {
                     group.addTask {
-                        try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .minute(), key: "timeInDaylight")
+                        try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .minute(), key: "timeInDaylight")
                     }
                 }
                 if let type = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) {
                     group.addTask {
-                        try? await self.fetchQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "sleepingWristTemperature")
+                        try? await self.fetchHourlyQuantityData(type: type, start: start, end: end, unit: .degreeCelsius(), key: "sleepingWristTemperature")
                     }
                 }
             }
@@ -594,6 +644,72 @@ public extension HealthKitManager {
         }
 
         return (key, dataPoints)
+    }
+
+    /// 格式化日期时间为本地时区格式：20251114_14
+    private func formatDateToLocalHour(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HH"
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+
+    /// 获取按小时聚合的数量类型健康数据
+    private func fetchHourlyQuantityData(
+        type: HKQuantityType,
+        start: Date,
+        end: Date,
+        unit: HKUnit,
+        key: String,
+        options: HKStatisticsOptions = .cumulativeSum
+    ) async throws -> (String, [[String: Any]]) {
+        let statistics = try await fetchHourlyStatistics(
+            type: type,
+            start: start,
+            end: end,
+            unit: unit,
+            options: options
+        )
+
+        let hourlyData = statistics.map { stat in
+            [
+                "hour": formatDateToLocalHour(stat.start),
+                "value": stat.value
+            ] as [String: Any]
+        }
+
+        return (key, hourlyData)
+    }
+
+    /// 获取按小时聚合的分类类型健康数据（如站立小时）
+    private func fetchHourlyCategoryData(
+        type: HKCategoryType,
+        start: Date,
+        end: Date,
+        key: String
+    ) async throws -> (String, [[String: Any]]) {
+        let samples = try await fetchCategorySamples(
+            type: type,
+            start: start,
+            end: end,
+            limit: HKObjectQueryNoLimit
+        )
+
+        // 将分类数据按小时聚合
+        var hourlyDict: [String: Int] = [:]
+        for sample in samples {
+            let hourKey = formatDateToLocalHour(sample.startDate)
+            hourlyDict[hourKey, default: 0] += 1
+        }
+
+        let hourlyData = hourlyDict.map { (hour, count) in
+            [
+                "hour": hour,
+                "count": count
+            ] as [String: Any]
+        }.sorted { ($0["hour"] as? String ?? "") < ($1["hour"] as? String ?? "") }
+
+        return (key, hourlyData)
     }
 
     /// 获取最近24小时的健康数据

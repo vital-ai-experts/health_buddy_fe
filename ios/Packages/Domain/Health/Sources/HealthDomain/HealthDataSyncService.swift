@@ -77,11 +77,11 @@ public final class HealthDataSyncService {
         do {
             print("📤 开始同步健康数据...")
 
-            // 获取最近24小时的聚合数据
-            let aggregatedData = try await fetchAndAggregateData()
+            // 使用统一的健康数据采集方法
+            let healthDataJSON = try await healthKitManager.fetchRecentDataAsJSON()
 
             // 上传到服务器
-            try await uploadToServer(aggregatedData)
+            try await uploadToServer(healthDataJSON)
 
             print("✅ 健康数据同步成功")
         } catch {
@@ -89,7 +89,8 @@ public final class HealthDataSyncService {
         }
     }
 
-    /// 获取并聚合最近24小时的健康数据
+    /// 获取并聚合健康数据（已废弃，使用 HealthKitManager.fetchRecentDataAsJSON）
+    @available(*, deprecated, message: "使用 HealthKitManager.fetchRecentDataAsJSON 代替")
     private func fetchAndAggregateData() async throws -> [String: Any] {
         let end = Date()
         guard let start = Calendar.current.date(byAdding: .day, value: -1, to: end) else {
@@ -587,11 +588,21 @@ public final class HealthDataSyncService {
     }
 
     /// 上传数据到服务器
-    private func uploadToServer(_ data: [String: Any]) async throws {
+    private func uploadToServer(_ healthDataJSON: String) async throws {
         let apiClient = APIClient.shared
 
+        // 将JSON字符串转换为字典
+        guard let jsonData = healthDataJSON.data(using: .utf8),
+              let dataDict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String] else {
+            throw NSError(domain: "HealthDataSync", code: -1, userInfo: [NSLocalizedDescriptionKey: "无法解析健康数据JSON"])
+        }
+
         // 创建可编码的请求体
-        let requestBody = HealthDataUploadRequest(data: data)
+        let requestBody = HealthDataUploadRequestV2(
+            yesterdayData: dataDict["yesterday_data"] ?? "{}",
+            todayData: dataDict["today_data"] ?? "{}",
+            recentData: dataDict["recent_data"] ?? "{}"
+        )
 
         // 构建 API 端点
         let endpoint = APIEndpoint(
@@ -613,6 +624,21 @@ public final class HealthDataSyncService {
 
 // MARK: - Request/Response Models
 
+/// 新的健康数据上传请求体（V2版本，使用三个时间段）
+private struct HealthDataUploadRequestV2: Encodable {
+    let yesterdayData: String
+    let todayData: String
+    let recentData: String
+
+    enum CodingKeys: String, CodingKey {
+        case yesterdayData = "yesterday_data"
+        case todayData = "today_data"
+        case recentData = "recent_data"
+    }
+}
+
+/// 旧的健康数据上传请求体（已废弃）
+@available(*, deprecated, message: "使用 HealthDataUploadRequestV2 代替")
 private struct HealthDataUploadRequest: Encodable {
     let data: [String: Any]
 
