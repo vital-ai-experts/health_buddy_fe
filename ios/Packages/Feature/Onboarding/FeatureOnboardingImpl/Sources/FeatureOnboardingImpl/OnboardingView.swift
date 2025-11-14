@@ -380,6 +380,8 @@ final class OnboardingViewModel: ObservableObject {
                 if let oid = data.onboardingId {
                     if onboardingId == nil {
                         print("✅ [OnboardingViewModel] Got onboardingId: \(oid)")
+                        // 保存到 OnboardingStateManager
+                        OnboardingStateManager.shared.saveOnboardingID(oid)
                     }
                     onboardingId = oid
                 }
