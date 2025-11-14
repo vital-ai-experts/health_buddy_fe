@@ -32,80 +32,22 @@ public struct SimpleChatView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // 消息列表
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-                            MessageBubbleView(
-                                message: message,
-                                configuration: configuration,
-                                showAvatar: shouldShowAvatar(at: index),
-                                onSpecialMessageAction: onSpecialMessageAction
-                            )
-                            .id(message.id)
-                        }
-
-                        // Loading indicator
-                        if isLoading && !hasStreamingMessage {
-                            HStack(alignment: .top, spacing: 8) {
-                                // Bot 头像 - 根据前一条消息决定是否显示
-                                if configuration.showAvatar {
-                                    if shouldShowTypingIndicatorAvatar {
-                                        typingIndicatorAvatarView
-                                            .padding(.top, 6)
-                                    } else {
-                                        // 占位空间，保持对齐
-                                        Color.clear
-                                            .frame(width: 32, height: 32)
-                                            .padding(.top, 6)
-                                    }
-                                }
-
-                                // Typing indicator 气泡
-                                TypingIndicatorView()
-                                    .padding(16)
-                                    .background(configuration.botMessageColor)
-                                    .cornerRadius(configuration.cornerRadius)
-
-                                Spacer(minLength: 60)
-                            }
-                            .padding(.horizontal, 16)
-                            .id("loading")
-                        }
-
-                        // 底部空白区域锚点（用于滚动定位）
-                        Color.clear
-                            .frame(height: bottomPadding)
-                            .id("bottomSpacer")
-                    }
-                    .padding(.top, 12)
+            // 消息列表 - 使用新的 UICollectionView-based 组件
+            MessageListView(
+                messages: messageItems,
+                configuration: configuration,
+                onLoadMoreHistory: nil,
+                onHealthProfileConfirm: {
+                    onSpecialMessageAction?("userHealthProfile", "confirm")
+                },
+                onHealthProfileReject: {
+                    onSpecialMessageAction?("userHealthProfile", "reject")
                 }
-                .contentShape(Rectangle()) // 确保整个 ScrollView 区域可以接收点击
-                .onTapGesture {
-                    // 点击消息列表区域，收起键盘
-                    isInputFocused = false
-                }
-                .onChange(of: messages.count) { _, _ in
-                    scrollToBottom(proxy: proxy, animated: true)
-                }
-                .onChange(of: isLoading) { _, newValue in
-                    if newValue {
-                        scrollToBottom(proxy: proxy, animated: false)
-                    }
-                }
-                // 监听流式消息的变化（优化滚动频率）
-                .onChange(of: streamingMessageText) { oldValue, newValue in
-                    // 只在文本显著变化时滚动（例如，每增加20个字符）
-                    if abs(newValue.count - oldValue.count) >= 20 || newValue.count < oldValue.count {
-                        scrollToBottom(proxy: proxy, animated: false)
-                    }
-                }
-                // 监听最后一条消息的变化（包括 specialMessageType 等字段变化）
-                .onChange(of: messages.last) { _, _ in
-                    // 最后一条消息任何字段变化时都滚动
-                    scrollToBottom(proxy: proxy, animated: false)
-                }
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // 点击消息列表区域，收起键盘
+                isInputFocused = false
             }
 
             Divider()
@@ -130,92 +72,20 @@ public struct SimpleChatView: View {
         }
     }
 
-    // Typing indicator 的头像视图
-    @ViewBuilder
-    private var typingIndicatorAvatarView: some View {
-        if let avatarURL = configuration.botAvatarURL {
-            AsyncImage(url: avatarURL) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                defaultBotAvatarPlaceholder
-            }
-            .frame(width: 32, height: 32)
-            .clipShape(Circle())
-        } else {
-            defaultBotAvatarPlaceholder
-        }
-    }
+    // 将 ChatMessage 转换为 MessageItem
+    private var messageItems: [MessageItem] {
+        var items: [MessageItem] = messages.map { MessageItem.from(chatMessage: $0) }
 
-    private var defaultBotAvatarPlaceholder: some View {
-        ZStack {
-            Circle()
-                .fill(Color(.systemGray4))
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 16))
-                .foregroundColor(.white)
-        }
-        .frame(width: 32, height: 32)
-    }
-
-    // 判断 typing indicator 是否应该显示头像
-    private var shouldShowTypingIndicatorAvatar: Bool {
-        // 如果没有消息，显示头像
-        guard let lastMessage = messages.last else {
-            return true
+        // 如果正在加载且没有流式消息，添加一个 loading indicator
+        if isLoading && !hasStreamingMessage {
+            items.append(.loading(SystemLoading(id: "loading")))
         }
 
-        // 如果前一条消息是用户消息，显示头像
-        // 如果前一条消息是 bot 消息，不显示头像（连续消息）
-        return lastMessage.isFromUser
-    }
-
-    // 判断是否应该显示头像
-    private func shouldShowAvatar(at index: Int) -> Bool {
-        let message = messages[index]
-
-        // 如果是第一条消息，显示头像
-        if index == 0 {
-            return true
-        }
-
-        // 获取前一条消息
-        let previousMessage = messages[index - 1]
-
-        // 如果当前消息和前一条消息来自不同的发送者，显示头像
-        if message.isFromUser != previousMessage.isFromUser {
-            return true
-        }
-
-        // 如果是连续的同一发送者消息，不显示头像
-        return false
+        return items
     }
 
     private var hasStreamingMessage: Bool {
         messages.contains { $0.isStreaming }
-    }
-
-    private var streamingMessageText: String {
-        messages.first { $0.isStreaming }?.text ?? ""
-    }
-
-    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool = true) {
-        // 减少延迟以提高响应性，并避免过度排队
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            let scrollAction = {
-                // 始终滚动到底部空白区域，这样消息会显示得更自然
-                proxy.scrollTo("bottomSpacer", anchor: .bottom)
-            }
-
-            if animated {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    scrollAction()
-                }
-            } else {
-                scrollAction()
-            }
-        }
     }
 
     private func handleSend() {

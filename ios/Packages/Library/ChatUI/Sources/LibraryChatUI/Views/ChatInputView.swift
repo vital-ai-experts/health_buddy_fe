@@ -1,13 +1,25 @@
 import SwiftUI
 
 /// 聊天输入框视图
-struct ChatInputView: View {
+public struct ChatInputView: View {
     @Binding var text: String
     @FocusState.Binding var isFocused: Bool
     let isLoading: Bool
     let onSend: () -> Void
 
-    var body: some View {
+    public init(
+        text: Binding<String>,
+        isFocused: FocusState<Bool>.Binding,
+        isLoading: Bool,
+        onSend: @escaping () -> Void
+    ) {
+        self._text = text
+        self._isFocused = isFocused
+        self.isLoading = isLoading
+        self.onSend = onSend
+    }
+
+    public var body: some View {
         HStack(spacing: 12) {
             // 输入框
             TextField("Type a message...", text: $text, axis: .vertical)

@@ -8,7 +8,7 @@ public final class APIClient {
     private static let PROD_SERVER_URL = "https://vital.ninimu.com/api/v1"
 
     #if DEBUG
-    private static let USE_DEBUG_LOCAL_SERVER = true
+    private static let USE_DEBUG_LOCAL_SERVER = false
     #else
     private static let USE_DEBUG_LOCAL_SERVER = false
     #endif
@@ -48,7 +48,7 @@ public final class APIClient {
 
     /// Health check - triggers network permission prompt
     public func healthCheck() async throws {
-        let url = URL(string: "https://fapi.ninimu.com/health")!
+        let url = URL(string: "https://vital.ninimu.com/ping")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 10

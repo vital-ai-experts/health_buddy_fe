@@ -83,23 +83,23 @@ struct OnboardingView: View {
                 )
 
                 // 顶部渐变遮罩 - 使用固定高度避免布局循环
-                VStack(spacing: 0) {
-                LinearGradient(
-                    stops: [
-                        .init(color: Color(uiColor: .systemBackground), location: 0.0),   // 顶部完全不透明
-                        .init(color: Color(uiColor: .systemBackground), location: 0.6),   // 保持不透明到60%
-                        .init(color: Color(uiColor: .systemBackground).opacity(0.5), location: 0.8),  // 快速渐变
-                        .init(color: Color(uiColor: .systemBackground).opacity(0), location: 1.0)     // 底部完全透明
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 70)  // 使用固定高度（状态栏 ~47pt + 渐变区域 23pt）
-                .allowsHitTesting(false)
-                .ignoresSafeArea(edges: .top) // 延伸到状态栏区域
-
-                Spacer()
-                }
+//                VStack(spacing: 0) {
+//                    LinearGradient(
+//                        stops: [
+//                            .init(color: Color(uiColor: .systemBackground), location: 0.0),   // 顶部完全不透明
+//                            .init(color: Color(uiColor: .systemBackground), location: 0.6),   // 保持不透明到60%
+//                            .init(color: Color(uiColor: .systemBackground).opacity(0.5), location: 0.8),  // 快速渐变
+//                            .init(color: Color(uiColor: .systemBackground).opacity(0), location: 1.0)     // 底部完全透明
+//                        ],
+//                        startPoint: .top,
+//                        endPoint: .bottom
+//                    )
+//                    .frame(height: 70)  // 使用固定高度（状态栏 ~47pt + 渐变区域 23pt）
+//                    .allowsHitTesting(false)
+//                    .ignoresSafeArea(edges: .top) // 延伸到状态栏区域
+//
+//                    Spacer()
+//                }
 
                 // Action button overlay (when needed)
                 VStack {

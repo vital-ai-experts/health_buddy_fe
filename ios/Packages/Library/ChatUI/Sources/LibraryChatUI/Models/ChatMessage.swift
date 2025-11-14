@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 /// 特殊消息类型
-public enum SpecialMessageType: String, Codable, Equatable {
+public enum SpecialMessageType: String, Codable, Equatable, Hashable {
     case userHealthProfile = "user_health_profile"  // 用户健康档案确认
 }
 
@@ -16,14 +16,14 @@ public protocol ChatMessageProtocol: Identifiable {
 }
 
 /// 工具调用信息（用于显示AI执行的操作）
-public struct ToolCallInfo: Equatable, Codable {
+public struct ToolCallInfo: Equatable, Codable, Hashable, Identifiable {
     public let id: String
     public let name: String
     public let args: String?
     public let status: String?
     public let result: String?
-    
-    public init(id: String, name: String, args: String? = nil, status: String? = nil, result: String? = nil) {
+
+    public init(id: String = UUID().uuidString, name: String, args: String? = nil, status: String? = nil, result: String? = nil) {
         self.id = id
         self.name = name
         self.args = args
@@ -86,6 +86,12 @@ public struct ChatConfiguration {
     public var autoFocusAfterBotMessage: Bool
     /// 是否在用户发送消息后主动收起键盘
     public var dismissKeyboardAfterSend: Bool
+
+    // Aliases for new view components
+    public var userMessageBackgroundColor: Color { userMessageColor }
+    public var botMessageBackgroundColor: Color { botMessageColor }
+    public var userMessageTextColor: Color { userTextColor }
+    public var botMessageTextColor: Color { botTextColor }
 
     public init(
         showAvatar: Bool = true,
