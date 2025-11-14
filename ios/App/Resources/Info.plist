@@ -50,7 +50,6 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>processing</string>
 		<string>fetch</string>
 	</array>
 </dict>

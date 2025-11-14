@@ -13,13 +13,15 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader")
+        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
+        .package(name: "LibraryNetworking", path: "../../../Library/Networking"),
     ],
     targets: [
         .target(
             name: "DomainHealth",
             dependencies: [
-                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader")
+                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
+                .product(name: "LibraryNetworking", package: "LibraryNetworking"),
             ],
             path: "Sources",
             linkerSettings: [
