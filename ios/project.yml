@@ -22,6 +22,8 @@ packages:
     path: Packages/Library/ThemeKit
   LibraryNetworking:
     path: Packages/Library/Networking
+  LibraryNotification:
+    path: Packages/Library/Notification
   LibraryChatUI:
     path: Packages/Library/ChatUI
   DomainHealth:
@@ -77,6 +79,8 @@ targets:
         product: ThemeKit
       - package: LibraryNetworking
         product: LibraryNetworking
+      - package: LibraryNotification
+        product: LibraryNotification
       - package: LibraryChatUI
         product: LibraryChatUI
       - package: DomainHealth

@@ -8,6 +8,10 @@ import DomainChat
 import DomainOnboarding
 import LibraryServiceLoader
 
+#if DEBUG
+import FeatureDebugToolsImpl
+#endif
+
 enum AppComposition {
     @MainActor
     static func bootstrap() {
@@ -22,5 +26,9 @@ enum AppComposition {
         AccountModule.register()
         ChatModule.register()
         OnboardingModule.register()
+
+        #if DEBUG
+        DebugToolsFeatureModule.register()
+        #endif
     }
 }

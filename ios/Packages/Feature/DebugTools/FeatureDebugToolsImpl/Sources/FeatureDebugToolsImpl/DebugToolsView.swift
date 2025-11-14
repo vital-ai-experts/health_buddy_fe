@@ -1,20 +1,9 @@
 import SwiftUI
-
-/// 设备令牌环境键
-private struct DeviceTokenKey: EnvironmentKey {
-    static let defaultValue: String? = nil
-}
-
-extension EnvironmentValues {
-    fileprivate var deviceToken: String? {
-        get { self[DeviceTokenKey.self] }
-        set { self[DeviceTokenKey.self] = newValue }
-    }
-}
+import LibraryNotification
 
 /// Debug Tools Main View - 调试工具主界面
 struct DebugToolsView: View {
-    @Environment(\.deviceToken) private var deviceToken
+    @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showCopiedAlert = false
 
     var body: some View {
@@ -34,7 +23,7 @@ struct DebugToolsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    if let token = deviceToken {
+                    if let token = notificationManager.deviceToken {
                         Text(token)
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.primary)
@@ -47,7 +36,7 @@ struct DebugToolsView: View {
                 }
                 .padding(.vertical, 4)
 
-                if deviceToken != nil {
+                if notificationManager.deviceToken != nil {
                     Button {
                         copyDeviceToken()
                     } label: {
@@ -107,7 +96,7 @@ struct DebugToolsView: View {
 
     /// 复制 Device Token 到剪切板
     private func copyDeviceToken() {
-        guard let token = deviceToken else { return }
+        guard let token = notificationManager.deviceToken else { return }
         UIPasteboard.general.string = token
         showCopiedAlert = true
     }
