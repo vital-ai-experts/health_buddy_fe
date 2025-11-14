@@ -48,11 +48,13 @@ show_progress() {
             printf "\r${BLUE}[进行中]${NC} ${message} ${spin:$i:1}"
             sleep 0.1
         done
-        printf "\r"
+        # 清除整行
+        printf "\r\033[K"
     else
-        # 非交互式终端：只显示一次消息
-        echo -e "${BLUE}[进行中]${NC} ${message}..."
-        wait $pid
+        # 非交互式终端：静默等待进程结束
+        while kill -0 $pid 2>/dev/null; do
+            sleep 0.5
+        done
     fi
 }
 
@@ -330,22 +332,29 @@ if [ "$CLEAN_BUILD" = true ]; then
                clean >> "${BUILD_LOG_FILE}" 2>&1 &
 
     show_progress $! "清理构建缓存"
+    set +e  # 临时禁用 errexit
     wait $!
+    CLEAN_RESULT=$?
+    set -e  # 重新启用 errexit
 
-    # 清理本地 build 目录（保留日志文件）
-    if [ -d "${BUILD_DIR}" ]; then
-        # 临时保存日志文件
-        TMP_LOG=$(mktemp)
-        cp "${BUILD_LOG_FILE}" "${TMP_LOG}"
+    if [ $CLEAN_RESULT -ne 0 ]; then
+        log_warning "清理命令执行有警告，继续构建..."
+    else
+        # 清理本地 build 目录（保留日志文件）
+        if [ -d "${BUILD_DIR}" ]; then
+            # 临时保存日志文件
+            TMP_LOG=$(mktemp)
+            cp "${BUILD_LOG_FILE}" "${TMP_LOG}"
 
-        rm -rf "${BUILD_DIR}"
-        mkdir -p "${BUILD_DIR}"
+            rm -rf "${BUILD_DIR}"
+            mkdir -p "${BUILD_DIR}"
 
-        # 恢复日志文件
-        mv "${TMP_LOG}" "${BUILD_LOG_FILE}"
+            # 恢复日志文件
+            mv "${TMP_LOG}" "${BUILD_LOG_FILE}"
+        fi
+
+        log_success "清理完成"
     fi
-
-    log_success "清理完成"
 fi
 
 # 构建项目
@@ -370,11 +379,16 @@ if [ "$CREATE_ARCHIVE" = true ]; then
                -archivePath "${ARCHIVE_PATH}" >> "${BUILD_LOG_FILE}" 2>&1 &
 
     show_progress $! "正在归档"
+    set +e  # 临时禁用 errexit
     wait $!
     BUILD_RESULT=$?
+    set -e  # 重新启用 errexit
 
     if [ $BUILD_RESULT -ne 0 ]; then
         log_error "归档失败，完整错误日志: ${BUILD_LOG_FILE}"
+        echo ""
+        log_info "最近的错误信息:"
+        tail -20 "${BUILD_LOG_FILE}" | grep -i "error:" || tail -10 "${BUILD_LOG_FILE}"
     else
         log_success "归档完成"
     fi
@@ -428,9 +442,12 @@ EOF
                        -exportOptionsPlist "${EXPORT_OPTIONS}" >> "${BUILD_LOG_FILE}" 2>&1 &
 
             show_progress $! "正在导出 IPA"
+            set +e  # 临时禁用 errexit
             wait $!
+            EXPORT_RESULT=$?
+            set -e  # 重新启用 errexit
 
-            if [ $? -eq 0 ]; then
+            if [ $EXPORT_RESULT -eq 0 ]; then
                 log_success "IPA 导出成功"
             else
                 log_error "IPA 导出失败"
@@ -461,12 +478,17 @@ else
                build >> "${BUILD_LOG_FILE}" 2>&1 &
 
     show_progress $! "正在构建"
+    set +e  # 临时禁用 errexit
     wait $!
     BUILD_RESULT=$?
+    set -e  # 重新启用 errexit
 
     # 如果构建失败，提示查看日志文件
     if [ $BUILD_RESULT -ne 0 ]; then
         log_error "构建失败，完整错误日志: ${BUILD_LOG_FILE}"
+        echo ""
+        log_info "最近的错误信息:"
+        tail -20 "${BUILD_LOG_FILE}" | grep -i "error:" || tail -10 "${BUILD_LOG_FILE}"
     else
         log_success "构建完成"
     fi
