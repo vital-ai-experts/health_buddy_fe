@@ -16,7 +16,11 @@ public final class ChatBuilder: FeatureChatBuildable {
     }
 
     public func makeChatTabView() -> AnyView {
-        // Tab直接显示单一对话视图
-        AnyView(PersistentChatView())
+        // Tab需要用NavigationStack包裹才能显示navigationTitle和toolbar
+        AnyView(
+            NavigationStack {
+                PersistentChatView()
+            }
+        )
     }
 }
