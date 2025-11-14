@@ -10,6 +10,7 @@ public struct SimpleChatView: View {
     public let onSendMessage: (String) -> Void
     public let onSpecialMessageAction: ((String, String) -> Void)?
     public let onRetry: ((String) -> Void)?
+    public let onLoadMoreHistory: (() -> Void)?
 
     @FocusState private var isInputFocused: Bool
 
@@ -21,7 +22,8 @@ public struct SimpleChatView: View {
         bottomPadding: CGFloat = 0,
         onSendMessage: @escaping (String) -> Void,
         onSpecialMessageAction: ((String, String) -> Void)? = nil,
-        onRetry: ((String) -> Void)? = nil
+        onRetry: ((String) -> Void)? = nil,
+        onLoadMoreHistory: (() -> Void)? = nil
     ) {
         self._messages = messages
         self._inputText = inputText
@@ -31,6 +33,7 @@ public struct SimpleChatView: View {
         self.onSendMessage = onSendMessage
         self.onSpecialMessageAction = onSpecialMessageAction
         self.onRetry = onRetry
+        self.onLoadMoreHistory = onLoadMoreHistory
     }
 
     public var body: some View {
@@ -39,7 +42,7 @@ public struct SimpleChatView: View {
             MessageListView(
                 messages: messageItems,
                 configuration: configuration,
-                onLoadMoreHistory: nil,
+                onLoadMoreHistory: onLoadMoreHistory,
                 onHealthProfileConfirm: {
                     onSpecialMessageAction?("userHealthProfile", "confirm")
                 },

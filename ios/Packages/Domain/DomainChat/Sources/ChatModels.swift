@@ -1,112 +1,272 @@
 import Foundation
 
+// MARK: - Shared SSE Stream Models (used by both Chat and Onboarding)
+
+/// 消息类型：CHUNK（分片）或 WHOLE（完整）
+public enum MessageType: Int, Codable {
+    case chunk = 1   // 分片数据
+    case whole = 2   // 完整数据
+}
+
+/// 数据类型
+public enum DataType: Int, Codable {
+    case agentStatus = 1     // Agent状态
+    case agentMessage = 2    // Agent消息
+    case agentToolCall = 3   // Agent工具调用
+}
+
+/// Agent状态
+public enum AgentStatus: Int, Codable {
+    case generating = 1  // 生成中
+    case finished = 2    // 已完成
+    case error = 3       // 错误
+    case stopped = 4     // 已停止
+}
+
+/// 工具调用状态
+public enum ToolCallStatus: Int, Codable {
+    case started = 1   // 开始
+    case success = 2   // 成功
+    case failed = 3    // 失败
+
+    public var description: String {
+        switch self {
+        case .started:
+            return "开始"
+        case .success:
+            return "成功"
+        case .failed:
+            return "失败"
+        }
+    }
+}
+
+/// 工具调用
+public struct ToolCall: Codable {
+    public let toolCallId: String
+    public let toolCallName: String
+    public let toolCallArgs: String?  // JSON字符串
+    public let toolCallStatus: ToolCallStatus?
+    public let toolCallResult: String?  // JSON字符串
+
+    public init(
+        toolCallId: String,
+        toolCallName: String,
+        toolCallArgs: String? = nil,
+        toolCallStatus: ToolCallStatus? = nil,
+        toolCallResult: String? = nil
+    ) {
+        self.toolCallId = toolCallId
+        self.toolCallName = toolCallName
+        self.toolCallArgs = toolCallArgs
+        self.toolCallStatus = toolCallStatus
+        self.toolCallResult = toolCallResult
+    }
+}
+
+/// 流消息数据
+public struct StreamMessageData: Codable {
+    public let conversationId: String?  // 对话ID
+    public let onboardingId: String?    // Onboarding ID
+    public let msgId: String
+    public let dataType: DataType
+    public let msgIdx: Int?
+    public let agentStatus: AgentStatus?
+    public let messageType: MessageType?
+    public let thinkingContent: String?
+    public let content: String?
+    public let toolCalls: [ToolCall]?
+
+    public init(
+        conversationId: String? = nil,
+        onboardingId: String? = nil,
+        msgId: String,
+        dataType: DataType,
+        msgIdx: Int? = nil,
+        agentStatus: AgentStatus? = nil,
+        messageType: MessageType? = nil,
+        thinkingContent: String? = nil,
+        content: String? = nil,
+        toolCalls: [ToolCall]? = nil
+    ) {
+        self.conversationId = conversationId
+        self.onboardingId = onboardingId
+        self.msgId = msgId
+        self.dataType = dataType
+        self.msgIdx = msgIdx
+        self.agentStatus = agentStatus
+        self.messageType = messageType
+        self.thinkingContent = thinkingContent
+        self.content = content
+        self.toolCalls = toolCalls
+    }
+}
+
+/// 流消息（SSE事件的data字段反序列化后的结构）
+public struct StreamMessage: Codable {
+    public let id: String  // SSE event的id
+    public let data: StreamMessageData
+
+    public init(id: String, data: StreamMessageData) {
+        self.id = id
+        self.data = data
+    }
+}
+
 // MARK: - Request Models
 
-public struct ChatMessageRequest: Codable {
-    public let message: String
-    public let conversationId: String?
+/// 发送对话消息请求（IDL: SendConversationMessageReq）
+public struct SendConversationMessageRequest: Codable {
+    public let conversationId: String?  // 如果为空，则创建新对话
+    public let userInput: String?
 
-    public init(message: String, conversationId: String? = nil) {
-        self.message = message
+    public init(conversationId: String? = nil, userInput: String? = nil) {
         self.conversationId = conversationId
+        self.userInput = userInput
     }
-    // Note: CodingKeys removed - using keyEncodingStrategy = .convertToSnakeCase from APIClient
+}
+
+/// 恢复对话消息请求（IDL: ResumeConversationMessageReq）
+public struct ResumeConversationMessageRequest: Codable {
+    public let conversationId: String
+    public let lastDataId: String?
+
+    public init(conversationId: String, lastDataId: String? = nil) {
+        self.conversationId = conversationId
+        self.lastDataId = lastDataId
+    }
 }
 
 // MARK: - Response Models
 
+/// Base响应（IDL: BaseResp）
+public struct BaseResp: Codable {
+    public let code: Int
+    public let message: String
+}
+
+/// 发送对话消息响应（IDL: SendConversationMessageResp）
+public struct SendConversationMessageResponse: Codable {
+    public let baseResp: BaseResp
+}
+
+/// 恢复对话消息响应（IDL: ResumeConversationMessageResp）
+public struct ResumeConversationMessageResponse: Codable {
+    public let baseResp: BaseResp
+}
+
+/// 对话列表项（IDL: Conversation）
 public struct ConversationResponse: Codable {
-    public let id: String
-    public let userId: String
-    public let title: String?
-    public let createdAt: String
-    public let updatedAt: String
-    // Note: CodingKeys removed - using keyDecodingStrategy = .convertFromSnakeCase from APIClient
-}
-
-public struct MessageResponse: Codable {
-    public let id: String
     public let conversationId: String
-    public let role: String
-    public let content: String
-    public let createdAt: String
-    // Note: CodingKeys removed - using keyDecodingStrategy = .convertFromSnakeCase from APIClient
-}
-
-public struct ConversationWithMessagesResponse: Codable {
-    public let id: String
-    public let userId: String
-    public let title: String?
     public let createdAt: String
     public let updatedAt: String
-    public let messages: [MessageResponse]
-    // Note: CodingKeys removed - using keyDecodingStrategy = .convertFromSnakeCase from APIClient
+}
+
+/// 对话列表响应（IDL: ListConversationsResp）
+public struct ListConversationsResponse: Codable {
+    public let conversations: [ConversationResponse]
+}
+
+/// 角色（IDL: Role）
+public enum Role: Int, Codable {
+    case user = 1         // ROLE_USER
+    case assistant = 2    // ROLE_ASSISTANT
+}
+
+/// 用户消息数据（IDL: UserMessageData）
+public struct UserMessageData: Codable {
+    public let userInput: String?
+}
+
+/// 对话历史消息（IDL: ConversationMessage）
+public struct ConversationMessage: Codable {
+    public let role: Role
+    public let data: StreamMessageData?       // Agent消息数据
+    public let userData: UserMessageData?     // 用户消息数据
+    public let createdAt: String
+}
+
+/// 对话历史响应（IDL: GetConversationHistoryResp）
+public struct GetConversationHistoryResponse: Codable {
+    public let messages: [ConversationMessage]
 }
 
 // MARK: - Domain Models
 
+/// 对话领域模型
 public struct Conversation: Identifiable {
     public let id: String
-    public let userId: String
     public let title: String?
     public let createdAt: String
     public let updatedAt: String
 
-    public init(id: String, userId: String, title: String?, createdAt: String, updatedAt: String) {
+    public init(id: String, title: String?, createdAt: String, updatedAt: String) {
         self.id = id
-        self.userId = userId
         self.title = title
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 
     public init(from response: ConversationResponse) {
-        self.id = response.id
-        self.userId = response.userId
-        self.title = response.title
+        self.id = response.conversationId
+        self.title = nil  // IDL中的Conversation没有title字段
         self.createdAt = response.createdAt
         self.updatedAt = response.updatedAt
     }
 }
 
+/// 消息领域模型（用于历史消息）
 public struct Message: Identifiable {
     public let id: String
     public let conversationId: String
-    public let role: MessageRole
+    public let role: Role
     public let content: String
     public let createdAt: String
+    public let thinkingContent: String?
+    public let toolCalls: [ToolCall]?
 
-    public init(id: String, conversationId: String, role: MessageRole, content: String, createdAt: String) {
+    public init(
+        id: String,
+        conversationId: String,
+        role: Role,
+        content: String,
+        createdAt: String,
+        thinkingContent: String? = nil,
+        toolCalls: [ToolCall]? = nil
+    ) {
         self.id = id
         self.conversationId = conversationId
         self.role = role
         self.content = content
         self.createdAt = createdAt
+        self.thinkingContent = thinkingContent
+        self.toolCalls = toolCalls
     }
 
-    public init(from response: MessageResponse) {
-        self.id = response.id
-        self.conversationId = response.conversationId
-        self.role = MessageRole(rawValue: response.role) ?? .assistant
-        self.content = response.content
+    public init(from response: ConversationMessage, conversationId: String) {
+        self.id = response.data?.msgId ?? UUID().uuidString
+        self.conversationId = conversationId
+        self.role = response.role
+
+        // 用户消息使用userData，Agent消息使用data
+        if response.role == .user {
+            self.content = response.userData?.userInput ?? ""
+            self.thinkingContent = nil
+            self.toolCalls = nil
+        } else {
+            self.content = response.data?.content ?? ""
+            self.thinkingContent = response.data?.thinkingContent
+            self.toolCalls = response.data?.toolCalls
+        }
+
         self.createdAt = response.createdAt
     }
 }
 
-public enum MessageRole: String, Codable {
-    case user
-    case assistant
-    case system
-}
-
 // MARK: - Streaming Events
 
-public enum ChatStreamEvent {
-    case conversationStart(conversationId: String)
-    case messageStart(messageId: String)
-    case contentDelta(content: String)
-    case messageEnd
-    case conversationEnd
+/// 对话流事件
+public enum ConversationStreamEvent {
+    case streamMessage(StreamMessage)
     case error(String)
-    case ignored // For unknown SSE events that should be silently ignored
 }

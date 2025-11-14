@@ -3,6 +3,7 @@ import LibraryServiceLoader
 import DomainOnboarding
 import LibraryChatUI
 import DomainHealth
+import DomainChat
 
 /// Onboarding view with conversational Q&A flow
 struct OnboardingView: View {

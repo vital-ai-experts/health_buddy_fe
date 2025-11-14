@@ -9,26 +9,55 @@ public final class ChatServiceImpl: ChatService {
         self.apiClient = apiClient
     }
 
+    // MARK: - ChatService Implementation
+
+    /// 发送对话消息（IDL: /conversations/message/send）
     public func sendMessage(
-        message: String,
+        userInput: String?,
         conversationId: String?,
-        onEvent: @escaping (ChatStreamEvent) -> Void
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
     ) async throws {
-        let request = ChatMessageRequest(message: message, conversationId: conversationId)
+        let request = SendConversationMessageRequest(
+            conversationId: conversationId,
+            userInput: userInput
+        )
 
         let endpoint = APIEndpoint(
-            path: "/chat/send",
+            path: "/conversations/message/send",
             method: .post,
             body: request,
             requiresAuth: true
         )
 
-        try await apiClient.streamRequest(endpoint) { serverEvent in
-            let chatEvent = self.parseChatEvent(serverEvent)
-            onEvent(chatEvent)
+        try await apiClient.streamRequest(endpoint) { sseEvent in
+            self.handleSSEEvent(sseEvent, eventHandler: eventHandler)
         }
     }
 
+    /// 恢复对话（IDL: /conversations/message/resume）
+    public func resumeConversation(
+        conversationId: String,
+        lastDataId: String?,
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
+    ) async throws {
+        let request = ResumeConversationMessageRequest(
+            conversationId: conversationId,
+            lastDataId: lastDataId
+        )
+
+        let endpoint = APIEndpoint(
+            path: "/conversations/message/resume",
+            method: .post,
+            body: request,
+            requiresAuth: true
+        )
+
+        try await apiClient.streamRequest(endpoint) { sseEvent in
+            self.handleSSEEvent(sseEvent, eventHandler: eventHandler)
+        }
+    }
+
+    /// 获取对话列表（IDL: /conversations/list）
     public func getConversations(limit: Int? = nil, offset: Int? = nil) async throws -> [Conversation] {
         var queryItems: [URLQueryItem] = []
         if let limit = limit {
@@ -39,43 +68,40 @@ public final class ChatServiceImpl: ChatService {
         }
 
         let endpoint = APIEndpoint(
-            path: "/chat/conversations",
+            path: "/conversations/list",
             method: .get,
             queryItems: queryItems,
             requiresAuth: true
         )
 
-        let responses: [ConversationResponse] = try await apiClient.request(endpoint, responseType: [ConversationResponse].self)
-        return responses.map { Conversation(from: $0) }
+        let response: ListConversationsResponse = try await apiClient.request(
+            endpoint,
+            responseType: ListConversationsResponse.self
+        )
+        return response.conversations.map { Conversation(from: $0) }
     }
 
-    public func getConversation(id: String) async throws -> (Conversation, [Message]) {
+    /// 获取对话历史（IDL: /conversations/history）
+    public func getConversationHistory(id: String) async throws -> [Message] {
         let endpoint = APIEndpoint(
-            path: "/chat/conversations/\(id)",
+            path: "/conversations/history",
             method: .get,
+            queryItems: [URLQueryItem(name: "id", value: id)],
             requiresAuth: true
         )
 
-        let response: ConversationWithMessagesResponse = try await apiClient.request(
+        let response: GetConversationHistoryResponse = try await apiClient.request(
             endpoint,
-            responseType: ConversationWithMessagesResponse.self
+            responseType: GetConversationHistoryResponse.self
         )
 
-        let conversation = Conversation(
-            id: response.id,
-            userId: response.userId,
-            title: response.title,
-            createdAt: response.createdAt,
-            updatedAt: response.updatedAt
-        )
-        let messages = response.messages.map { Message(from: $0) }
-
-        return (conversation, messages)
+        return response.messages.map { Message(from: $0, conversationId: id) }
     }
 
+    /// 删除对话
     public func deleteConversation(id: String) async throws {
         let endpoint = APIEndpoint(
-            path: "/chat/conversations/\(id)",
+            path: "/conversations/\(id)",
             method: .delete,
             requiresAuth: true
         )
@@ -89,38 +115,32 @@ public final class ChatServiceImpl: ChatService {
 
     // MARK: - Private Methods
 
-    private func parseChatEvent(_ serverEvent: ServerSentEvent) -> ChatStreamEvent {
-        switch serverEvent.event {
-        case "conversation_id":
-            if let data = serverEvent.data.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let conversationId = json["conversation_id"] as? String {
-                return .conversationStart(conversationId: conversationId)
-            }
-            return .error("Invalid conversation_id event")
+    /// SSE事件处理（参考OnboardingServiceImpl的实现）
+    private func handleSSEEvent(
+        _ sseEvent: ServerSentEvent,
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
+    ) {
+        guard let data = sseEvent.data.data(using: .utf8) else {
+            eventHandler(.error("Invalid data encoding"))
+            return
+        }
 
-        case "message":
-            if let data = serverEvent.data.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let delta = json["delta"] as? String {
-                return .contentDelta(content: delta)
-            }
-            return .error("Invalid message event")
+        do {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let streamMessage = try decoder.decode(StreamMessage.self, from: data)
 
-        case "done":
-            return .messageEnd
+            print("✅ [ChatService] Decoded StreamMessage")
+            print("  id: \(streamMessage.id)")
+            print("  msgId: \(streamMessage.data.msgId)")
+            print("  dataType: \(streamMessage.data.dataType)")
+            print("  conversationId: \(streamMessage.data.conversationId ?? "nil")")
+            print("  content length: \(streamMessage.data.content?.count ?? 0)")
 
-        case "error":
-            if let data = serverEvent.data.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = json["error"] as? String {
-                return .error(error)
-            }
-            return .error("Unknown error")
-
-        default:
-            // Ignore unknown events (like tool_use, tool_result)
-            return .ignored
+            eventHandler(.streamMessage(streamMessage))
+        } catch {
+            print("❌ [ChatService] Failed to decode: \(error)")
+            eventHandler(.error("Failed to decode stream message: \(error.localizedDescription)"))
         }
     }
 }

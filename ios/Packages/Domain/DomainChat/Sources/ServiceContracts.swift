@@ -2,18 +2,25 @@ import Foundation
 
 /// Chat service protocol
 public protocol ChatService {
-    /// Send a message and receive streaming response
+    /// Send a conversation message and receive streaming response (IDL: SendConversationMessage)
     func sendMessage(
-        message: String,
+        userInput: String?,
         conversationId: String?,
-        onEvent: @escaping (ChatStreamEvent) -> Void
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
     ) async throws
 
-    /// Get list of conversations
+    /// Resume a conversation after disconnection (IDL: ResumeConversationMessage)
+    func resumeConversation(
+        conversationId: String,
+        lastDataId: String?,
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
+    ) async throws
+
+    /// Get list of conversations (IDL: ListConversations)
     func getConversations(limit: Int?, offset: Int?) async throws -> [Conversation]
 
-    /// Get a specific conversation with messages
-    func getConversation(id: String) async throws -> (Conversation, [Message])
+    /// Get conversation history (IDL: GetConversationHistory)
+    func getConversationHistory(id: String) async throws -> [Message]
 
     /// Delete a conversation
     func deleteConversation(id: String) async throws

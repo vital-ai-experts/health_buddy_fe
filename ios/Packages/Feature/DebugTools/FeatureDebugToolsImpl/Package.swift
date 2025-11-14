@@ -1,0 +1,24 @@
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "FeatureDebugToolsImpl",
+    platforms: [ .iOS(.v17) ],
+    products: [ .library(name: "FeatureDebugToolsImpl", targets: ["FeatureDebugToolsImpl"]) ],
+    dependencies: [
+        .package(name: "FeatureDebugToolsApi", path: "../FeatureDebugToolsApi"),
+        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
+        .package(name: "FeatureChatImpl", path: "../../FeatureChat/FeatureChatImpl")
+    ],
+    targets: [
+        .target(
+            name: "FeatureDebugToolsImpl",
+            dependencies: [
+                .product(name: "FeatureDebugToolsApi", package: "FeatureDebugToolsApi"),
+                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
+                .product(name: "FeatureChatImpl", package: "FeatureChatImpl")
+            ],
+            path: "Sources"
+        )
+    ]
+)
