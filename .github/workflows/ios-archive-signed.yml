@@ -1,0 +1,341 @@
+name: iOS Archive Build (Signed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Debug
+          - Release
+
+      export_method:
+        description: 'Export method'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - ad-hoc
+          - app-store
+
+      upload_artifacts:
+        description: 'Upload IPA artifact'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  XCODE_VERSION: '15.2'
+
+jobs:
+  build-and-sign:
+    name: Build and Sign iOS Archive
+    runs-on: macos-14
+
+    steps:
+      - name: Print configuration
+        run: |
+          echo "### Build Configuration 🔧" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: ${{ github.event.inputs.configuration }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Export Method**: ${{ github.event.inputs.export_method }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Check signing secrets
+        run: |
+          echo "Checking if signing secrets are configured..."
+
+          if [ -z "${{ secrets.CERTIFICATE_P12_BASE64 }}" ]; then
+            echo "❌ CERTIFICATE_P12_BASE64 secret is not set"
+            echo ""
+            echo "### ⚠️ 代码签名配置缺失" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "请配置以下 GitHub Secrets:" >> $GITHUB_STEP_SUMMARY
+            echo "- CERTIFICATE_P12_BASE64" >> $GITHUB_STEP_SUMMARY
+            echo "- CERTIFICATE_PASSWORD" >> $GITHUB_STEP_SUMMARY
+            echo "- PROVISIONING_PROFILE_BASE64" >> $GITHUB_STEP_SUMMARY
+            echo "- KEYCHAIN_PASSWORD" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "详细配置指南: .github/CODE-SIGNING-GUIDE.md" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ Signing secrets are configured"
+
+      - name: Create keychain and import certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "Creating temporary keychain..."
+
+          # 创建临时 keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "Importing certificate..."
+
+          # 解码并导入证书
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > certificate.p12
+
+          security import certificate.p12 \
+            -P "$CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # 设置 keychain 为默认
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # 允许 codesign 访问证书
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "✅ Certificate imported successfully"
+
+          # 验证证书
+          echo "Installed identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          echo "Installing provisioning profile..."
+
+          # 创建 provisioning profiles 目录
+          PP_DIR=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PP_DIR"
+
+          # 解码并安装 profile
+          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PP_PATH"
+
+          # 获取 profile UUID
+          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i "$PP_PATH"))
+
+          # 复制到正确位置
+          cp "$PP_PATH" "$PP_DIR/$PP_UUID.mobileprovision"
+
+          echo "✅ Provisioning profile installed: $PP_UUID"
+
+          # 显示 profile 信息
+          echo "Profile details:"
+          security cms -D -i "$PP_PATH" | grep -A 5 "Name\|UUID\|TeamName\|ExpirationDate"
+
+      - name: Generate Xcode project
+        working-directory: ./ios
+        run: |
+          echo "Generating Xcode project..."
+          ./scripts/generate_project.sh
+
+      - name: Build archive
+        working-directory: ./ios
+        run: |
+          echo "Starting archive build..."
+
+          # 使用构建脚本（使用 manual signing）
+          # 注意: 我们不使用 -allowProvisioningUpdates 因为已经手动配置了
+
+          xcodebuild archive \
+            -project ThriveBody.xcodeproj \
+            -scheme ThriveBody \
+            -configuration ${{ github.event.inputs.configuration }} \
+            -archivePath build/ThriveBody.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            | tee build/xcodebuild_archive.log
+
+          echo "✅ Archive created successfully"
+
+      - name: Export IPA
+        working-directory: ./ios
+        run: |
+          echo "Exporting IPA..."
+
+          # 创建 ExportOptions.plist
+          cat > build/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>${{ github.event.inputs.export_method }}</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+          # 导出 IPA
+          xcodebuild -exportArchive \
+            -archivePath build/ThriveBody.xcarchive \
+            -exportPath build \
+            -exportOptionsPlist build/ExportOptions.plist \
+            | tee build/xcodebuild_export.log
+
+          echo "✅ IPA exported successfully"
+
+          # 显示 IPA 信息
+          if [ -f "build/ThriveBody.ipa" ]; then
+            IPA_SIZE=$(du -sh build/ThriveBody.ipa | cut -f1)
+            echo "IPA Size: $IPA_SIZE"
+
+            # 解压 IPA 获取更多信息
+            unzip -q build/ThriveBody.ipa -d build/ipa_contents
+            INFO_PLIST=build/ipa_contents/Payload/ThriveBody.app/Info.plist
+
+            if [ -f "$INFO_PLIST" ]; then
+              VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$INFO_PLIST")
+              BUILD=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$INFO_PLIST")
+
+              echo "App Version: $VERSION ($BUILD)"
+
+              # 添加到 summary
+              echo "### 📦 Build Artifacts" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- **IPA Size**: $IPA_SIZE" >> $GITHUB_STEP_SUMMARY
+              echo "- **Version**: $VERSION ($BUILD)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Configuration**: ${{ github.event.inputs.configuration }}" >> $GITHUB_STEP_SUMMARY
+              echo "- **Export Method**: ${{ github.event.inputs.export_method }}" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: Collect build logs
+        if: always()
+        working-directory: ./ios
+        run: |
+          echo "Collecting build logs..."
+          mkdir -p build/logs
+
+          # 复制日志
+          cp build/*.log build/logs/ 2>/dev/null || true
+
+          # 创建构建报告
+          cat > build/logs/build-report.md <<EOF
+          # iOS Archive Build Report
+
+          ## Configuration
+          - **Date**: $(date)
+          - **Configuration**: ${{ github.event.inputs.configuration }}
+          - **Export Method**: ${{ github.event.inputs.export_method }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Triggered by**: @${{ github.actor }}
+
+          ## Environment
+          - **Xcode Version**: $(xcodebuild -version | head -1)
+          - **macOS Version**: $(sw_vers -productVersion)
+          - **Runner**: ${{ runner.os }} - ${{ runner.arch }}
+
+          ## Build Results
+          EOF
+
+          # 添加 IPA 信息
+          if [ -f "build/ThriveBody.ipa" ]; then
+            echo "### IPA Details" >> build/logs/build-report.md
+            echo "- Size: $(du -sh build/ThriveBody.ipa | cut -f1)" >> build/logs/build-report.md
+            echo "- Path: \`build/ThriveBody.ipa\`" >> build/logs/build-report.md
+          fi
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-build-logs-${{ github.run_number }}
+          path: |
+            ios/build/logs/
+            ios/build/*.log
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload IPA
+        if: ${{ success() && github.event.inputs.upload_artifacts == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThriveBody-${{ github.event.inputs.configuration }}-${{ github.event.inputs.export_method }}-${{ github.run_number }}
+          path: |
+            ios/build/ThriveBody.ipa
+            ios/build/ThriveBody.xcarchive
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload to TestFlight (Optional)
+        if: |
+          success() &&
+          github.event.inputs.export_method == 'app-store' &&
+          secrets.APP_STORE_CONNECT_API_KEY_BASE64 != ''
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          echo "Uploading to TestFlight..."
+
+          # 保存 API Key
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+
+          # 上传
+          xcrun altool --upload-app \
+            --type ios \
+            --file ios/build/ThriveBody.ipa \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER_ID"
+
+          echo "✅ Uploaded to TestFlight"
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          echo "Cleaning up keychain..."
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+            echo "✅ Keychain deleted"
+          fi
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "### Build Summary 📊" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "ios/build/logs/build-report.md" ]; then
+            cat ios/build/logs/build-report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download artifacts from the Actions page" >> $GITHUB_STEP_SUMMARY
+          echo "2. Install IPA on device or upload to TestFlight" >> $GITHUB_STEP_SUMMARY
+          echo "3. Review build logs for any warnings" >> $GITHUB_STEP_SUMMARY
