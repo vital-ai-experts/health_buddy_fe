@@ -1,6 +1,8 @@
 import ActivityKit
 import SwiftUI
 import WidgetKit
+import LibraryNotification
+import AppIntents
 
 /// Live Activity Widget for Agenda
 @available(iOS 16.1, *)
@@ -82,11 +84,22 @@ struct AgendaLiveActivityView: View {
 
             // Current task
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "figure.walk.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.green)
+                // Interactive Checkbox (requires iOS 16.4+ for LiveActivityIntent)
+                if #available(iOS 16.4, *) {
+                    Button(intent: ToggleTaskIntent()) {
+                        Image(systemName: context.state.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 28))
+                            .foregroundStyle(context.state.isCompleted ? .green : .gray)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    // Fallback for iOS 16.1-16.3 (non-interactive)
+                    Image(systemName: context.state.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 28))
+                        .foregroundStyle(context.state.isCompleted ? .green : .gray)
+                }
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Current Task")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -95,9 +108,25 @@ struct AgendaLiveActivityView: View {
                         .font(.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
+                        .strikethrough(context.state.isCompleted, color: .secondary)
+
+                    // Additional information lines
+                    Text(context.state.isCompleted ? "✅ Task completed!" : "💪 Keep up the great work!")
+                        .font(.caption)
+                        .foregroundStyle(context.state.isCompleted ? .green : .secondary)
+
+                    Text("Next update: \(nextUpdateTime)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Spacer()
+
+                // Task icon
+                Image(systemName: "figure.walk.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(context.state.isCompleted ? .gray : .blue)
+                    .opacity(context.state.isCompleted ? 0.5 : 1.0)
             }
         }
         .padding()
@@ -116,38 +145,17 @@ struct AgendaLiveActivityView: View {
             return "\(hours)h ago"
         }
     }
-}
 
-// MARK: - AgendaActivityAttributes (Embedded for Widget)
+    private var nextUpdateTime: String {
+        let updateInterval: TimeInterval = 10 // 10 seconds
+        let nextUpdate = context.state.lastUpdate.addingTimeInterval(updateInterval)
+        let secondsUntilUpdate = Int(nextUpdate.timeIntervalSinceNow)
 
-/// Activity Attributes for Agenda Live Activity
-/// Note: This is duplicated from LibraryNotification for the Widget Extension
-/// as Widget Extensions have limited dependency access
-@available(iOS 16.1, *)
-public struct AgendaActivityAttributes: ActivityAttributes {
-    /// Static attributes that don't change during the activity
-    public struct ContentState: Codable, Hashable {
-        /// Current weather information
-        public var weather: String
-
-        /// Current task for the user
-        public var task: String
-
-        /// Last update timestamp
-        public var lastUpdate: Date
-
-        public init(weather: String, task: String, lastUpdate: Date = Date()) {
-            self.weather = weather
-            self.task = task
-            self.lastUpdate = lastUpdate
+        if secondsUntilUpdate <= 0 {
+            return "Updating..."
+        } else {
+            return "\(secondsUntilUpdate)s"
         }
-    }
-
-    /// User identifier (static during activity lifetime)
-    public var userId: String
-
-    public init(userId: String) {
-        self.userId = userId
     }
 }
 

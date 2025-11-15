@@ -20,4 +20,7 @@ public protocol AgendaService {
 
     /// Update the agenda with new task data
     func updateAgenda(weather: String, task: String) async throws
+
+    /// Restore agenda if it was previously active (called on app launch)
+    func restoreAgendaIfNeeded() async
 }

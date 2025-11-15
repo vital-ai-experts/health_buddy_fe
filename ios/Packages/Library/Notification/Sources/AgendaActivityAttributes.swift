@@ -12,12 +12,16 @@ public struct AgendaActivityAttributes: ActivityAttributes {
         /// Current task for the user
         public var task: String
 
+        /// Whether the current task is completed
+        public var isCompleted: Bool
+
         /// Last update timestamp
         public var lastUpdate: Date
 
-        public init(weather: String, task: String, lastUpdate: Date = Date()) {
+        public init(weather: String, task: String, isCompleted: Bool = false, lastUpdate: Date = Date()) {
             self.weather = weather
             self.task = task
+            self.isCompleted = isCompleted
             self.lastUpdate = lastUpdate
         }
     }

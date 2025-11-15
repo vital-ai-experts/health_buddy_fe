@@ -69,6 +69,7 @@ targets:
       GENERATE_INFOPLIST_FILE: NO
     sources:
       - path: App/Sources
+      - path: AgendaWidget/ToggleTaskIntent.swift
       - path: App/Resources/Assets.xcassets
         buildPhase: resources
       - path: App/Resources/en.lproj
@@ -119,10 +120,15 @@ targets:
         product: FeatureAgendaApi
       - package: FeatureAgendaImpl
         product: FeatureAgendaImpl
+      - target: AgendaWidget
+        embed: true
   AgendaWidget:
     platform: iOS
     deploymentTarget: '17.0'
     type: app-extension
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.AgendaWidget
       INFOPLIST_FILE: AgendaWidget/Info.plist
@@ -130,12 +136,14 @@ targets:
     sources:
       - path: AgendaWidget
     dependencies:
-      - target: ThriveBody
+      - package: LibraryNotification
+        product: LibraryNotification
 schemes:
   ThriveBody:
     build:
       targets:
         ThriveBody: all
+        AgendaWidget: all
     run:
       config: Debug
     archive:

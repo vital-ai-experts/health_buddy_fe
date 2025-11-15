@@ -24,13 +24,23 @@ public final class LiveActivityManager: ObservableObject {
         initialWeather: String,
         initialTask: String
     ) async throws {
-        // Stop existing activity if any
-        await stopAgendaActivity()
+        print("🚀 Starting Live Activity...")
+        print("   - User ID: \(userId)")
+        print("   - Weather: \(initialWeather)")
+        print("   - Task: \(initialTask)")
+
+        // Check if activities are enabled
+        let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        print("   - Activities enabled: \(areActivitiesEnabled)")
+
+        // Clean up ALL existing activities first
+        await cleanupAllActivities()
 
         let attributes = AgendaActivityAttributes(userId: userId)
         let contentState = AgendaActivityAttributes.ContentState(
             weather: initialWeather,
             task: initialTask,
+            isCompleted: false,
             lastUpdate: Date()
         )
 
@@ -41,9 +51,13 @@ public final class LiveActivityManager: ObservableObject {
                 pushType: nil
             )
             currentAgendaActivity = activity
-            print("✅ Live Activity started: \(activity.id)")
+            print("✅ Live Activity started successfully!")
+            print("   - Activity ID: \(activity.id)")
+            print("   - Activity State: \(activity.activityState)")
         } catch {
             print("❌ Failed to start Live Activity: \(error)")
+            print("   - Error type: \(type(of: error))")
+            print("   - Error description: \(error.localizedDescription)")
             throw error
         }
     }
@@ -55,18 +69,30 @@ public final class LiveActivityManager: ObservableObject {
     /// - Throws: ActivityKit errors if update fails
     public func updateAgendaActivity(weather: String, task: String) async throws {
         guard let activity = currentAgendaActivity else {
+            print("⚠️ No currentAgendaActivity stored, cannot update")
             throw LiveActivityError.noActiveActivity
         }
+
+        // Check if activity is still active
+        guard activity.activityState == .active else {
+            print("⚠️ Activity is no longer active (state: \(activity.activityState)), clearing reference")
+            currentAgendaActivity = nil
+            throw LiveActivityError.noActiveActivity
+        }
+
+        // Preserve the current isCompleted status
+        let currentIsCompleted = activity.content.state.isCompleted
 
         let newState = AgendaActivityAttributes.ContentState(
             weather: weather,
             task: task,
+            isCompleted: currentIsCompleted, // Preserve the completion status
             lastUpdate: Date()
         )
 
         let alertConfiguration = AlertConfiguration(
-            title: "New Task",
-            body: task,
+            title: .init(stringLiteral: "New Task"),
+            body: .init(stringLiteral: task),
             sound: .default
         )
 
@@ -75,33 +101,51 @@ public final class LiveActivityManager: ObservableObject {
             alertConfiguration: alertConfiguration
         )
 
-        print("✅ Live Activity updated: weather=\(weather), task=\(task)")
+        print("✅ Live Activity updated: weather=\(weather), task=\(task), completed=\(currentIsCompleted)")
     }
 
     /// Stop the current agenda live activity
     public func stopAgendaActivity() async {
-        guard let activity = currentAgendaActivity else {
-            return
-        }
-
-        let finalState = AgendaActivityAttributes.ContentState(
-            weather: "Completed",
-            task: "Great job today!",
-            lastUpdate: Date()
-        )
-
-        await activity.end(
-            .init(state: finalState, staleDate: nil),
-            dismissalPolicy: .default
-        )
-
-        currentAgendaActivity = nil
+        // Clean up all activities to ensure nothing is left running
+        await cleanupAllActivities()
         print("✅ Live Activity stopped")
     }
 
     /// Check if there's an active agenda activity
     public var isAgendaActive: Bool {
         currentAgendaActivity != nil && currentAgendaActivity?.activityState == .active
+    }
+
+    /// Clean up all existing agenda activities
+    /// This ensures we don't have duplicate activities
+    private func cleanupAllActivities() async {
+        let activities = Activity<AgendaActivityAttributes>.activities
+        let count = activities.count
+
+        if count > 0 {
+            print("🧹 Cleaning up \(count) existing Live Activity(ies)...")
+        }
+
+        for activity in activities {
+            print("   - Ending activity: \(activity.id) (state: \(activity.activityState))")
+            let finalState = AgendaActivityAttributes.ContentState(
+                weather: "Session ended",
+                task: "See you next time!",
+                isCompleted: false,
+                lastUpdate: Date()
+            )
+            await activity.end(
+                .init(state: finalState, staleDate: nil),
+                dismissalPolicy: .immediate
+            )
+        }
+
+        // Clear our reference
+        currentAgendaActivity = nil
+
+        if count > 0 {
+            print("✅ Cleanup completed, all activities ended")
+        }
     }
 }
 
