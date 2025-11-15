@@ -360,6 +360,103 @@ scripts/build.sh -i
 - [ ] Migration notes for architectural changes
 - [ ] All builds pass (`scripts/build.sh -i`)
 
+## CI Status Monitoring (for AI Agents in Sandboxed Environments)
+
+**IMPORTANT**: If you are running in a sandboxed environment (Xcode Cloud, Claude Code web sandbox, or similar CI/CD environment), you MUST follow this workflow after creating a Pull Request:
+
+### Required Post-PR Workflow
+
+1. **Check CI Status Immediately After Creating PR**:
+   ```bash
+   .github/check_ci_status.sh
+   ```
+
+   This script will:
+   - Detect the current branch automatically
+   - Query the latest CI workflow run status
+   - Wait if CI is in progress (up to 30 minutes)
+   - Print detailed failure logs if CI fails
+
+2. **Fix Compilation Issues if CI Fails**:
+   - The script automatically fetches and displays failure logs
+   - Analyze the compilation errors from the logs
+   - Make necessary code fixes
+   - Commit and push the fixes
+   - Re-run the CI status check to verify
+
+3. **Iterative Fix Process**:
+   ```bash
+   # After fixing issues
+   git add .
+   git commit -m "fix: resolve CI compilation errors"
+   git push
+
+   # Check CI status again
+   .github/check_ci_status.sh
+   ```
+
+### CI Status Check Script Usage
+
+The `.github/check_ci_status.sh` script provides:
+- ✅ Automatic branch detection
+- ✅ Real-time CI status monitoring
+- ✅ Auto-wait for in-progress CI runs
+- ✅ Detailed failure log retrieval
+- ✅ Color-coded output for easy reading
+
+**Example Usage**:
+```bash
+# Basic check
+.github/check_ci_status.sh
+
+# Automated workflow
+git push && .github/check_ci_status.sh
+```
+
+**Exit Codes**:
+- `0` - CI passed or no CI runs found
+- `1` - CI failed, cancelled, or timed out
+
+### Why This Matters in Sandboxed Environments
+
+In sandboxed environments like Xcode Cloud or Claude Code web:
+- You cannot manually test builds locally
+- CI is the only validation mechanism
+- Compilation errors must be caught and fixed via CI feedback
+- The automated CI check ensures no broken code is merged
+
+### Complete PR Workflow for Sandboxed Environments
+
+```bash
+# 1. Create your changes
+# ... make code changes ...
+
+# 2. Commit and push
+git add .
+git commit -m "feat: add new feature"
+git push
+
+# 3. Create PR (via GitHub web or CLI)
+# ... create PR ...
+
+# 4. IMMEDIATELY check CI status
+.github/check_ci_status.sh
+
+# 5. If CI fails, fix and repeat
+# ... fix issues based on logs ...
+git add .
+git commit -m "fix: resolve CI errors"
+git push
+.github/check_ci_status.sh
+
+# 6. Only merge when CI passes
+```
+
+**Required Environment Variables**:
+- `GITHUB_CI_TOKEN` - GitHub Personal Access Token with `repo` and `actions` permissions
+
+For more details on the CI status check script, see `.github/README.md`.
+
 ## Quick Reference
 
 **Create Module**:
