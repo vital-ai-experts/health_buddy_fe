@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 import DomainAuth
 import DomainHealth
 import DomainOnboarding
@@ -133,6 +134,28 @@ struct SettingsView: View {
 
     var body: some View {
         List {
+            // 锁屏卡设置
+            Section("锁屏卡") {
+                NavigationLink {
+                    WidgetGuideView()
+                } label: {
+                    HStack {
+                        Label("添加天气锁屏卡", systemImage: "square.dashed.inset.filled")
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Text("一键查看如何将上海天气卡添加到锁屏")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
             // HealthKit 设置
             Section("健康数据") {
                 Button {
@@ -373,5 +396,321 @@ struct AboutView: View {
         }
         .navigationTitle("关于")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - WidgetGuideView
+
+/// Widget 添加引导页面
+struct WidgetGuideView: View {
+    @State private var currentStep = 0
+    @State private var showingSuccessTip = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 头部说明
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "sun.max.fill")
+                            .font(.system(size: 50))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.orange, .yellow],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("上海天气锁屏卡")
+                                .font(.title2)
+                                .fontWeight(.bold)
+
+                            Text("实时天气，一目了然")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.leading, 8)
+
+                        Spacer()
+                    }
+
+                    Text("每 5 分钟自动更新，显示温度、天气状况、湿度、风速等信息")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 8)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+
+                // 添加步骤
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("添加步骤")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    GuideStepCard(
+                        stepNumber: 1,
+                        title: "锁定屏幕",
+                        description: "在 iPhone 上锁定屏幕",
+                        icon: "lock.iphone",
+                        isCompleted: currentStep > 0
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 2,
+                        title: "长按锁屏",
+                        description: "长按锁屏界面，直到出现「自定」按钮",
+                        icon: "hand.tap.fill",
+                        isCompleted: currentStep > 1
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 3,
+                        title: "点击自定",
+                        description: "点击「自定」或「Customize」按钮",
+                        icon: "slider.horizontal.3",
+                        isCompleted: currentStep > 2
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 4,
+                        title: "选择锁定画面",
+                        description: "在弹出的菜单中选择「锁定画面」",
+                        icon: "rectangle.portrait",
+                        isCompleted: currentStep > 3
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 5,
+                        title: "添加小组件",
+                        description: "点击锁屏上想要添加 Widget 的位置（圆形、矩形或顶部内联区域）",
+                        icon: "plus.square.dashed",
+                        isCompleted: currentStep > 4
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 6,
+                        title: "搜索上海天气",
+                        description: "在 Widget 列表中滚动找到「上海天气」或使用搜索功能",
+                        icon: "magnifyingglass",
+                        isCompleted: currentStep > 5
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 7,
+                        title: "选择样式",
+                        description: "选择喜欢的 Widget 样式（推荐：矩形样式，可显示更多信息）",
+                        icon: "square.grid.3x3.fill",
+                        isCompleted: currentStep > 6
+                    )
+
+                    GuideStepCard(
+                        stepNumber: 8,
+                        title: "完成设置",
+                        description: "点击完成，天气卡将显示在锁屏上",
+                        icon: "checkmark.circle.fill",
+                        isCompleted: currentStep > 7
+                    )
+                }
+
+                // Widget 样式预览
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Widget 样式")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        WidgetStylePreview(
+                            title: "矩形卡片（推荐）",
+                            description: "显示完整信息，包括温度、天气、湿度、风速和更新时间",
+                            icon: "rectangle.fill",
+                            color: .blue
+                        )
+
+                        WidgetStylePreview(
+                            title: "圆形卡片",
+                            description: "简洁显示，包含温度和天气图标",
+                            icon: "circle.fill",
+                            color: .green
+                        )
+
+                        WidgetStylePreview(
+                            title: "内联卡片",
+                            description: "顶部显示，一行文字展示核心信息",
+                            icon: "minus.rectangle.fill",
+                            color: .orange
+                        )
+                    }
+                    .padding(.horizontal)
+                }
+
+                // 提示信息
+                VStack(alignment: .leading, spacing: 12) {
+                    Label {
+                        Text("天气数据每 5 分钟自动更新一次")
+                            .font(.callout)
+                    } icon: {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.blue)
+                    }
+
+                    Label {
+                        Text("Widget 会显示数据的最后更新时间")
+                            .font(.callout)
+                    } icon: {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+
+                    Label {
+                        Text("如果 Widget 不更新，可以尝试移除后重新添加")
+                            .font(.callout)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(12)
+
+                // 快捷操作
+                VStack(spacing: 12) {
+                    Button {
+                        // iOS 不允许直接跳转到 Widget 添加页面
+                        // 但可以提示用户操作
+                        showingSuccessTip = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "hand.raised.fill")
+                                .font(.title3)
+                            Text("我已了解如何添加")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+
+                    Button {
+                        // 刷新所有 Widget
+                        WidgetCenter.shared.reloadAllTimelines()
+                        showingSuccessTip = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.title3)
+                            Text("刷新 Widget 数据")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("添加天气锁屏卡")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("操作成功", isPresented: $showingSuccessTip) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text("Widget 数据已刷新，请按照上述步骤添加到锁屏")
+        }
+    }
+}
+
+// MARK: - GuideStepCard
+
+struct GuideStepCard: View {
+    let stepNumber: Int
+    let title: String
+    let description: String
+    let icon: String
+    let isCompleted: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(isCompleted ? Color.green : Color.blue)
+                    .frame(width: 40, height: 40)
+
+                if isCompleted {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                } else {
+                    Text("\(stepNumber)")
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(.blue)
+
+                    Text(title)
+                        .font(.headline)
+                }
+
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - WidgetStylePreview
+
+struct WidgetStylePreview: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+                .frame(width: 44, height: 44)
+                .background(color.opacity(0.2))
+                .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(10)
     }
 }
