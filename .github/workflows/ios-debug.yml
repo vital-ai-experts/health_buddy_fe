@@ -19,6 +19,13 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: ios
+        run: ./scripts/generate_project.sh
+
       - name: Build for Simulator
         working-directory: ios
         run: ./scripts/build.sh
