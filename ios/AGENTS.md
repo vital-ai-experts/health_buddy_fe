@@ -362,7 +362,7 @@ scripts/build.sh -i
 
 ## CI Status Monitoring (for AI Agents in Sandboxed Environments)
 
-**IMPORTANT**: If you are running in a sandboxed environment (Xcode Cloud, Claude Code web sandbox, or similar CI/CD environment), you MUST follow this workflow after creating a Pull Request:
+**IMPORTANT**: If you are running in a sandboxed environment (Codex, Claude Code web sandbox, or similar CI/CD environment), you MUST follow this workflow after creating a Pull Request:
 
 ### Required Post-PR Workflow
 
@@ -419,7 +419,7 @@ git push && .github/check_ci_status.sh
 
 ### Why This Matters in Sandboxed Environments
 
-In sandboxed environments like Xcode Cloud or Claude Code web:
+In sandboxed environments like Codex or Claude Code web:
 - You cannot manually test builds locally
 - CI is the only validation mechanism
 - Compilation errors must be caught and fixed via CI feedback
