@@ -140,7 +140,7 @@ struct SettingsView: View {
                     WidgetGuideView()
                 } label: {
                     HStack {
-                        Label("添加天气锁屏卡", systemImage: "square.dashed.inset.filled")
+                        Label("添加健康任务锁屏卡", systemImage: "square.dashed.inset.filled")
                             .foregroundColor(.primary)
 
                         Spacer()
@@ -151,7 +151,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Text("一键查看如何将上海天气卡添加到锁屏")
+                Text("一键查看如何将健康任务卡添加到锁屏")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -412,22 +412,22 @@ struct WidgetGuideView: View {
                 // 头部说明
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Image(systemName: "sun.max.fill")
+                        Image(systemName: "list.clipboard.fill")
                             .font(.system(size: 50))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [.orange, .yellow],
+                                    colors: [.blue, .cyan],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("上海天气锁屏卡")
+                            Text("健康任务锁屏卡")
                                 .font(.title2)
                                 .fontWeight(.bold)
 
-                            Text("实时天气，一目了然")
+                            Text("待办事项，一目了然")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -436,7 +436,7 @@ struct WidgetGuideView: View {
                         Spacer()
                     }
 
-                    Text("每 5 分钟自动更新，显示温度、天气状况、湿度、风速等信息")
+                    Text("每 5 分钟自动更新，显示你的健康任务和待办事项")
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .padding(.vertical, 8)
@@ -493,8 +493,8 @@ struct WidgetGuideView: View {
 
                     GuideStepCard(
                         stepNumber: 6,
-                        title: "搜索上海天气",
-                        description: "在 Widget 列表中滚动找到「上海天气」或使用搜索功能",
+                        title: "搜索健康任务",
+                        description: "在 Widget 列表中滚动找到「健康任务」或使用搜索功能",
                         icon: "magnifyingglass",
                         isCompleted: currentStep > 5
                     )
@@ -525,21 +525,21 @@ struct WidgetGuideView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         WidgetStylePreview(
                             title: "矩形卡片（推荐）",
-                            description: "显示完整信息，包括温度、天气、湿度、风速和更新时间",
+                            description: "显示完整信息，包括任务详情和更新时间（使用天气数据作为测试）",
                             icon: "rectangle.fill",
                             color: .blue
                         )
 
                         WidgetStylePreview(
                             title: "圆形卡片",
-                            description: "简洁显示，包含温度和天气图标",
+                            description: "简洁显示，包含任务图标和关键信息（使用天气数据作为测试）",
                             icon: "circle.fill",
                             color: .green
                         )
 
                         WidgetStylePreview(
                             title: "内联卡片",
-                            description: "顶部显示，一行文字展示核心信息",
+                            description: "顶部显示，一行文字展示核心信息（使用天气数据作为测试）",
                             icon: "minus.rectangle.fill",
                             color: .orange
                         )
@@ -550,7 +550,7 @@ struct WidgetGuideView: View {
                 // 提示信息
                 VStack(alignment: .leading, spacing: 12) {
                     Label {
-                        Text("天气数据每 5 分钟自动更新一次")
+                        Text("健康任务每 5 分钟自动更新一次")
                             .font(.callout)
                     } icon: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -563,6 +563,14 @@ struct WidgetGuideView: View {
                     } icon: {
                         Image(systemName: "info.circle")
                             .foregroundColor(.blue)
+                    }
+
+                    Label {
+                        Text("目前使用天气数据作为测试，未来将替换为真实健康任务")
+                            .font(.callout)
+                    } icon: {
+                        Image(systemName: "info.bubble")
+                            .foregroundColor(.orange)
                     }
 
                     Label {
@@ -618,7 +626,7 @@ struct WidgetGuideView: View {
             }
             .padding()
         }
-        .navigationTitle("添加天气锁屏卡")
+        .navigationTitle("添加健康任务锁屏卡")
         .navigationBarTitleDisplayMode(.inline)
         .alert("操作成功", isPresented: $showingSuccessTip) {
             Button("好的", role: .cancel) {}

@@ -1,15 +1,17 @@
 import Foundation
 
-enum WeatherServiceError: Error {
+enum AgendaServiceError: Error {
     case invalidURL
     case networkError(Error)
     case decodingError(Error)
     case noData
 }
 
-actor WeatherService {
-    static let shared = WeatherService()
+actor AgendaService {
+    static let shared = AgendaService()
 
+    // Mock: 使用天气API作为测试数据
+    // 未来替换成真实的健康任务API
     private let baseURL = "https://wttr.in/Shanghai?format=j1"
     private let session: URLSession
 
@@ -21,35 +23,36 @@ actor WeatherService {
         self.session = URLSession(configuration: config)
     }
 
-    func fetchWeather() async throws -> WeatherData {
+    func fetchAgenda() async throws -> AgendaData {
         guard let url = URL(string: baseURL) else {
-            throw WeatherServiceError.invalidURL
+            throw AgendaServiceError.invalidURL
         }
 
         let (data, response) = try await session.data(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            throw WeatherServiceError.noData
+            throw AgendaServiceError.noData
         }
 
         do {
             let weatherResponse = try JSONDecoder().decode(WeatherResponse.self, from: data)
-            return parseWeatherData(from: weatherResponse)
+            return parseAgendaData(from: weatherResponse)
         } catch {
-            print("Weather decoding error: \(error)")
-            throw WeatherServiceError.decodingError(error)
+            print("Agenda decoding error: \(error)")
+            throw AgendaServiceError.decodingError(error)
         }
     }
 
-    private func parseWeatherData(from response: WeatherResponse) -> WeatherData {
+    private func parseAgendaData(from response: WeatherResponse) -> AgendaData {
         guard let current = response.currentCondition.first else {
-            return WeatherData.placeholder
+            return AgendaData.placeholder
         }
 
-        let location = response.nearestArea.first?.areaName.first?.value ?? "上海"
+        let location = response.nearestArea.first?.areaName.first?.value ?? "健康助手"
 
-        return WeatherData(
+        // Mock: 使用天气数据映射为健康任务数据
+        return AgendaData(
             temperature: current.temp,
             feelsLike: current.feelsLike,
             weatherDescription: current.weatherDesc.first?.value ?? "未知",

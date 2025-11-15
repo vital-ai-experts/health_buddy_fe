@@ -3,34 +3,34 @@ import SwiftUI
 
 // MARK: - Timeline Entry
 
-struct WeatherEntry: TimelineEntry {
+struct AgendaEntry: TimelineEntry {
     let date: Date
-    let weatherData: WeatherData
+    let agendaData: AgendaData
 }
 
 // MARK: - Timeline Provider
 
-struct WeatherTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> WeatherEntry {
-        WeatherEntry(date: Date(), weatherData: .placeholder)
+struct AgendaTimelineProvider: TimelineProvider {
+    func placeholder(in context: Context) -> AgendaEntry {
+        AgendaEntry(date: Date(), agendaData: .placeholder)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (WeatherEntry) -> Void) {
-        let entry = WeatherEntry(date: Date(), weatherData: .placeholder)
+    func getSnapshot(in context: Context, completion: @escaping (AgendaEntry) -> Void) {
+        let entry = AgendaEntry(date: Date(), agendaData: .placeholder)
         completion(entry)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<WeatherEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<AgendaEntry>) -> Void) {
         Task {
-            var entries: [WeatherEntry] = []
+            var entries: [AgendaEntry] = []
             let currentDate = Date()
 
             do {
-                // Fetch weather data
-                let weatherData = try await WeatherService.shared.fetchWeather()
+                // Fetch agenda data (mock: 使用天气API)
+                let agendaData = try await AgendaService.shared.fetchAgenda()
 
                 // Create entry for current time
-                let entry = WeatherEntry(date: currentDate, weatherData: weatherData)
+                let entry = AgendaEntry(date: currentDate, agendaData: agendaData)
                 entries.append(entry)
 
                 // Schedule next update in 5 minutes
@@ -39,10 +39,10 @@ struct WeatherTimelineProvider: TimelineProvider {
 
                 completion(timeline)
             } catch {
-                print("Failed to fetch weather: \(error)")
+                print("Failed to fetch agenda: \(error)")
 
                 // Use placeholder data on error
-                let entry = WeatherEntry(date: currentDate, weatherData: .placeholder)
+                let entry = AgendaEntry(date: currentDate, agendaData: .placeholder)
                 entries.append(entry)
 
                 // Retry in 5 minutes
@@ -57,37 +57,37 @@ struct WeatherTimelineProvider: TimelineProvider {
 
 // MARK: - Widget View
 
-struct WeatherWidgetView: View {
-    var entry: WeatherEntry
+struct AgendaWidgetView: View {
+    var entry: AgendaEntry
     @Environment(\.widgetFamily) var family
 
     var body: some View {
         switch family {
         case .accessoryCircular:
-            CircularWidgetView(weatherData: entry.weatherData)
+            CircularAgendaView(agendaData: entry.agendaData)
         case .accessoryRectangular:
-            RectangularWidgetView(weatherData: entry.weatherData)
+            RectangularAgendaView(agendaData: entry.agendaData)
         case .accessoryInline:
-            InlineWidgetView(weatherData: entry.weatherData)
+            InlineAgendaView(agendaData: entry.agendaData)
         default:
             // For system small/medium/large widgets
-            SystemWidgetView(weatherData: entry.weatherData)
+            SystemAgendaView(agendaData: entry.agendaData)
         }
     }
 }
 
 // MARK: - Lock Screen Widget Views
 
-struct CircularWidgetView: View {
-    let weatherData: WeatherData
+struct CircularAgendaView: View {
+    let agendaData: AgendaData
 
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 2) {
-                Text(weatherData.weatherEmoji)
+                Text(agendaData.agendaEmoji)
                     .font(.system(size: 24))
-                Text("\(weatherData.temperature)°")
+                Text("\(agendaData.temperature)°")
                     .font(.system(size: 16, weight: .semibold))
                     .minimumScaleFactor(0.8)
             }
@@ -95,30 +95,30 @@ struct CircularWidgetView: View {
     }
 }
 
-struct RectangularWidgetView: View {
-    let weatherData: WeatherData
+struct RectangularAgendaView: View {
+    let agendaData: AgendaData
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text(weatherData.weatherEmoji)
+                Text(agendaData.agendaEmoji)
                     .font(.system(size: 20))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(weatherData.location) · \(weatherData.temperature)°C")
+                    Text("\(agendaData.location) · \(agendaData.temperature)°C")
                         .font(.system(size: 14, weight: .semibold))
-                    Text(weatherData.weatherDescription)
+                    Text(agendaData.weatherDescription)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
 
             HStack(spacing: 12) {
-                Label("\(weatherData.humidity)%", systemImage: "humidity.fill")
+                Label("\(agendaData.humidity)%", systemImage: "humidity.fill")
                     .font(.system(size: 10))
-                Label("\(weatherData.windSpeed)km/h", systemImage: "wind")
+                Label("\(agendaData.windSpeed)km/h", systemImage: "wind")
                     .font(.system(size: 10))
                 Spacer()
-                Text(weatherData.formattedUpdateTime)
+                Text(agendaData.formattedUpdateTime)
                     .font(.system(size: 9))
                     .foregroundStyle(.tertiary)
             }
@@ -127,18 +127,18 @@ struct RectangularWidgetView: View {
     }
 }
 
-struct InlineWidgetView: View {
-    let weatherData: WeatherData
+struct InlineAgendaView: View {
+    let agendaData: AgendaData
 
     var body: some View {
-        Text("\(weatherData.weatherEmoji) \(weatherData.location) \(weatherData.temperature)°C")
+        Text("\(agendaData.agendaEmoji) \(agendaData.location) \(agendaData.temperature)°C")
     }
 }
 
 // MARK: - System Widget View (for home screen)
 
-struct SystemWidgetView: View {
-    let weatherData: WeatherData
+struct SystemAgendaView: View {
+    let agendaData: AgendaData
 
     var body: some View {
         ZStack {
@@ -150,19 +150,19 @@ struct SystemWidgetView: View {
 
             VStack(spacing: 8) {
                 HStack {
-                    Text(weatherData.location)
+                    Text(agendaData.location)
                         .font(.headline)
                     Spacer()
                 }
 
                 HStack(alignment: .top, spacing: 12) {
-                    Text(weatherData.weatherEmoji)
+                    Text(agendaData.agendaEmoji)
                         .font(.system(size: 60))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("\(weatherData.temperature)°C")
+                        Text("\(agendaData.temperature)°C")
                             .font(.system(size: 40, weight: .bold))
-                        Text("体感 \(weatherData.feelsLike)°C")
+                        Text("体感 \(agendaData.feelsLike)°C")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -171,19 +171,19 @@ struct SystemWidgetView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(weatherData.weatherDescription)
+                    Text(agendaData.weatherDescription)
                         .font(.subheadline)
 
                     HStack(spacing: 20) {
-                        Label("湿度 \(weatherData.humidity)%", systemImage: "humidity.fill")
+                        Label("湿度 \(agendaData.humidity)%", systemImage: "humidity.fill")
                             .font(.caption)
-                        Label("风速 \(weatherData.windSpeed)km/h", systemImage: "wind")
+                        Label("风速 \(agendaData.windSpeed)km/h", systemImage: "wind")
                             .font(.caption)
                     }
 
                     HStack {
                         Spacer()
-                        Text("更新: \(weatherData.formattedUpdateTime)")
+                        Text("更新: \(agendaData.formattedUpdateTime)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -198,16 +198,16 @@ struct SystemWidgetView: View {
 
 // MARK: - Widget Configuration
 
-struct WeatherWidget: Widget {
-    let kind: String = "WeatherWidget"
+struct AgendaWidget: Widget {
+    let kind: String = "AgendaWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: WeatherTimelineProvider()) { entry in
-            WeatherWidgetView(entry: entry)
+        StaticConfiguration(kind: kind, provider: AgendaTimelineProvider()) { entry in
+            AgendaWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("上海天气")
-        .description("实时显示上海的天气信息，每5分钟自动更新")
+        .configurationDisplayName("健康任务")
+        .description("实时显示你的健康任务和待办事项，每5分钟自动更新")
         .supportedFamilies([
             .accessoryCircular,
             .accessoryRectangular,
@@ -221,55 +221,55 @@ struct WeatherWidget: Widget {
 // MARK: - Widget Bundle
 
 @main
-struct WeatherWidgetBundle: WidgetBundle {
+struct AgendaWidgetBundle: WidgetBundle {
     var body: some Widget {
-        WeatherWidget()
+        AgendaWidget()
     }
 }
 
 // MARK: - Preview
 
 #Preview(as: .accessoryRectangular) {
-    WeatherWidget()
+    AgendaWidget()
 } timeline: {
-    WeatherEntry(date: .now, weatherData: WeatherData(
+    AgendaEntry(date: .now, agendaData: AgendaData(
         temperature: "17",
         feelsLike: "17",
         weatherDescription: "晴朗",
         humidity: "56",
         windSpeed: "10",
         weatherCode: "113",
-        location: "上海",
+        location: "健康助手",
         updateTime: Date()
     ))
 }
 
 #Preview(as: .accessoryCircular) {
-    WeatherWidget()
+    AgendaWidget()
 } timeline: {
-    WeatherEntry(date: .now, weatherData: WeatherData(
+    AgendaEntry(date: .now, agendaData: AgendaData(
         temperature: "17",
         feelsLike: "17",
         weatherDescription: "晴朗",
         humidity: "56",
         windSpeed: "10",
         weatherCode: "113",
-        location: "上海",
+        location: "健康助手",
         updateTime: Date()
     ))
 }
 
 #Preview(as: .systemSmall) {
-    WeatherWidget()
+    AgendaWidget()
 } timeline: {
-    WeatherEntry(date: .now, weatherData: WeatherData(
+    AgendaEntry(date: .now, agendaData: AgendaData(
         temperature: "17",
         feelsLike: "17",
         weatherDescription: "晴朗",
         humidity: "56",
         windSpeed: "10",
         weatherCode: "113",
-        location: "上海",
+        location: "健康助手",
         updateTime: Date()
     ))
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Weather API Response Models
+// MARK: - Mock API Response Models (使用天气API作为测试数据)
 
 struct WeatherResponse: Codable {
     let currentCondition: [CurrentCondition]
@@ -72,36 +72,38 @@ struct Country: Codable {
     let value: String
 }
 
-// MARK: - Widget Display Model
+// MARK: - Agenda Widget Display Model
 
-struct WeatherData: Codable {
-    let temperature: String
-    let feelsLike: String
-    let weatherDescription: String
-    let humidity: String
-    let windSpeed: String
-    let weatherCode: String
-    let location: String
+struct AgendaData: Codable {
+    // 使用天气数据字段作为mock数据
+    // 未来替换成真实的健康任务数据
+    let temperature: String      // Mock: 可改为任务数量
+    let feelsLike: String        // Mock: 可改为紧急任务数量
+    let weatherDescription: String // Mock: 可改为主要任务描述
+    let humidity: String         // Mock: 可改为完成率
+    let windSpeed: String        // Mock: 可改为待办数量
+    let weatherCode: String      // Mock: 可改为任务类型代码
+    let location: String         // Mock: 可改为用户名称
     let updateTime: Date
 
-    var weatherEmoji: String {
-        // Weather code to emoji mapping
-        // Reference: https://www.worldweatheronline.com/developer/api/docs/weather-icons.aspx
+    var agendaEmoji: String {
+        // 任务类型 emoji 映射（目前使用天气代码mock）
+        // 未来可以改成真实的任务类型映射
         switch weatherCode {
-        case "113": return "☀️" // Sunny/Clear
-        case "116": return "⛅️" // Partly cloudy
-        case "119": return "☁️" // Cloudy
-        case "122": return "☁️" // Overcast
-        case "143", "248", "260": return "🌫" // Mist/Fog
-        case "176", "263", "266": return "🌦" // Light rain
-        case "179", "182", "185", "281", "284": return "🌨" // Light snow/sleet
-        case "200": return "⛈" // Thundery outbreaks
-        case "227", "230": return "🌨" // Blizzard
-        case "293", "296": return "🌧" // Light rain
-        case "299", "302", "305", "308", "311", "314", "317", "320", "323", "326", "329", "332", "335", "338": return "🌧" // Rain/Snow
-        case "350", "353", "356", "359", "362", "365", "368", "371", "374", "377": return "🌨" // Heavy snow
-        case "386", "389", "392", "395": return "⛈" // Thunder
-        default: return "🌤" // Default
+        case "113": return "✅" // 正常状态
+        case "116": return "📋" // 有待办
+        case "119": return "⏰" // 有提醒
+        case "122": return "🔔" // 有通知
+        case "143", "248", "260": return "⚠️" // 有警告
+        case "176", "263", "266": return "📝" // 记录任务
+        case "179", "182", "185", "281", "284": return "💊" // 用药提醒
+        case "200": return "🏃" // 运动任务
+        case "227", "230": return "🩺" // 健康检查
+        case "293", "296": return "💧" // 饮水提醒
+        case "299", "302", "305", "308", "311", "314", "317", "320", "323", "326", "329", "332", "335", "338": return "🍎" // 饮食记录
+        case "350", "353", "356", "359", "362", "365", "368", "371", "374", "377": return "😴" // 睡眠提醒
+        case "386", "389", "392", "395": return "🚨" // 紧急任务
+        default: return "📌" // 默认任务
         }
     }
 
@@ -112,15 +114,15 @@ struct WeatherData: Codable {
         return formatter.string(from: updateTime)
     }
 
-    static var placeholder: WeatherData {
-        WeatherData(
+    static var placeholder: AgendaData {
+        AgendaData(
             temperature: "--",
             feelsLike: "--",
             weatherDescription: "加载中...",
             humidity: "--",
             windSpeed: "--",
             weatherCode: "113",
-            location: "上海",
+            location: "健康助手",
             updateTime: Date()
         )
     }
