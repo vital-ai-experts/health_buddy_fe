@@ -111,11 +111,34 @@ targets:
         product: FeatureDebugToolsApi
       - package: FeatureDebugToolsImpl
         product: FeatureDebugToolsImpl
+      - target: WeatherWidget
+
+  WeatherWidget:
+    platform: iOS
+    type: app-extension
+    deploymentTarget: '17.0'
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.WeatherWidget
+      INFOPLIST_FILE: WeatherWidget/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      CODE_SIGN_STYLE: Automatic
+      SWIFT_VERSION: '5.0'
+    sources:
+      - path: WeatherWidget
+        excludes:
+          - "*.plist"
+          - "Assets.xcassets"
+      - path: WeatherWidget/Assets.xcassets
+        buildPhase: resources
+    dependencies: []
 schemes:
   ThriveBody:
     build:
       targets:
         ThriveBody: all
+        WeatherWidget: all
     run:
       config: Debug
     archive:
