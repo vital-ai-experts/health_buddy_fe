@@ -50,10 +50,18 @@ Parse the user's input intelligently to determine build options. Users may provi
    -a (if archive keyword detected)
    -c (if clean keyword detected)
    ```
-3. **Execute the command** using the Bash tool
+3. **Execute the build command with auto-fix loop**:
+   - Run `scripts/build.sh` with the determined options
+   - If build fails:
+     - Read and analyze the build log to identify compilation errors
+     - Extract specific error messages (Swift errors, missing imports, type errors, etc.)
+     - Use available tools (Edit, Write) to fix the identified errors
+     - Re-run the build command
+
 4. **Report results**:
    - Mention the command that was executed
    - Report success/failure
+   - If auto-fixes were applied, summarize what was fixed
    - Point to log file location if needed
 
 ## Examples
@@ -98,5 +106,7 @@ Parse the user's input intelligently to determine build options. Users may provi
 Briefly report:
 - What command was executed
 - Build result (success/failure)
+- Number of auto-fix attempts made (if any)
+- Summary of fixes applied (if any)
 - Where the app was installed (simulator/device)
 - Log file path if build failed
