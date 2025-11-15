@@ -4,6 +4,7 @@ import DomainHealth
 import DomainOnboarding
 import LibraryServiceLoader
 import FeatureDebugToolsApi
+import FeatureAgendaApi
 
 /// Me页面，显示用户信息和设置选项
 public struct ProfileView: View {
@@ -160,6 +161,14 @@ struct SettingsView: View {
 
             // 通用设置
             Section("通用") {
+                if let agendaBuilder = ServiceManager.shared.resolveOptional(FeatureAgendaBuildable.self) {
+                    NavigationLink {
+                        agendaBuilder.makeAgendaSettingsView()
+                    } label: {
+                        Label("任务卡 Agenda", systemImage: "figure.walk.circle.fill")
+                    }
+                }
+
                 NavigationLink {
                     Text("通知设置")
                 } label: {

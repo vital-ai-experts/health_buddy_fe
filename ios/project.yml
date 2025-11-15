@@ -54,6 +54,10 @@ packages:
     path: Packages/Feature/DebugTools/FeatureDebugToolsApi
   FeatureDebugToolsImpl:
     path: Packages/Feature/DebugTools/FeatureDebugToolsImpl
+  FeatureAgendaApi:
+    path: Packages/Feature/Agenda/FeatureAgendaApi
+  FeatureAgendaImpl:
+    path: Packages/Feature/Agenda/FeatureAgendaImpl
 targets:
   ThriveBody:
     templates: [BaseAppTarget]
@@ -111,6 +115,22 @@ targets:
         product: FeatureDebugToolsApi
       - package: FeatureDebugToolsImpl
         product: FeatureDebugToolsImpl
+      - package: FeatureAgendaApi
+        product: FeatureAgendaApi
+      - package: FeatureAgendaImpl
+        product: FeatureAgendaImpl
+  AgendaWidget:
+    platform: iOS
+    deploymentTarget: '17.0'
+    type: app-extension
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.AgendaWidget
+      INFOPLIST_FILE: AgendaWidget/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+    sources:
+      - path: AgendaWidget
+    dependencies:
+      - target: ThriveBody
 schemes:
   ThriveBody:
     build:

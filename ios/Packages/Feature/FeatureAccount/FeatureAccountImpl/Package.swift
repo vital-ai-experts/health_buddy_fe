@@ -11,7 +11,8 @@ let package = Package(
         .package(name: "DomainAuth", path: "../../../Domain/DomainAuth"),
         .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding"),
         .package(name: "DomainHealth", path: "../../../Domain/Health"),
-        .package(name: "FeatureDebugToolsApi", path: "../../DebugTools/FeatureDebugToolsApi")
+        .package(name: "FeatureDebugToolsApi", path: "../../DebugTools/FeatureDebugToolsApi"),
+        .package(name: "FeatureAgendaApi", path: "../../Agenda/FeatureAgendaApi")
     ],
     targets: [
         .target(
@@ -22,7 +23,8 @@ let package = Package(
                 .product(name: "DomainAuth", package: "DomainAuth"),
                 .product(name: "DomainOnboarding", package: "DomainOnboarding"),
                 .product(name: "DomainHealth", package: "DomainHealth"),
-                .product(name: "FeatureDebugToolsApi", package: "FeatureDebugToolsApi")
+                .product(name: "FeatureDebugToolsApi", package: "FeatureDebugToolsApi"),
+                .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi")
             ],
             path: "Sources"
         )
