@@ -5,7 +5,6 @@ import LibraryNotification
 /// Implementation of AgendaService
 public final class AgendaServiceImpl: AgendaService {
     private let weatherService = WeatherService()
-    private var updateTimer: Timer?
 
     // UserDefaults key for persisting agenda state
     private let agendaStateKey = "com.thrivebody.agenda.isActive"
@@ -49,12 +48,10 @@ public final class AgendaServiceImpl: AgendaService {
             initialTask: task
         )
 
-        // Start periodic updates
-        startPeriodicUpdates()
-
         // Save state for auto-restore
         UserDefaults.standard.set(true, forKey: agendaStateKey)
         print("💾 Agenda state saved")
+        print("✅ Agenda started - updates will be pushed from server")
     }
 
     @MainActor
@@ -62,9 +59,6 @@ public final class AgendaServiceImpl: AgendaService {
         guard #available(iOS 16.1, *) else {
             return
         }
-
-        // Stop periodic updates
-        stopPeriodicUpdates()
 
         // Stop live activity
         await LiveActivityManager.shared.stopAgendaActivity()
@@ -92,56 +86,6 @@ public final class AgendaServiceImpl: AgendaService {
             weather: weather,
             task: task
         )
-    }
-
-    // MARK: - Periodic Updates
-
-    @MainActor
-    private func startPeriodicUpdates() {
-        // Stop existing timer if any
-        stopPeriodicUpdates()
-
-        // Create timer for 10-second intervals
-        let timer = Timer(timeInterval: 10, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.performPeriodicUpdate()
-            }
-        }
-
-        // Add timer to RunLoop with .common mode to ensure it fires even during UI interactions
-        RunLoop.main.add(timer, forMode: .common)
-        updateTimer = timer
-
-        print("✅ Started periodic updates (every 10 seconds)")
-    }
-
-    @MainActor
-    private func stopPeriodicUpdates() {
-        updateTimer?.invalidate()
-        updateTimer = nil
-        print("✅ Stopped periodic updates")
-    }
-
-    @MainActor
-    private func performPeriodicUpdate() async {
-        guard #available(iOS 16.1, *) else { return }
-        guard LiveActivityManager.shared.isAgendaActive else {
-            stopPeriodicUpdates()
-            return
-        }
-
-        let weather = await weatherService.fetchWeatherSafely()
-        let task = TaskGenerator.generateContextualTask()
-
-        do {
-            try await LiveActivityManager.shared.updateAgendaActivity(
-                weather: weather,
-                task: task
-            )
-            print("✅ Periodic update completed: \(task)")
-        } catch {
-            print("❌ Failed to perform periodic update: \(error)")
-        }
     }
 }
 

@@ -11,6 +11,9 @@ public final class LiveActivityManager: ObservableObject {
     /// Current active agenda activity
     @Published public private(set) var currentAgendaActivity: Activity<AgendaActivityAttributes>?
 
+    /// Push token observation task
+    private var pushTokenTask: Task<Void, Never>?
+
     private init() {}
 
     /// Start a new agenda live activity
@@ -48,12 +51,15 @@ public final class LiveActivityManager: ObservableObject {
             let activity = try Activity<AgendaActivityAttributes>.request(
                 attributes: attributes,
                 content: .init(state: contentState, staleDate: nil),
-                pushType: nil
+                pushType: .token
             )
             currentAgendaActivity = activity
             print("✅ Live Activity started successfully!")
             print("   - Activity ID: \(activity.id)")
             print("   - Activity State: \(activity.activityState)")
+
+            // Start observing push token updates
+            startObservingPushToken(for: activity)
         } catch {
             print("❌ Failed to start Live Activity: \(error)")
             print("   - Error type: \(type(of: error))")
@@ -106,6 +112,9 @@ public final class LiveActivityManager: ObservableObject {
 
     /// Stop the current agenda live activity
     public func stopAgendaActivity() async {
+        // Stop observing push tokens
+        stopObservingPushToken()
+
         // Clean up all activities to ensure nothing is left running
         await cleanupAllActivities()
         print("✅ Live Activity stopped")
@@ -146,6 +155,36 @@ public final class LiveActivityManager: ObservableObject {
         if count > 0 {
             print("✅ Cleanup completed, all activities ended")
         }
+    }
+
+    // MARK: - Push Token Management
+
+    /// Start observing push token updates for the activity
+    private func startObservingPushToken(for activity: Activity<AgendaActivityAttributes>) {
+        // Cancel any existing observation
+        stopObservingPushToken()
+
+        print("🔔 Starting push token observation...")
+
+        pushTokenTask = Task {
+            for await pushToken in activity.pushTokenUpdates {
+                let tokenString = pushToken.map { String(format: "%02x", $0) }.joined()
+                print("📱 Live Activity Push Token Updated:")
+                print("   - Activity ID: \(activity.id)")
+                print("   - Push Token: \(tokenString)")
+                print("   - Token Data: \(pushToken.base64EncodedString())")
+
+                // TODO: Send this token to your backend server
+                // await sendPushTokenToServer(activityId: activity.id, token: tokenString)
+            }
+        }
+    }
+
+    /// Stop observing push token updates
+    private func stopObservingPushToken() {
+        pushTokenTask?.cancel()
+        pushTokenTask = nil
+        print("🔕 Stopped push token observation")
     }
 }
 

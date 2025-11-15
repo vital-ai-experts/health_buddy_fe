@@ -11,7 +11,7 @@ struct ToggleTaskIntent: LiveActivityIntent {
 
     /// Execute the intent to complete task and get new one
     func perform() async throws -> some IntentResult {
-        print("🎯 ToggleTaskIntent: Marking task as complete")
+        print("🎯 ToggleTaskIntent: Starting task completion flow")
 
         // Get all active activities
         let activities = Activity<AgendaActivityAttributes>.activities
@@ -22,9 +22,25 @@ struct ToggleTaskIntent: LiveActivityIntent {
         }
 
         let currentState = activity.content.state
+        let userId = activity.attributes.userId
+        let taskId = UUID().uuidString // Generate task ID
 
-        // Step 1: Mark current task as completed
-        print("✅ Step 1: Marking task as completed")
+        // Step 1: Notify server about task completion (best-effort, non-blocking)
+        print("📤 Step 1: Notifying server of task completion")
+        Task.detached(priority: .utility) {
+            do {
+                _ = try await AgendaAPIClient.shared.notifyTaskCompletion(
+                    userId: userId,
+                    taskId: taskId,
+                    task: currentState.task
+                )
+            } catch {
+                print("⚠️ Server notification failed (continuing): \(error)")
+            }
+        }
+
+        // Step 2: Mark current task as completed (immediate UI feedback)
+        print("✅ Step 2: Marking task as completed")
         let completedState = AgendaActivityAttributes.ContentState(
             weather: currentState.weather,
             task: currentState.task,
@@ -39,12 +55,14 @@ struct ToggleTaskIntent: LiveActivityIntent {
             )
         )
 
-        // Step 2: Wait 1.5 seconds to show completion
-        print("⏳ Step 2: Waiting 1.5 seconds...")
+        // Step 3: Wait 1.5 seconds to show completion
+        print("⏳ Step 3: Waiting 1.5 seconds...")
         try? await Task.sleep(nanoseconds: 1_500_000_000)
 
-        // Step 3: Generate and show new task
-        print("🆕 Step 3: Generating new task")
+        // Step 4: Generate and show new task
+        // Note: In production, this should come from server push notification
+        // For now, we generate locally as fallback
+        print("🆕 Step 4: Generating new task (local fallback)")
         let newTask = generateNextTask()
 
         let newState = AgendaActivityAttributes.ContentState(
@@ -69,6 +87,7 @@ struct ToggleTaskIntent: LiveActivityIntent {
         )
 
         print("✅ Task completed and switched to: \(newTask)")
+        print("💡 Server will push updated task via APNs when available")
         return .result()
     }
 
