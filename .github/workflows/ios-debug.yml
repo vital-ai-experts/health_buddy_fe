@@ -24,3 +24,13 @@ jobs:
       - name: Build for Simulator
         working-directory: ios
         run: ./scripts/build.sh
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            ios/build/*.log
+            ios/build/Debug-iphonesimulator/ThriveBody.app
+          retention-days: 7

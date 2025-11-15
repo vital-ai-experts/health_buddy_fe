@@ -294,6 +294,10 @@ else
 fi
 
 # 打印配置信息
+log_info "系统环境:"
+echo "  macOS 版本: $(sw_vers -productVersion)"
+echo "  Xcode 版本: $(xcodebuild -version | head -1)"
+echo ""
 log_info "构建配置:"
 echo "  项目: ${SCHEME}"
 echo "  配置: ${CONFIGURATION}"
