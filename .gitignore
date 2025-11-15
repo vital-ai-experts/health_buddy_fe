@@ -1,1 +1,5 @@
 .DS_Store
+
+# CI/CD generated files
+ci-logs/
+ci-artifacts/

@@ -1,0 +1,248 @@
+name: Manual iOS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration (Debug/Release)'
+        required: true
+        default: 'Debug'
+        type: choice
+        options:
+          - Debug
+          - Release
+
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'simulator'
+        type: choice
+        options:
+          - simulator
+          - archive
+
+      clean_build:
+        description: 'Clean before build'
+        required: false
+        default: false
+        type: boolean
+
+      upload_ipa:
+        description: 'Upload IPA artifact (only for archive builds)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  XCODE_VERSION: '15.2'
+
+jobs:
+  build:
+    name: Manual Build - ${{ github.event.inputs.configuration }} - ${{ github.event.inputs.build_type }}
+    runs-on: macos-14
+
+    steps:
+      - name: Print build configuration
+        run: |
+          echo "### Build Configuration 🔧" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: ${{ github.event.inputs.configuration }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Type**: ${{ github.event.inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Clean Build**: ${{ github.event.inputs.clean_build }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upload IPA**: ${{ github.event.inputs.upload_ipa }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          echo "Installing build dependencies..."
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        working-directory: ./ios
+        run: |
+          echo "Generating Xcode project from project.yml..."
+          ./scripts/generate_project.sh
+
+      - name: Setup build environment
+        run: |
+          echo "Setting up build environment..."
+
+          # 打印 Xcode 环境信息
+          echo "Xcode version:"
+          xcodebuild -version
+
+          echo "Available simulators:"
+          xcrun simctl list devices available | grep "iPhone"
+
+          echo "SDK information:"
+          xcodebuild -showsdks | grep iOS
+
+      - name: Build for Simulator
+        if: ${{ github.event.inputs.build_type == 'simulator' }}
+        working-directory: ./ios
+        run: |
+          BUILD_ARGS=""
+
+          # 添加配置参数
+          if [ "${{ github.event.inputs.configuration }}" == "Release" ]; then
+            BUILD_ARGS="$BUILD_ARGS -r"
+          fi
+
+          # 添加清理参数
+          if [ "${{ github.event.inputs.clean_build }}" == "true" ]; then
+            BUILD_ARGS="$BUILD_ARGS -c"
+          fi
+
+          echo "Building for simulator with args: $BUILD_ARGS"
+          ./scripts/build.sh $BUILD_ARGS -d simulator
+
+      - name: Build Archive
+        if: ${{ github.event.inputs.build_type == 'archive' }}
+        working-directory: ./ios
+        run: |
+          BUILD_ARGS="-a"
+
+          # Archive 总是使用 Release
+          BUILD_ARGS="$BUILD_ARGS -r"
+
+          # 添加清理参数
+          if [ "${{ github.event.inputs.clean_build }}" == "true" ]; then
+            BUILD_ARGS="$BUILD_ARGS -c"
+          fi
+
+          echo "Building archive with args: $BUILD_ARGS"
+          ./scripts/build.sh $BUILD_ARGS
+
+      - name: Organize build artifacts
+        if: always()
+        working-directory: ./ios
+        run: |
+          echo "Organizing build artifacts..."
+          mkdir -p build/artifacts
+          mkdir -p build/logs
+
+          # 收集日志文件
+          find build -name "*.log" -type f -exec cp {} build/logs/ \; || true
+
+          # 创建详细的构建报告
+          cat > build/logs/build-report.md <<EOF
+          # Build Report
+
+          ## Configuration
+          - **Date**: $(date)
+          - **Configuration**: ${{ github.event.inputs.configuration }}
+          - **Build Type**: ${{ github.event.inputs.build_type }}
+          - **Clean Build**: ${{ github.event.inputs.clean_build }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Commit**: ${{ github.sha }}
+          - **Triggered by**: @${{ github.actor }}
+
+          ## Environment
+          - **Xcode Version**: $(xcodebuild -version | head -1)
+          - **macOS Version**: $(sw_vers -productVersion)
+          - **Runner**: ${{ runner.os }} - ${{ runner.arch }}
+
+          ## Build Output
+          EOF
+
+          # 添加构建结果到报告
+          if [ -d "build" ]; then
+            echo "" >> build/logs/build-report.md
+            echo "### Artifacts" >> build/logs/build-report.md
+            find build -type f \( -name "*.app" -o -name "*.ipa" -o -name "*.xcarchive" \) | while read file; do
+              SIZE=$(du -sh "$file" | cut -f1)
+              echo "- \`$(basename "$file")\` - $SIZE" >> build/logs/build-report.md
+            done
+          fi
+
+          # 检查是否有错误
+          echo "" >> build/logs/build-report.md
+          echo "### Build Errors" >> build/logs/build-report.md
+          if find build/logs -name "*.log" -type f -exec grep -l "error:" {} \;; then
+            echo "Found errors in build logs. See log files for details." >> build/logs/build-report.md
+          else
+            echo "No errors found ✅" >> build/logs/build-report.md
+          fi
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.event.inputs.configuration }}-${{ github.event.inputs.build_type }}-${{ github.run_number }}
+          path: |
+            ios/build/logs/
+            ios/build/*.log
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload simulator build
+        if: ${{ success() && github.event.inputs.build_type == 'simulator' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-app-${{ github.event.inputs.configuration }}-${{ github.run_number }}
+          path: |
+            ios/build/**/*.app
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload archive artifacts
+        if: ${{ success() && github.event.inputs.build_type == 'archive' && github.event.inputs.upload_ipa == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ github.run_number }}
+          path: |
+            ios/build/**/*.ipa
+            ios/build/**/*.xcarchive
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "### Build Results 📱" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "ios/build/logs/build-report.md" ]; then
+            cat ios/build/logs/build-report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts 📦" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build logs and artifacts are available in the Actions artifacts section above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "You can download them using:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "gh run download ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with build results
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'ios/build/logs/build-report.md';
+
+            if (fs.existsSync(reportPath)) {
+              const report = fs.readFileSync(reportPath, 'utf8');
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## iOS Build Results\n\n${report}`
+              });
+            }
