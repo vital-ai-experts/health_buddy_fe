@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import ActivityKit
 import DomainAuth
 import DomainHealth
 import DomainOnboarding
@@ -123,6 +124,9 @@ struct SettingsView: View {
     @State private var showingAuthorizationAlert = false
     @State private var authorizationMessage = ""
     @State private var isAuthorizingHealthKit = false
+    @State private var isActivityRunning = false
+    @State private var isStartingActivity = false
+    @State private var isStoppingActivity = false
 
     private let authorizationService: AuthorizationService
 
@@ -135,12 +139,71 @@ struct SettingsView: View {
     var body: some View {
         List {
             // 锁屏卡设置
-            Section("锁屏卡") {
+            Section("健康任务 Live Activity") {
+                // 启动/停止按钮
+                if #available(iOS 16.1, *) {
+                    VStack(spacing: 12) {
+                        if !isActivityRunning {
+                            Button {
+                                Task {
+                                    await startLiveActivity()
+                                }
+                            } label: {
+                                HStack {
+                                    if isStartingActivity {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.title3)
+                                    }
+                                    Text(isStartingActivity ? "启动中..." : "启动健康任务卡")
+                                        .fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.green)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                            }
+                            .disabled(isStartingActivity)
+                        } else {
+                            Button {
+                                Task {
+                                    await stopLiveActivity()
+                                }
+                            } label: {
+                                HStack {
+                                    if isStoppingActivity {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "stop.circle.fill")
+                                            .font(.title3)
+                                    }
+                                    Text(isStoppingActivity ? "停止中..." : "停止健康任务卡")
+                                        .fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                            }
+                            .disabled(isStoppingActivity)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+
                 NavigationLink {
                     WidgetGuideView()
                 } label: {
                     HStack {
-                        Label("添加健康任务锁屏卡", systemImage: "square.dashed.inset.filled")
+                        Label("使用说明", systemImage: "info.circle")
                             .foregroundColor(.primary)
 
                         Spacer()
@@ -151,7 +214,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Text("一键查看如何将健康任务卡添加到锁屏")
+                Text(isActivityRunning ? "Live Activity 正在运行，将在锁屏显示健康任务" : "点击启动按钮在锁屏显示 Live Activity")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -233,6 +296,52 @@ struct SettingsView: View {
                 showingAuthorizationAlert = true
                 isAuthorizingHealthKit = false
             }
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func startLiveActivity() async {
+        isStartingActivity = true
+
+        // Check if Live Activities are enabled
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            await MainActor.run {
+                authorizationMessage = "Live Activities 未启用\n请在系统设置 > ThriveBody 中启用 Live Activities"
+                showingAuthorizationAlert = true
+                isStartingActivity = false
+            }
+            return
+        }
+
+        // Start the Live Activity
+        await AgendaActivityManager.shared.startActivity(userName: "健康助手")
+
+        await MainActor.run {
+            isActivityRunning = AgendaActivityManager.shared.isActivityRunning
+            isStartingActivity = false
+
+            if isActivityRunning {
+                authorizationMessage = "Live Activity 已启动\n请锁定屏幕查看健康任务卡"
+                showingAuthorizationAlert = true
+            } else {
+                authorizationMessage = "启动失败\n请检查网络连接或稍后重试"
+                showingAuthorizationAlert = true
+            }
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func stopLiveActivity() async {
+        isStoppingActivity = true
+
+        // Stop the Live Activity
+        await AgendaActivityManager.shared.endActivity()
+
+        await MainActor.run {
+            isActivityRunning = AgendaActivityManager.shared.isActivityRunning
+            isStoppingActivity = false
+            authorizationMessage = "Live Activity 已停止"
+            showingAuthorizationAlert = true
         }
     }
 }
@@ -401,10 +510,10 @@ struct AboutView: View {
 
 // MARK: - WidgetGuideView
 
-/// Widget 添加引导页面
+/// Live Activity 使用引导页面
 struct WidgetGuideView: View {
-    @State private var currentStep = 0
     @State private var showingSuccessTip = false
+    @State private var tipMessage = ""
 
     var body: some View {
         ScrollView {
@@ -423,11 +532,11 @@ struct WidgetGuideView: View {
                             )
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("健康任务锁屏卡")
+                            Text("健康任务 Live Activity")
                                 .font(.title2)
                                 .fontWeight(.bold)
 
-                            Text("待办事项，一目了然")
+                            Text("实时显示，动态更新")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -436,7 +545,7 @@ struct WidgetGuideView: View {
                         Spacer()
                     }
 
-                    Text("每 5 分钟自动更新，显示你的健康任务和待办事项")
+                    Text("通过 Live Activity 在锁屏和灵动岛实时显示你的健康任务")
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .padding(.vertical, 8)
@@ -445,112 +554,118 @@ struct WidgetGuideView: View {
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(12)
 
-                // 添加步骤
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("添加步骤")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    GuideStepCard(
-                        stepNumber: 1,
-                        title: "锁定屏幕",
-                        description: "在 iPhone 上锁定屏幕",
-                        icon: "lock.iphone",
-                        isCompleted: currentStep > 0
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 2,
-                        title: "长按锁屏",
-                        description: "长按锁屏界面，直到出现「自定」按钮",
-                        icon: "hand.tap.fill",
-                        isCompleted: currentStep > 1
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 3,
-                        title: "点击自定",
-                        description: "点击「自定」或「Customize」按钮",
-                        icon: "slider.horizontal.3",
-                        isCompleted: currentStep > 2
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 4,
-                        title: "选择锁定画面",
-                        description: "在弹出的菜单中选择「锁定画面」",
-                        icon: "rectangle.portrait",
-                        isCompleted: currentStep > 3
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 5,
-                        title: "添加小组件",
-                        description: "点击锁屏上想要添加 Widget 的位置（圆形、矩形或顶部内联区域）",
-                        icon: "plus.square.dashed",
-                        isCompleted: currentStep > 4
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 6,
-                        title: "搜索健康任务",
-                        description: "在 Widget 列表中滚动找到「健康任务」或使用搜索功能",
-                        icon: "magnifyingglass",
-                        isCompleted: currentStep > 5
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 7,
-                        title: "选择样式",
-                        description: "选择喜欢的 Widget 样式（推荐：矩形样式，可显示更多信息）",
-                        icon: "square.grid.3x3.fill",
-                        isCompleted: currentStep > 6
-                    )
-
-                    GuideStepCard(
-                        stepNumber: 8,
-                        title: "完成设置",
-                        description: "点击完成，天气卡将显示在锁屏上",
-                        icon: "checkmark.circle.fill",
-                        isCompleted: currentStep > 7
-                    )
-                }
-
-                // Widget 样式预览
+                // Live Activity 功能介绍
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Widget 样式")
+                    Text("功能特点")
                         .font(.headline)
                         .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        WidgetStylePreview(
-                            title: "矩形卡片（推荐）",
-                            description: "显示完整信息，包括任务详情和更新时间（使用天气数据作为测试）",
-                            icon: "rectangle.fill",
+                        FeatureCard(
+                            title: "锁屏显示",
+                            description: "在锁屏界面全宽显示健康任务信息，无需解锁即可查看",
+                            icon: "lock.iphone",
                             color: .blue
                         )
 
-                        WidgetStylePreview(
-                            title: "圆形卡片",
-                            description: "简洁显示，包含任务图标和关键信息（使用天气数据作为测试）",
-                            icon: "circle.fill",
+                        FeatureCard(
+                            title: "灵动岛集成",
+                            description: "在 iPhone 14 Pro 及以上机型的灵动岛中实时显示任务状态",
+                            icon: "iphone.gen3",
+                            color: .purple
+                        )
+
+                        FeatureCard(
+                            title: "自动更新",
+                            description: "每 5 分钟自动更新数据，确保信息始终保持最新状态",
+                            icon: "arrow.triangle.2.circlepath",
                             color: .green
                         )
 
-                        WidgetStylePreview(
-                            title: "内联卡片",
-                            description: "顶部显示，一行文字展示核心信息（使用天气数据作为测试）",
-                            icon: "minus.rectangle.fill",
+                        FeatureCard(
+                            title: "Mock 数据测试",
+                            description: "目前使用天气数据作为测试，未来将替换为真实健康任务",
+                            icon: "cloud.sun.fill",
                             color: .orange
                         )
                     }
                     .padding(.horizontal)
                 }
 
+                // 使用说明
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("使用说明")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    InfoCard(
+                        stepNumber: 1,
+                        title: "在设置页启动",
+                        description: "返回设置页面，点击「启动健康任务卡」按钮即可在锁屏显示 Live Activity",
+                        icon: "play.circle.fill",
+                        color: .blue
+                    )
+
+                    InfoCard(
+                        stepNumber: 2,
+                        title: "锁屏查看",
+                        description: "锁定 iPhone 屏幕后，Live Activity 会以全宽卡片形式显示在锁屏界面",
+                        icon: "lock.iphone",
+                        color: .green
+                    )
+
+                    InfoCard(
+                        stepNumber: 3,
+                        title: "灵动岛查看",
+                        description: "如果使用 iPhone 14 Pro 及以上机型，可在灵动岛中点击查看详细信息",
+                        icon: "sparkles",
+                        color: .purple
+                    )
+
+                    InfoCard(
+                        stepNumber: 4,
+                        title: "停止显示",
+                        description: "不需要时，可在设置页点击「停止健康任务卡」按钮关闭 Live Activity",
+                        icon: "stop.circle.fill",
+                        color: .red
+                    )
+                }
+
+                // 系统要求
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("系统要求")
+                        .font(.headline)
+                        .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        RequirementRow(
+                            icon: "iphone",
+                            text: "iOS 16.1 或更高版本",
+                            isMet: true
+                        )
+
+                        RequirementRow(
+                            icon: "sparkles",
+                            text: "灵动岛功能需要 iPhone 14 Pro 或更高机型",
+                            isMet: false
+                        )
+
+                        RequirementRow(
+                            icon: "wifi",
+                            text: "需要网络连接以获取最新数据",
+                            isMet: true
+                        )
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+
                 // 提示信息
                 VStack(alignment: .leading, spacing: 12) {
                     Label {
-                        Text("健康任务每 5 分钟自动更新一次")
+                        Text("Live Activity 会每 5 分钟自动更新数据")
                             .font(.callout)
                     } icon: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -558,7 +673,7 @@ struct WidgetGuideView: View {
                     }
 
                     Label {
-                        Text("Widget 会显示数据的最后更新时间")
+                        Text("在锁屏和通知中心都可以看到 Live Activity")
                             .font(.callout)
                     } icon: {
                         Image(systemName: "info.circle")
@@ -574,11 +689,11 @@ struct WidgetGuideView: View {
                     }
 
                     Label {
-                        Text("如果 Widget 不更新，可以尝试移除后重新添加")
+                        Text("Live Activity 最长可持续 8 小时，之后需要重新启动")
                             .font(.callout)
                     } icon: {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(.blue)
+                        Image(systemName: "hourglass")
+                            .foregroundColor(.purple)
                     }
                 }
                 .padding()
@@ -588,14 +703,13 @@ struct WidgetGuideView: View {
                 // 快捷操作
                 VStack(spacing: 12) {
                     Button {
-                        // iOS 不允许直接跳转到 Widget 添加页面
-                        // 但可以提示用户操作
+                        tipMessage = "请返回设置页面，使用「启动健康任务卡」按钮来启动 Live Activity"
                         showingSuccessTip = true
                     } label: {
                         HStack {
                             Image(systemName: "hand.raised.fill")
                                 .font(.title3)
-                            Text("我已了解如何添加")
+                            Text("我已了解如何使用")
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
@@ -604,92 +718,23 @@ struct WidgetGuideView: View {
                         .foregroundColor(.white)
                         .cornerRadius(12)
                     }
-
-                    Button {
-                        // 刷新所有 Widget
-                        WidgetCenter.shared.reloadAllTimelines()
-                        showingSuccessTip = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.title3)
-                            Text("刷新 Widget 数据")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
                 }
             }
             .padding()
         }
-        .navigationTitle("添加健康任务锁屏卡")
+        .navigationTitle("健康任务 Live Activity")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("操作成功", isPresented: $showingSuccessTip) {
+        .alert("温馨提示", isPresented: $showingSuccessTip) {
             Button("好的", role: .cancel) {}
         } message: {
-            Text("Widget 数据已刷新，请按照上述步骤添加到锁屏")
+            Text(tipMessage)
         }
     }
 }
 
-// MARK: - GuideStepCard
+// MARK: - FeatureCard
 
-struct GuideStepCard: View {
-    let stepNumber: Int
-    let title: String
-    let description: String
-    let icon: String
-    let isCompleted: Bool
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(isCompleted ? Color.green : Color.blue)
-                    .frame(width: 40, height: 40)
-
-                if isCompleted {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                } else {
-                    Text("\(stepNumber)")
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Image(systemName: icon)
-                        .foregroundColor(.blue)
-
-                    Text(title)
-                        .font(.headline)
-                }
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer()
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - WidgetStylePreview
-
-struct WidgetStylePreview: View {
+struct FeatureCard: View {
     let title: String
     let description: String
     let icon: String
@@ -720,5 +765,79 @@ struct WidgetStylePreview: View {
         .padding()
         .background(Color.gray.opacity(0.05))
         .cornerRadius(10)
+    }
+}
+
+// MARK: - InfoCard
+
+struct InfoCard: View {
+    let stepNumber: Int
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 40, height: 40)
+
+                Text("\(stepNumber)")
+                    .foregroundColor(.white)
+                    .fontWeight(.bold)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(color)
+
+                    Text(title)
+                        .font(.headline)
+                }
+
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - RequirementRow
+
+struct RequirementRow: View {
+    let icon: String
+    let text: String
+    let isMet: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(isMet ? .green : .orange)
+                .frame(width: 24, height: 24)
+
+            Text(text)
+                .font(.callout)
+
+            Spacer()
+
+            if isMet {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            } else {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.orange)
+            }
+        }
     }
 }

@@ -71,6 +71,11 @@ targets:
         buildPhase: resources
       - path: App/Resources/LaunchScreen.storyboard
         buildPhase: resources
+      # Shared AgendaWidget files for Live Activity support
+      - path: AgendaWidget/AgendaModels.swift
+      - path: AgendaWidget/AgendaService.swift
+      - path: AgendaWidget/AgendaActivityManager.swift
+      - path: AgendaWidget/AgendaWidget.swift
     resources: []
     dependencies:
       - package: LibraryServiceLoader
