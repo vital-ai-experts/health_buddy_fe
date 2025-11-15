@@ -260,11 +260,15 @@ if [ "$DEVICE_TYPE" = "simulator" ]; then
         DESTINATION="platform=iOS Simulator,id=${DEVICE_UDID}"
         log_info "检测到运行中的模拟器: ${DEVICE_NAME}"
     else
-        # 使用默认模拟器
+        # 动态查找可用的模拟器
         DEVICE_UDID=""
-        DEVICE_NAME="iPhone 17 Pro"
-        DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro"
-        log_warning "未检测到运行中的模拟器，使用默认: iPhone 17 Pro"
+        DEVICE_NAME=$(xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//")
+        if [ -z "$DEVICE_NAME" ]; then
+            log_error "未找到可用的 iPhone 模拟器"
+            exit 1
+        fi
+        DESTINATION="platform=iOS Simulator,name=${DEVICE_NAME}"
+        log_warning "未检测到运行中的模拟器，使用可用模拟器: ${DEVICE_NAME}"
     fi
 else
     # 真机模式
@@ -290,6 +294,10 @@ else
 fi
 
 # 打印配置信息
+log_info "系统环境:"
+echo "  macOS 版本: $(sw_vers -productVersion)"
+echo "  Xcode 版本: $(xcodebuild -version | head -1)"
+echo ""
 log_info "构建配置:"
 echo "  项目: ${SCHEME}"
 echo "  配置: ${CONFIGURATION}"

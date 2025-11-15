@@ -1,0 +1,36 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: ios
+        run: ./scripts/generate_project.sh
+
+      - name: Build for Simulator
+        working-directory: ios
+        run: ./scripts/build.sh
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            ios/build/*.log
+            ios/build/Debug-iphonesimulator/ThriveBody.app
+          retention-days: 7
