@@ -22,6 +22,9 @@ public class DeviceTrackManager {
     /// Cached device ID
     private var cachedDeviceId: String?
 
+    /// Cached unique identifier (IDFV or generated UUID)
+    private var cachedUniqueIdentifier: String?
+
     private init(
         apiClient: APIClient = .shared,
         storage: DeviceStorage = UserDefaultsDeviceStorage()
@@ -29,8 +32,9 @@ public class DeviceTrackManager {
         self.apiClient = apiClient
         self.storage = storage
 
-        // Load cached device ID
+        // Load cached device ID and unique identifier
         self.cachedDeviceId = storage.getDeviceId()
+        self.cachedUniqueIdentifier = storage.getUniqueIdentifier()
     }
 
     // MARK: - Public Methods
@@ -116,16 +120,31 @@ public class DeviceTrackManager {
 
     /// Get or create unique identifier
     /// Uses IDFV if available, otherwise generates and stores a UUID
+    /// Result is cached in memory to avoid repeated lookups
     private func getOrCreateUniqueIdentifier() -> String {
+        // Return cached value if available
+        if let cached = cachedUniqueIdentifier {
+            Log.d("📱 [DeviceTrack] 使用缓存的唯一标识符: \(cached)", category: "DeviceTrack")
+            return cached
+        }
+
         // Try to get IDFV (Identifier for Vendor)
         if let idfv = UIDevice.current.identifierForVendor?.uuidString {
             Log.d("📱 [DeviceTrack] 使用 IDFV: \(idfv)", category: "DeviceTrack")
+            cachedUniqueIdentifier = idfv
+            // Save IDFV to storage for future use
+            do {
+                try storage.saveUniqueIdentifier(idfv)
+            } catch {
+                Log.w("⚠️ [DeviceTrack] 保存 IDFV 失败: \(error.localizedDescription)", category: "DeviceTrack")
+            }
             return idfv
         }
 
         // IDFV not available, check if we have a stored UUID
         if let storedUUID = storage.getUniqueIdentifier() {
             Log.d("📱 [DeviceTrack] 使用存储的 UUID: \(storedUUID)", category: "DeviceTrack")
+            cachedUniqueIdentifier = storedUUID
             return storedUUID
         }
 
@@ -133,6 +152,7 @@ public class DeviceTrackManager {
         let newUUID = UUID().uuidString
         do {
             try storage.saveUniqueIdentifier(newUUID)
+            cachedUniqueIdentifier = newUUID
             Log.i("📱 [DeviceTrack] 生成并存储新 UUID: \(newUUID)", category: "DeviceTrack")
         } catch {
             Log.w("⚠️ [DeviceTrack] 保存 UUID 失败: \(error.localizedDescription)", category: "DeviceTrack")
