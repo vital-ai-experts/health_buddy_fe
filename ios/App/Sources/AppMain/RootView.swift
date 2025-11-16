@@ -288,7 +288,7 @@ struct RootView: View {
                 _ = try await authService.verifyAndRefreshTokenIfNeeded()
                 Log.i("✅ Token 远程验证成功", category: "App")
             } catch {
-                Log.w("⚠️ Token 远程验证失败（网络或服务器问题）: \(error.localizedDescription)", category: "App")
+                Log.w("⚠️ Token 远程验证失败（网络或服务器问题）: \(error.localizedDescription)", error: error, category: "App")
                 // 注意：即使远程验证失败，也不登出用户，只要本地 token 未过期
             }
         }
