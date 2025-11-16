@@ -13,6 +13,7 @@ public struct SimpleChatView: View {
     public let onLoadMoreHistory: (() -> Void)?
 
     @FocusState private var isInputFocused: Bool
+    @State private var loadingId = UUID().uuidString  // Stable ID for loading indicator
 
     public init(
         messages: Binding<[ChatMessage]>,
@@ -69,6 +70,11 @@ public struct SimpleChatView: View {
         }
         .background(Color(.systemBackground))
         .onChange(of: isLoading) { oldValue, newValue in
+            // When loading starts, generate a new unique ID for the loading indicator
+            if !oldValue && newValue {
+                loadingId = UUID().uuidString
+            }
+
             // 当 loading 从 true 变为 false（AI 回复完成），根据配置决定是否自动聚焦
             if oldValue && !newValue && configuration.autoFocusAfterBotMessage {
                 // 延迟一下，确保 UI 已经更新
@@ -85,7 +91,7 @@ public struct SimpleChatView: View {
 
         // 如果正在加载且没有流式消息，添加一个 loading indicator
         if isLoading && !hasStreamingMessage {
-            items.append(.loading(SystemLoading(id: "loading")))
+            items.append(.loading(SystemLoading(id: loadingId)))
         }
 
         return items
