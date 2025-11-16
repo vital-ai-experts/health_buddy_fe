@@ -11,5 +11,6 @@ Health AI 的所有客户端（iOS、Android、Web）都收敛在这个 monorepo
   - `ios/scripts/`：`build.sh`、`generate_project.sh` 等工具脚本。
 - `android/`：预留目录。
 - `web/`：预留目录。
+- `.github`：GitHub CI 配置和相关脚本。
 
 如在文档或脚本中发现缺口，请先更新对应的 `AGENTS.md`/README，保持信息同步，再继续开发。
