@@ -8,7 +8,12 @@ public final class LocalChatMessage {
     public var id: String
     public var content: String
     public var isFromUser: Bool
+
+    // 使用 originalName 告诉 SwiftData 这个字段之前叫 "timestamp"
+    // 这样可以自动迁移旧数据
+    @Attribute(originalName: "timestamp")
     public var createdAt: Date
+
     public var conversationId: String?
 
     public init(

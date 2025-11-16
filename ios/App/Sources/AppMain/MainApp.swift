@@ -24,7 +24,7 @@ struct MainApp: App {
         AppComposition.bootstrap()
 
         do {
-            // 配置 SwiftData 模型
+            // 配置 SwiftData 模型 - 使用迁移计划处理字段重命名
             let schema = Schema([
                 HealthSection.self,
                 HealthRow.self,
@@ -33,19 +33,32 @@ struct MainApp: App {
 
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
-                isStoredInMemoryOnly: false
+                isStoredInMemoryOnly: false,
+                allowsSave: true
             )
 
+            // 创建容器，启用自动迁移
             modelContainer = try ModelContainer(
                 for: schema,
+                migrationPlan: nil,  // SwiftData 会尝试自动轻量级迁移
                 configurations: [modelConfiguration]
             )
 
             Log.i("✅ SwiftData 模型容器初始化成功", category: "App")
+
+            // 添加诊断：检查数据库中的消息数量
+            Task {
+                let context = modelContainer.mainContext
+                let descriptor = FetchDescriptor<LocalChatMessage>()
+                if let count = try? context.fetchCount(descriptor) {
+                    Log.i("📊 数据库中现有 \(count) 条消息", category: "App")
+                }
+            }
         } catch {
             // 降级处理：使用内存模式
-            Log.w("⚠️ 无法初始化持久化 ModelContainer: \(error)", category: "App")
-            Log.w("⚠️ 使用内存模式代替", category: "App")
+            Log.e("❌ 无法初始化持久化 ModelContainer: \(error)", category: "App")
+            Log.w("⚠️ 可能原因: 模型字段变更(timestamp->createdAt)导致迁移失败", category: "App")
+            Log.w("⚠️ 使用内存模式代替（数据将不会持久化）", category: "App")
 
             do {
                 let schema = Schema([
