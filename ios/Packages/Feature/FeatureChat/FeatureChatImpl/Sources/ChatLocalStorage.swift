@@ -41,16 +41,49 @@ public final class ChatStorageService {
         self.modelContext = modelContext
     }
 
-    /// 保存消息到本地
+    /// 保存消息到本地（使用 upsert 逻辑：存在则更新，不存在则插入）
     public func saveMessage(_ message: LocalChatMessage) throws {
-        modelContext.insert(message)
+        // 先检查是否已存在相同 ID 的消息
+        let messageId = message.id  // 捕获 ID 到本地变量
+        let descriptor = FetchDescriptor<LocalChatMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        )
+        let existingMessages = try modelContext.fetch(descriptor)
+
+        if let existing = existingMessages.first {
+            // 更新现有消息
+            existing.content = message.content
+            existing.isFromUser = message.isFromUser
+            existing.createdAt = message.createdAt
+            existing.conversationId = message.conversationId
+        } else {
+            // 插入新消息
+            modelContext.insert(message)
+        }
+
         try modelContext.save()
     }
 
-    /// 批量保存消息
+    /// 批量保存消息（使用 upsert 逻辑）
     public func saveMessages(_ messages: [LocalChatMessage]) throws {
         for message in messages {
-            modelContext.insert(message)
+            // 检查是否已存在
+            let messageId = message.id  // 捕获 ID 到本地变量
+            let descriptor = FetchDescriptor<LocalChatMessage>(
+                predicate: #Predicate { $0.id == messageId }
+            )
+            let existingMessages = try modelContext.fetch(descriptor)
+
+            if let existing = existingMessages.first {
+                // 更新现有消息
+                existing.content = message.content
+                existing.isFromUser = message.isFromUser
+                existing.createdAt = message.createdAt
+                existing.conversationId = message.conversationId
+            } else {
+                // 插入新消息
+                modelContext.insert(message)
+            }
         }
         try modelContext.save()
     }
