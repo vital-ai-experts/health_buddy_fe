@@ -290,9 +290,10 @@ final class PersistentChatViewModel: ObservableObject {
         do {
             let allServerMessages = try await chatService.getConversationHistory(id: conversationId)
 
-            // 只保留系统消息(assistant messages)，过滤掉用户消息
+            // 只保留系统消息(assistant messages)，过滤掉用户消息和空内容的消息
             // 因为从服务端拉到的用户消息没有msg_id，所以我们不要了
-            let serverMessages = allServerMessages.filter { $0.role == .assistant }
+            // 同时过滤掉content为空的系统消息
+            let serverMessages = allServerMessages.filter { $0.role == .assistant && !$0.content.isEmpty }
 
             // 创建服务端消息ID集合
             let serverMessageIds = Set(serverMessages.map { $0.id })
