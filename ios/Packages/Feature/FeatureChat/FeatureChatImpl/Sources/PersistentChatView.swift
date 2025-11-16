@@ -151,7 +151,7 @@ final class PersistentChatViewModel: ObservableObject {
                     id: localMsg.id,
                     text: localMsg.content,
                     isFromUser: localMsg.isFromUser,
-                    timestamp: localMsg.timestamp,
+                    timestamp: localMsg.createdAt,
                     isStreaming: false
                 )
             }
@@ -210,7 +210,7 @@ final class PersistentChatViewModel: ObservableObject {
                         id: localMsg.id,
                         text: localMsg.content,
                         isFromUser: localMsg.isFromUser,
-                        timestamp: localMsg.timestamp,
+                        timestamp: localMsg.createdAt,
                         isStreaming: false
                     )
                 }
@@ -343,7 +343,7 @@ final class PersistentChatViewModel: ObservableObject {
                         id: message.id,
                         content: message.content,
                         isFromUser: false,
-                        timestamp: chatMessage.timestamp
+                        createdAt: chatMessage.timestamp
                     )
                 }
 
@@ -456,7 +456,7 @@ final class PersistentChatViewModel: ObservableObject {
             id: userMessageId,
             content: text,
             isFromUser: true,
-            timestamp: userMessage.timestamp
+            createdAt: userMessage.timestamp
         )
 
         // 4. 发送到服务器
@@ -668,7 +668,7 @@ final class PersistentChatViewModel: ObservableObject {
                 id: message.id,
                 content: message.text,
                 isFromUser: false,
-                timestamp: message.timestamp,
+                createdAt: message.timestamp,
                 conversationId: self.conversationId
             )
         }
@@ -679,7 +679,7 @@ final class PersistentChatViewModel: ObservableObject {
         id: String,
         content: String,
         isFromUser: Bool,
-        timestamp: Date,
+        createdAt: Date,
         conversationId: String? = nil
     ) async {
         guard let storageService = storageService else { return }
@@ -688,7 +688,7 @@ final class PersistentChatViewModel: ObservableObject {
             id: id,
             content: content,
             isFromUser: isFromUser,
-            timestamp: timestamp,
+            createdAt: createdAt,
             conversationId: conversationId ?? self.conversationId
         )
 

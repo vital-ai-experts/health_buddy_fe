@@ -8,20 +8,20 @@ public final class LocalChatMessage {
     public var id: String
     public var content: String
     public var isFromUser: Bool
-    public var timestamp: Date
+    public var createdAt: Date
     public var conversationId: String?
 
     public init(
         id: String,
         content: String,
         isFromUser: Bool,
-        timestamp: Date,
+        createdAt: Date,
         conversationId: String? = nil
     ) {
         self.id = id
         self.content = content
         self.isFromUser = isFromUser
-        self.timestamp = timestamp
+        self.createdAt = createdAt
         self.conversationId = conversationId
     }
 }
@@ -53,7 +53,7 @@ public final class ChatStorageService {
     /// 获取所有本地消息（按时间排序）
     public func fetchAllMessages() throws -> [LocalChatMessage] {
         let descriptor = FetchDescriptor<LocalChatMessage>(
-            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         return try modelContext.fetch(descriptor)
     }
@@ -66,7 +66,7 @@ public final class ChatStorageService {
     public func fetchRecentMessages(limit: Int, offset: Int = 0) throws -> [LocalChatMessage] {
         // 先获取所有消息，按时间倒序
         let descriptor = FetchDescriptor<LocalChatMessage>(
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let allMessages = try modelContext.fetch(descriptor)
 

@@ -48,7 +48,7 @@ struct ChatDebugView: View {
 
                                 Spacer()
 
-                                Text(formatDate(message.timestamp))
+                                Text(formatDate(message.createdAt))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
