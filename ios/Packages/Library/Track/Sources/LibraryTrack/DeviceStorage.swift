@@ -22,12 +22,16 @@ public protocol DeviceStorage {
 // MARK: - UserDefaults Implementation
 
 /// UserDefaults-based implementation of DeviceStorage
+/// Note: UniqueIdentifier is stored in Keychain for enhanced security
 public final class UserDefaultsDeviceStorage: DeviceStorage {
     private let deviceIdKey = "com.hehigh.thrivebody.deviceId"
-    private let uniqueIdentifierKey = "com.hehigh.thrivebody.uniqueIdentifier"
+    private let keychainUniqueIdentifierKey = "com.hehigh.thrivebody.keychain.uniqueIdentifier"
     private let defaults = UserDefaults.standard
+    private let keychain = KeychainManager.shared
 
     public init() {}
+
+    // MARK: - Device ID (UserDefaults)
 
     public func saveDeviceId(_ deviceId: String) throws {
         defaults.set(deviceId, forKey: deviceIdKey)
@@ -41,11 +45,13 @@ public final class UserDefaultsDeviceStorage: DeviceStorage {
         defaults.removeObject(forKey: deviceIdKey)
     }
 
+    // MARK: - Unique Identifier (Keychain)
+
     public func saveUniqueIdentifier(_ identifier: String) throws {
-        defaults.set(identifier, forKey: uniqueIdentifierKey)
+        try keychain.save(identifier, forKey: keychainUniqueIdentifierKey)
     }
 
     public func getUniqueIdentifier() -> String? {
-        return defaults.string(forKey: uniqueIdentifierKey)
+        return keychain.get(forKey: keychainUniqueIdentifierKey)
     }
 }
