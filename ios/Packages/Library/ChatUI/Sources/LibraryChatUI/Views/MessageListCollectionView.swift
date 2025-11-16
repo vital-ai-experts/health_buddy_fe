@@ -244,7 +244,7 @@ public final class MessageListCollectionView: UICollectionView {
         // Create snapshot
         var snapshot = Snapshot()
         snapshot.appendSections([.main])
-        snapshot.appendItems(newMessages)
+        snapshot.appendItems(newMessages, toSection: .main)
 
         if isHistoryLoad {
             // Preserve scroll position when loading history

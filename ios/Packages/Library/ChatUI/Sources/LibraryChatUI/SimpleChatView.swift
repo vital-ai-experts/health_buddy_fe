@@ -13,6 +13,7 @@ public struct SimpleChatView: View {
     public let onLoadMoreHistory: (() -> Void)?
 
     @FocusState private var isInputFocused: Bool
+    @State private var loadingId = UUID().uuidString  // Stable ID for loading indicator
 
     public init(
         messages: Binding<[ChatMessage]>,
@@ -69,6 +70,11 @@ public struct SimpleChatView: View {
         }
         .background(Color(.systemBackground))
         .onChange(of: isLoading) { oldValue, newValue in
+            // When loading starts, generate a new unique ID for the loading indicator
+            if !oldValue && newValue {
+                loadingId = UUID().uuidString
+            }
+
             // 当 loading 从 true 变为 false（AI 回复完成），根据配置决定是否自动聚焦
             if oldValue && !newValue && configuration.autoFocusAfterBotMessage {
                 // 延迟一下，确保 UI 已经更新
@@ -83,12 +89,37 @@ public struct SimpleChatView: View {
     private var messageItems: [MessageItem] {
         var items: [MessageItem] = messages.map { MessageItem.from(chatMessage: $0) }
 
+        // 去重 - 使用字典按 ID 去重，保留最后一个（最新的）
+        var uniqueItems: [String: MessageItem] = [:]
+        for item in items {
+            uniqueItems[item.id] = item
+        }
+        items = Array(uniqueItems.values).sorted { item1, item2 in
+            // 保持原始顺序 - 通过时间戳排序
+            let timestamp1 = getTimestamp(for: item1)
+            let timestamp2 = getTimestamp(for: item2)
+            return timestamp1 < timestamp2
+        }
+
         // 如果正在加载且没有流式消息，添加一个 loading indicator
         if isLoading && !hasStreamingMessage {
-            items.append(.loading(SystemLoading(id: "loading")))
+            items.append(.loading(SystemLoading(id: loadingId)))
         }
 
         return items
+    }
+
+    private func getTimestamp(for item: MessageItem) -> Date {
+        switch item {
+        case .user(let message):
+            return message.timestamp
+        case .system(let message):
+            return message.timestamp
+        case .error(let error):
+            return error.timestamp
+        case .loading:
+            return Date()  // loading always appears last
+        }
     }
 
     private var hasStreamingMessage: Bool {

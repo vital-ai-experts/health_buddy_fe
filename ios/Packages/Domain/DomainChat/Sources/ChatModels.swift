@@ -159,7 +159,6 @@ public struct ResumeConversationMessageResponse: Codable {
 public struct ConversationResponse: Codable {
     public let conversationId: String
     public let createdAt: String
-    public let updatedAt: String
 }
 
 /// 对话列表响应（IDL: ListConversationsResp）
@@ -196,22 +195,16 @@ public struct GetConversationHistoryResponse: Codable {
 /// 对话领域模型
 public struct Conversation: Identifiable {
     public let id: String
-    public let title: String?
     public let createdAt: String
-    public let updatedAt: String
 
-    public init(id: String, title: String?, createdAt: String, updatedAt: String) {
+    public init(id: String, createdAt: String) {
         self.id = id
-        self.title = title
         self.createdAt = createdAt
-        self.updatedAt = updatedAt
     }
 
     public init(from response: ConversationResponse) {
         self.id = response.conversationId
-        self.title = nil  // IDL中的Conversation没有title字段
         self.createdAt = response.createdAt
-        self.updatedAt = response.updatedAt
     }
 }
 

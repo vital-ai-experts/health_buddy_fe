@@ -100,8 +100,8 @@ final class PersistentChatViewModel: ObservableObject {
     private var lastDataId: String?  // 用于断线重连
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
     private var savedMessageIds: Set<String> = []  // 已保存到本地的消息ID
-    private var loadedMessageCount = 0  // 已加载的消息数量
-    private var totalMessageCount = 0  // 数据库中的总消息数量
+    private var oldestLoadedMessageDate: Date?  // 已加载的最旧消息的时间（用于游标分页）
+    private var hasMoreMessagesToLoad = true  // 是否还有更多历史消息可以加载
     private var conversationUpdatedAt: Date?  // 对话的最后更新时间
 
     private let initialLoadLimit = 10  // 初次加载消息数量
@@ -113,7 +113,7 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     var hasMoreMessages: Bool {
-        loadedMessageCount < totalMessageCount
+        hasMoreMessagesToLoad
     }
 
     func initialize(modelContext: ModelContext) async {
@@ -129,7 +129,8 @@ final class PersistentChatViewModel: ObservableObject {
         await syncWithServer()
 
         // 检查是否需要恢复streaming
-        await checkAndResumeIfNeeded()
+        // TODO 先不恢复
+//        await checkAndResumeIfNeeded()
     }
 
     /// 从本地数据库加载历史消息（分页加载，初次只加载最近10条）
@@ -137,26 +138,42 @@ final class PersistentChatViewModel: ObservableObject {
         guard let storageService = storageService else { return }
 
         do {
-            // 获取总消息数量
-            totalMessageCount = try storageService.getMessageCount()
-
-            // 只加载最近的10条消息
+            // 加载最近的10条消息（使用游标分页）
             let localMessages = try storageService.fetchRecentMessages(
                 limit: initialLoadLimit,
-                offset: 0
+                beforeDate: nil  // nil 表示从最新的消息开始
             )
+
+            Log.i("📦 从数据库加载了 \(localMessages.count) 条消息", category: "Chat")
+            for (index, msg) in localMessages.enumerated() {
+                Log.i("  [\(index)] \(msg.isFromUser ? "用户" : "系统"): \(msg.content.prefix(20))... (id: \(msg.id.prefix(8))..., time: \(msg.createdAt))", category: "Chat")
+            }
 
             displayMessages = localMessages.map { localMsg in
                 ChatMessage(
                     id: localMsg.id,
                     text: localMsg.content,
                     isFromUser: localMsg.isFromUser,
-                    timestamp: localMsg.timestamp,
+                    timestamp: localMsg.createdAt,
                     isStreaming: false
                 )
             }
 
-            loadedMessageCount = localMessages.count
+            // 确保按时间正序排列（最新的在最后）
+            displayMessages.sort { $0.timestamp < $1.timestamp }
+
+            Log.i("📱 映射后显示 \(displayMessages.count) 条消息", category: "Chat")
+            let userCount = displayMessages.filter { $0.isFromUser }.count
+            let systemCount = displayMessages.filter { !$0.isFromUser }.count
+            Log.i("   用户消息: \(userCount) 条, 系统消息: \(systemCount) 条", category: "Chat")
+
+            // 记录最旧消息的时间作为下次加载的游标
+            if let oldestMessage = localMessages.first {
+                oldestLoadedMessageDate = oldestMessage.createdAt
+            }
+
+            // 如果加载的消息数量少于限制，说明没有更多了
+            hasMoreMessagesToLoad = localMessages.count >= initialLoadLimit
 
             // 如果有消息，尝试恢复conversationId
             if let lastMsg = localMessages.last, let convId = lastMsg.conversationId {
@@ -166,9 +183,9 @@ final class PersistentChatViewModel: ObservableObject {
             savedMessageIds = Set(localMessages.map { $0.id })
             rebuildMessageMap()
 
-            Log.i("✅ 加载了 \(localMessages.count) 条本地消息（共 \(totalMessageCount) 条）", category: "Chat")
+            Log.i("✅ 加载了 \(localMessages.count) 条本地消息", category: "Chat")
             if hasMoreMessages {
-                Log.i("📚 还有 \(totalMessageCount - loadedMessageCount) 条更早的消息", category: "Chat")
+                Log.i("📚 还有更早的消息可以加载", category: "Chat")
             }
         } catch {
             Log.e("❌ 加载本地消息失败: \(error.localizedDescription)", category: "Chat")
@@ -178,6 +195,10 @@ final class PersistentChatViewModel: ObservableObject {
 
     /// 加载更多历史消息（用户往上滑动时调用）
     func loadMoreMessages() async {
+        // TODO 先不加载更多
+        hasMoreMessagesToLoad = false
+        return
+
         guard !isLoadingMore else {
             Log.i("⏳ 正在加载中，跳过重复请求", category: "Chat")
             return
@@ -187,19 +208,24 @@ final class PersistentChatViewModel: ObservableObject {
             return
         }
         guard let storageService = storageService else { return }
+        guard let oldestDate = oldestLoadedMessageDate else {
+            Log.i("📭 没有游标，无法加载更多", category: "Chat")
+            return
+        }
 
         isLoadingMore = true
-        Log.i("📥 开始加载更多消息，当前已加载: \(loadedMessageCount)", category: "Chat")
+        Log.i("📥 开始加载更多消息，游标时间: \(oldestDate)", category: "Chat")
 
         do {
-            // 从当前已加载的位置继续加载
+            // 使用游标加载更旧的消息
             let olderMessages = try storageService.fetchRecentMessages(
                 limit: loadMoreLimit,
-                offset: loadedMessageCount
+                beforeDate: oldestDate
             )
 
             if olderMessages.isEmpty {
                 Log.i("📭 没有更多消息了", category: "Chat")
+                hasMoreMessagesToLoad = false
             } else {
                 // 将更早的消息插入到列表前面
                 let newChatMessages = olderMessages.map { localMsg in
@@ -207,13 +233,25 @@ final class PersistentChatViewModel: ObservableObject {
                         id: localMsg.id,
                         text: localMsg.content,
                         isFromUser: localMsg.isFromUser,
-                        timestamp: localMsg.timestamp,
+                        timestamp: localMsg.createdAt,
                         isStreaming: false
                     )
                 }
 
                 displayMessages.insert(contentsOf: newChatMessages, at: 0)
-                loadedMessageCount += olderMessages.count
+
+                // 确保按时间正序排列（最新的在最后）
+                displayMessages.sort { $0.timestamp < $1.timestamp }
+
+                // 更新游标为新加载的最旧消息的时间
+                if let newOldestMessage = olderMessages.first {
+                    oldestLoadedMessageDate = newOldestMessage.createdAt
+                }
+
+                // 如果加载的消息数量少于限制，说明没有更多了
+                if olderMessages.count < loadMoreLimit {
+                    hasMoreMessagesToLoad = false
+                }
 
                 // 更新savedMessageIds
                 savedMessageIds.formUnion(olderMessages.map { $0.id })
@@ -221,7 +259,7 @@ final class PersistentChatViewModel: ObservableObject {
                 // 重建messageMap（索引变了）
                 rebuildMessageMap()
 
-                Log.i("✅ 加载了 \(olderMessages.count) 条更早的消息，总计: \(loadedMessageCount)/\(totalMessageCount)", category: "Chat")
+                Log.i("✅ 加载了 \(olderMessages.count) 条更早的消息", category: "Chat")
             }
         } catch {
             Log.e("❌ 加载更多消息失败: \(error.localizedDescription)", category: "Chat")
@@ -241,34 +279,15 @@ final class PersistentChatViewModel: ObservableObject {
                 return
             }
 
-            let serverUpdatedAt = parseDate(latestConversation.updatedAt)
-
             // 如果本地没有conversationId，直接使用服务端最新的
             if conversationId == nil {
                 conversationId = latestConversation.id
-                conversationUpdatedAt = serverUpdatedAt
-                Log.i("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.updatedAt)", category: "Chat")
+                // 注意：conversationUpdatedAt 会在同步消息后，根据最新消息的时间来设置
+                Log.i("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id)", category: "Chat")
             }
-            // 如果本地有conversationId，比较更新时间
-            else if let localUpdatedAt = conversationUpdatedAt {
-                // 比较本地和服务端的更新时间，选择更新的那个
-                if serverUpdatedAt > localUpdatedAt {
-                    Log.i("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.updatedAt))，切换到最新对话: \(latestConversation.id)", category: "Chat")
-                    conversationId = latestConversation.id
-                    conversationUpdatedAt = serverUpdatedAt
-                } else {
-                    Log.i("📝 [PersistentChat] 保持本地对话: \(conversationId!), 本地更新时间更近", category: "Chat")
-                }
-            }
-            // 本地有conversationId但没有时间戳，比较ID后使用服务端时间
-            else if conversationId != latestConversation.id {
-                Log.i("📝 [PersistentChat] 本地对话ID与服务端不同，切换到最新对话: \(latestConversation.id)", category: "Chat")
-                conversationId = latestConversation.id
-                conversationUpdatedAt = serverUpdatedAt
-            } else {
-                // ID相同，更新时间戳
-                conversationUpdatedAt = serverUpdatedAt
-                Log.i("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.updatedAt)", category: "Chat")
+            // 如果本地有conversationId，保持使用本地的（除非明确需要切换）
+            else {
+                Log.i("📝 [PersistentChat] 保持本地对话: \(conversationId!)", category: "Chat")
             }
         } catch {
             Log.w("⚠️ [PersistentChat] 获取最新conversation失败: \(error)", category: "Chat")
@@ -282,23 +301,49 @@ final class PersistentChatViewModel: ObservableObject {
         }
 
         do {
-            let serverMessages = try await chatService.getConversationHistory(id: conversationId)
+            let allServerMessages = try await chatService.getConversationHistory(id: conversationId)
 
-            // 创建本地消息ID集合
+            Log.i("📡 服务端返回 \(allServerMessages.count) 条消息", category: "Chat")
+            let serverUserCount = allServerMessages.filter { $0.role == .user }.count
+            let serverAssistantCount = allServerMessages.filter { $0.role == .assistant }.count
+            Log.i("   用户消息: \(serverUserCount) 条, 系统消息: \(serverAssistantCount) 条", category: "Chat")
+
+            // 只保留系统消息(assistant messages)，过滤掉用户消息和空内容的消息
+            // 因为从服务端拉到的用户消息没有msg_id，所以我们不要了
+            // 同时过滤掉content为空的系统消息
+            let serverMessages = allServerMessages.filter { $0.role == .assistant && !$0.content.isEmpty }
+
+            Log.i("📥 过滤后保留 \(serverMessages.count) 条系统消息", category: "Chat")
+
+            // 创建服务端消息ID集合
+            let serverMessageIds = Set(serverMessages.map { $0.id })
+
+            // 从displayMessages中移除与服务端重复的系统消息(优先使用服务端消息)
+            let removedCount = displayMessages.filter { !$0.isFromUser && serverMessageIds.contains($0.id) }.count
+            displayMessages.removeAll { message in
+                !message.isFromUser && serverMessageIds.contains(message.id)
+            }
+
+            // 创建更新后的本地消息ID集合
             let localMessageIds = Set(displayMessages.map { $0.id })
 
-            // 找出服务端有但本地没有的消息
+            // 找出服务端有但本地没有的消息(包括刚才删除的重复消息)
             let missingMessages = serverMessages.filter { !localMessageIds.contains($0.id) }
 
-            if !missingMessages.isEmpty {
-                Log.i("📥 [PersistentChat] 同步 \(missingMessages.count) 条缺失的消息", category: "Chat")
+            if !missingMessages.isEmpty || removedCount > 0 {
+                if removedCount > 0 {
+                    Log.i("📥 [PersistentChat] 删除本地重复的系统消息: \(removedCount)条", category: "Chat")
+                }
+                if !missingMessages.isEmpty {
+                    Log.i("📥 [PersistentChat] 添加服务端缺失的系统消息: \(missingMessages.count)条", category: "Chat")
+                }
 
-                // 将缺失的消息添加到本地
+                // 添加所有缺失的消息
                 for message in missingMessages {
                     let chatMessage = ChatMessage(
                         id: message.id,
                         text: message.content,
-                        isFromUser: message.role == .user,
+                        isFromUser: false,  // 只有系统消息
                         timestamp: parseDate(message.createdAt),
                         isStreaming: false,
                         thinkingContent: message.thinkingContent,
@@ -311,33 +356,42 @@ final class PersistentChatViewModel: ObservableObject {
                         )}
                     )
 
-                    // 按时间顺序插入
-                    if let insertIndex = displayMessages.firstIndex(where: {
-                        $0.timestamp > chatMessage.timestamp
-                    }) {
-                        displayMessages.insert(chatMessage, at: insertIndex)
-                    } else {
-                        displayMessages.append(chatMessage)
-                    }
+                    displayMessages.append(chatMessage)
 
                     // 保存到本地数据库
                     await saveMessageToLocal(
                         id: message.id,
                         content: message.content,
-                        isFromUser: message.role == .user,
-                        timestamp: chatMessage.timestamp
+                        isFromUser: false,
+                        createdAt: chatMessage.timestamp
                     )
                 }
 
-                // 更新计数器
-                loadedMessageCount += missingMessages.count
-                if let storageService = storageService {
-                    totalMessageCount = (try? storageService.getMessageCount()) ?? totalMessageCount
+                // 按时间戳排序所有消息(时间正序，最新的在最后)
+                displayMessages.sort { $0.timestamp < $1.timestamp }
+
+                // 重建messageMap(因为索引变了)
+                rebuildMessageMap()
+
+                // 更新游标：取最旧消息的时间
+                if let oldestMessage = displayMessages.first {
+                    oldestLoadedMessageDate = oldestMessage.timestamp
                 }
+
+                let finalUserCount = displayMessages.filter { $0.isFromUser }.count
+                let finalSystemCount = displayMessages.filter { !$0.isFromUser }.count
+                Log.i("✅ [PersistentChat] 消息同步完成，当前显示: \(displayMessages.count)条", category: "Chat")
+                Log.i("   用户消息: \(finalUserCount) 条, 系统消息: \(finalSystemCount) 条", category: "Chat")
             }
         } catch {
             Log.w("⚠️ [PersistentChat] 同步消息失败: \(error)", category: "Chat")
             // 不阻塞，继续执行
+        }
+
+        // 3. 同步完成后，更新 conversationUpdatedAt 为最新消息的时间
+        if let latestMessage = displayMessages.last {
+            conversationUpdatedAt = latestMessage.timestamp
+            Log.i("📝 [PersistentChat] 更新对话时间为最新消息时间: \(latestMessage.timestamp)", category: "Chat")
         }
     }
 
@@ -358,7 +412,7 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 情况2: 最后一条assistant消息可能未完成
         // 检查消息是否为空（可能被中断）
-        if lastMessage.text.isEmpty && lastMessage.thinkingContent == nil {
+        if lastMessage.isStreaming {
             Log.w("⚠️ [PersistentChat] 最后一条assistant消息为空，尝试恢复...", category: "Chat")
             await resumeConversation()
             return
@@ -391,9 +445,17 @@ final class PersistentChatViewModel: ObservableObject {
         isSending = false
     }
 
-    private func parseDate(_ dateString: String) -> Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: dateString) ?? Date()
+    /// 将毫秒时间戳字符串转换为 Date
+    /// - Parameter timestampString: 毫秒时间戳字符串，如 "1763302800241"
+    /// - Returns: Date 对象
+    private func parseDate(_ timestampString: String) -> Date {
+        guard let timestampMs = Double(timestampString) else {
+            Log.e("❌ 无法解析时间戳: \(timestampString)", category: "Chat")
+            return Date()
+        }
+        // 毫秒转秒
+        let timestampSec = timestampMs / 1000.0
+        return Date(timeIntervalSince1970: timestampSec)
     }
 
     /// 发送消息
@@ -430,7 +492,7 @@ final class PersistentChatViewModel: ObservableObject {
             id: userMessageId,
             content: text,
             isFromUser: true,
-            timestamp: userMessage.timestamp
+            createdAt: userMessage.timestamp
         )
 
         // 4. 发送到服务器
@@ -642,7 +704,7 @@ final class PersistentChatViewModel: ObservableObject {
                 id: message.id,
                 content: message.text,
                 isFromUser: false,
-                timestamp: message.timestamp,
+                createdAt: message.timestamp,
                 conversationId: self.conversationId
             )
         }
@@ -653,7 +715,7 @@ final class PersistentChatViewModel: ObservableObject {
         id: String,
         content: String,
         isFromUser: Bool,
-        timestamp: Date,
+        createdAt: Date,
         conversationId: String? = nil
     ) async {
         guard let storageService = storageService else { return }
@@ -662,7 +724,7 @@ final class PersistentChatViewModel: ObservableObject {
             id: id,
             content: content,
             isFromUser: isFromUser,
-            timestamp: timestamp,
+            createdAt: createdAt,
             conversationId: conversationId ?? self.conversationId
         )
 
@@ -686,8 +748,8 @@ final class PersistentChatViewModel: ObservableObject {
             conversationUpdatedAt = nil
             messageMap.removeAll()
             savedMessageIds.removeAll()
-            loadedMessageCount = 0
-            totalMessageCount = 0
+            oldestLoadedMessageDate = nil
+            hasMoreMessagesToLoad = true
             Log.i("✅ 历史记录已清除", category: "Chat")
         } catch {
             Log.e("❌ 清除历史记录失败: \(error.localizedDescription)", category: "Chat")
