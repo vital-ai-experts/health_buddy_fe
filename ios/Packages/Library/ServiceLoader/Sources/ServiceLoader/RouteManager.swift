@@ -22,6 +22,7 @@ public final class RouteManager: ObservableObject {
         }
     }
     
+    
     private var routeHandlers: [String: RouteHandler] = [:]
     private let lock = NSLock()
     

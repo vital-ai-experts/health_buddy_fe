@@ -7,25 +7,16 @@
 
 import Foundation
 
-// MARK: - Device Platform Enum
-
-/// Device platform enum matching the IDL base.thrift DevicePlatform
-public enum DevicePlatform: String, Codable {
-    case ios = "iOS"
-    case android = "Android"
-    case web = "Web"
-}
-
 // MARK: - Request Models
 
 /// Request model for device registration
 public struct RegisterDeviceRequest: Codable {
-    public let platform: DevicePlatform
+    public let devicePlatform: String
     public let uniqueIdentifier: String
     public let deviceToken: String
 
-    public init(platform: DevicePlatform, uniqueIdentifier: String, deviceToken: String) {
-        self.platform = platform
+    public init(devicePlatform: String, uniqueIdentifier: String, deviceToken: String) {
+        self.devicePlatform = devicePlatform
         self.uniqueIdentifier = uniqueIdentifier
         self.deviceToken = deviceToken
     }

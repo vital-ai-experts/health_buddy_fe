@@ -46,7 +46,7 @@ public class DeviceTrackManager {
 
             // Create request
             let request = RegisterDeviceRequest(
-                platform: .ios,
+                devicePlatform: "ios",
                 uniqueIdentifier: uniqueIdentifier,
                 deviceToken: deviceToken
             )

@@ -148,11 +148,11 @@ struct RootView: View {
 
             // 发送健康检查请求，触发网络授权弹窗（仍在Splash状态）
             await triggerNetworkPermissionWithRetry()
+        }
 
-            // 注册设备（异步，不阻塞流程）
-            Task {
-                await registerDevice()
-            }
+        // 注册设备（异步，不阻塞流程）
+        Task {
+            await DeviceTrackManager.shared.register()
         }
 
         // 确定应用初始状态
@@ -239,12 +239,6 @@ struct RootView: View {
         } else {
             Log.w("⚠️ [RootView] 网络连接超时，继续启动应用", category: "App")
         }
-    }
-
-    /// 注册设备到服务器
-    /// 异步调用，不阻塞后续流程
-    private func registerDevice() async {
-        await DeviceTrackManager.shared.register()
     }
 
     /// 触发网络权限请求，带智能重试
