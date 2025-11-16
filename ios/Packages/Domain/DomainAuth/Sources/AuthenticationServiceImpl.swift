@@ -1,6 +1,7 @@
 import Foundation
 import LibraryNetworking
 import LibraryBase
+import LibraryTrack
 
 /// Default implementation of AuthenticationService
 public final class AuthenticationServiceImpl: AuthenticationService {
@@ -32,7 +33,13 @@ public final class AuthenticationServiceImpl: AuthenticationService {
     }
 
     public func register(email: String, password: String, fullName: String?, onboardingId: String) async throws -> User {
-        let request = UserRegisterRequest(email: email, password: password, fullName: fullName, onboardingId: onboardingId)
+        // Get device ID from DeviceTrackManager
+        let deviceId = await DeviceTrackManager.shared.getDeviceId() ?? ""
+        if deviceId.isEmpty {
+            Log.w("⚠️ [AuthService] Device ID not available during registration", category: "Auth")
+        }
+
+        let request = UserRegisterRequest(email: email, password: password, fullName: fullName, onboardingId: onboardingId, deviceId: deviceId)
 
         let endpoint = APIEndpoint(
             path: "/auth/register",
@@ -54,7 +61,13 @@ public final class AuthenticationServiceImpl: AuthenticationService {
     }
 
     public func login(email: String, password: String) async throws -> User {
-        let request = UserLoginRequest(email: email, password: password)
+        // Get device ID from DeviceTrackManager (optional for login)
+        let deviceId = await DeviceTrackManager.shared.getDeviceId()
+        if deviceId == nil {
+            Log.w("⚠️ [AuthService] Device ID not available during login", category: "Auth")
+        }
+
+        let request = UserLoginRequest(email: email, password: password, deviceId: deviceId)
 
         let endpoint = APIEndpoint(
             path: "/auth/login",

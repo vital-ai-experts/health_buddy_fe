@@ -7,12 +7,14 @@ public struct UserRegisterRequest: Codable {
     public let password: String
     public let fullName: String?  // 根据 IDL，fullName 是可选的
     public let onboardingId: String  // 根据 IDL，onboarding_id 是必需的
+    public let deviceId: String  // 根据 IDL，device_id 是必需的
 
-    public init(email: String, password: String, fullName: String? = nil, onboardingId: String) {
+    public init(email: String, password: String, fullName: String? = nil, onboardingId: String, deviceId: String) {
         self.email = email
         self.password = password
         self.fullName = fullName
         self.onboardingId = onboardingId
+        self.deviceId = deviceId
     }
     // Note: CodingKeys removed - using keyDecodingStrategy = .convertFromSnakeCase from APIClient
 }
@@ -20,10 +22,12 @@ public struct UserRegisterRequest: Codable {
 public struct UserLoginRequest: Codable {
     public let email: String
     public let password: String
+    public let deviceId: String?  // 根据 IDL，device_id 是可选的
 
-    public init(email: String, password: String) {
+    public init(email: String, password: String, deviceId: String? = nil) {
         self.email = email
         self.password = password
+        self.deviceId = deviceId
     }
 }
 

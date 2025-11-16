@@ -8,6 +8,8 @@
 import Foundation
 import UserNotifications
 import LibraryBase
+import LibraryTrack
+import LibraryNetworking
 
 /// 推送通知管理器
 /// 负责管理设备的推送通知令牌和通知权限
@@ -49,6 +51,35 @@ public class NotificationManager: NSObject, ObservableObject {
 
         Log.i("📱 Device Token 已保存:", category: "Notification")
         Log.i("   \(tokenString)", category: "Notification")
+
+        // 尝试上报设备信息（如果用户已登录）
+        Task {
+            await reportDeviceInfoIfPossible()
+        }
+    }
+
+    /// 上报设备信息到服务器
+    /// 当用户登录后，应主动调用此方法上报设备 token
+    public func reportDeviceInfoIfPossible() async {
+        // 检查是否有 device token
+        guard let deviceToken = self.deviceToken else {
+            Log.w("⚠️ [NotificationManager] 没有 device token，无法上报", category: "Notification")
+            return
+        }
+
+        // 检查是否有 access token
+        guard let accessToken = KeychainManager.shared.getToken() else {
+            Log.w("⚠️ [NotificationManager] 用户未登录，稍后会在登录后上报", category: "Notification")
+            return
+        }
+
+        // 上报设备信息
+        do {
+            try await DeviceTrackManager.shared.report(deviceToken: deviceToken, accessToken: accessToken)
+            Log.i("✅ [NotificationManager] 设备信息上报成功", category: "Notification")
+        } catch {
+            Log.e("❌ [NotificationManager] 设备信息上报失败: \(error.localizedDescription)", error: error, category: "Notification")
+        }
     }
 
     /// 记录注册失败
