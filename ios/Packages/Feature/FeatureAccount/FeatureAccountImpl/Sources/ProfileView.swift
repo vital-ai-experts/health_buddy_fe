@@ -5,6 +5,7 @@ import DomainOnboarding
 import LibraryServiceLoader
 import FeatureDebugToolsApi
 import FeatureAgendaApi
+import LibraryBase
 
 /// Me页面，显示用户信息和设置选项
 public struct ProfileView: View {
@@ -110,7 +111,7 @@ public struct ProfileView: View {
         do {
             user = try await authService.getCurrentUser()
         } catch {
-            print("Failed to load user info: \(error)")
+            Log.e("Failed to load user info: \(error)", category: "Profile")
         }
         isLoading = false
     }
@@ -334,7 +335,7 @@ struct AccountSettingsView: View {
         do {
             user = try await authService.getCurrentUser()
         } catch {
-            print("Failed to load user info: \(error)")
+            Log.e("Failed to load user info: \(error)", category: "Profile")
         }
         isLoading = false
     }
@@ -346,7 +347,7 @@ struct AccountSettingsView: View {
                 onLogout()
             }
         } catch {
-            print("Failed to logout: \(error)")
+            Log.e("Failed to logout: \(error)", category: "Profile")
         }
     }
 }

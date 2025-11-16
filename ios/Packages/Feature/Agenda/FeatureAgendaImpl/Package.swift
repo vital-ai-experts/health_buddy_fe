@@ -7,6 +7,7 @@ let package = Package(
     products: [ .library(name: "FeatureAgendaImpl", targets: ["FeatureAgendaImpl"]) ],
     dependencies: [
         .package(name: "FeatureAgendaApi", path: "../FeatureAgendaApi"),
+        .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "LibraryNotification", path: "../../../Library/Notification")
     ],
@@ -15,6 +16,7 @@ let package = Package(
             name: "FeatureAgendaImpl",
             dependencies: [
                 .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi"),
+                .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "LibraryNotification", package: "LibraryNotification")
             ],

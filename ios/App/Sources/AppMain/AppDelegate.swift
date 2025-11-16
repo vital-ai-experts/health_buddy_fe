@@ -8,6 +8,7 @@
 import UIKit
 import UserNotifications
 import LibraryNotification
+import LibraryBase
 
 /// 应用代理
 /// 处理推送通知相关的系统回调
@@ -17,7 +18,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         // 注册远程推送通知
-        print("🚀 开始注册远程推送通知...")
+        Log.i("🚀 开始注册远程推送通知...", category: "App")
         application.registerForRemoteNotifications()
         return true
     }

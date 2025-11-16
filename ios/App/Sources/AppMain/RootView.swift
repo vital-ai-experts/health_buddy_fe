@@ -17,6 +17,7 @@ import DomainOnboarding
 import LibraryServiceLoader
 import LibraryNetworking
 import LibraryNotification
+import LibraryBase
 
 struct RootView: View {
     @State private var showingSplash: Bool = true
@@ -136,13 +137,13 @@ struct RootView: View {
 
         // ⭐️ 如果需要Onboarding，在Splash动画结束后延迟1秒，然后检测网络
         if shouldShowOnboarding {
-            print("ℹ️ Splash动画已结束，延迟1秒后开始检测网络...")
+            Log.i("ℹ️ Splash动画已结束，延迟1秒后开始检测网络...", category: "App")
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒
 
-            print("ℹ️ 开始检测网络连接（仍在Splash状态）...")
+            Log.i("ℹ️ 开始检测网络连接（仍在Splash状态）...", category: "App")
             // 等待网络连接（无超时限制）- 此时仍在Splash页面
             await waitForNetworkAvailable()
-            print("✅ 网络已连接，准备跳转到Onboarding")
+            Log.i("✅ 网络已连接，准备跳转到Onboarding", category: "App")
 
             // 发送健康检查请求，触发网络授权弹窗（仍在Splash状态）
             await triggerNetworkPermissionWithRetry()
@@ -186,7 +187,7 @@ struct RootView: View {
         do {
             try await NotificationManager.shared.requestAuthorization()
         } catch {
-            print("❌ 请求通知权限失败: \(error.localizedDescription)")
+            Log.e("❌ 请求通知权限失败: \(error.localizedDescription)", error: error, category: "App")
         }
     }
 
@@ -202,7 +203,7 @@ struct RootView: View {
         // 延迟初始化 NetworkMonitor - 在需要检测网络时才创建
         // 这样可以确保在 Splash 动画结束 + 延迟1秒后才触发网络权限弹窗
         if networkMonitor == nil {
-            print("🔧 [RootView] 初始化 NetworkMonitor (将触发网络权限弹窗)")
+            Log.d("🔧 [RootView] 初始化 NetworkMonitor (将触发网络权限弹窗)", category: "App")
             networkMonitor = NetworkMonitor.shared
 
             // 给 NetworkMonitor 一点时间启动并检测网络状态
@@ -211,24 +212,24 @@ struct RootView: View {
 
         // 如果已经连接，直接返回
         guard let monitor = networkMonitor else {
-            print("⚠️ [RootView] NetworkMonitor 初始化失败")
+            Log.w("⚠️ [RootView] NetworkMonitor 初始化失败", category: "App")
             return
         }
 
         if monitor.isConnected {
-            print("✅ [RootView] 网络已连接")
+            Log.i("✅ [RootView] 网络已连接", category: "App")
             return
         }
 
-        print("⏳ [RootView] 等待网络连接...")
+        Log.i("⏳ [RootView] 等待网络连接...", category: "App")
 
         // 使用 NetworkMonitor 的带超时机制的方法（默认30秒超时）
         let success = await monitor.waitForConnection(timeout: 30)
 
         if success {
-            print("✅ [RootView] 网络连接已建立")
+            Log.i("✅ [RootView] 网络连接已建立", category: "App")
         } else {
-            print("⚠️ [RootView] 网络连接超时，继续启动应用")
+            Log.w("⚠️ [RootView] 网络连接超时，继续启动应用", category: "App")
         }
     }
 
@@ -244,50 +245,50 @@ struct RootView: View {
         // 首次请求 - 触发系统网络权限弹窗
         do {
             try await APIClient.shared.healthCheck()
-            print("✅ 健康检查成功")
+            Log.i("✅ 健康检查成功", category: "App")
             return
         } catch {
-            print("⚠️ 首次健康检查失败: \(error.localizedDescription)")
-            print("ℹ️ 可能原因: 用户尚未授权网络权限，或网络不可用")
+            Log.w("⚠️ 首次健康检查失败: \(error.localizedDescription)", category: "App")
+            Log.i("ℹ️ 可能原因: 用户尚未授权网络权限，或网络不可用", category: "App")
         }
 
         // 重试逻辑 - 使用指数退避
         for (index, delay) in retryDelays.enumerated() {
-            print("⏳ 等待 \(Double(delay) / 1_000_000_000)秒后重试...")
+            Log.i("⏳ 等待 \(Double(delay) / 1_000_000_000)秒后重试...", category: "App")
             try? await Task.sleep(nanoseconds: delay)
 
             do {
                 try await APIClient.shared.healthCheck()
-                print("✅ 健康检查成功 (重试 \(index + 1) 后)")
+                Log.i("✅ 健康检查成功 (重试 \(index + 1) 后)", category: "App")
                 return
             } catch {
-                print("⚠️ 健康检查失败 (重试 \(index + 1)/\(retryDelays.count)): \(error.localizedDescription)")
+                Log.w("⚠️ 健康检查失败 (重试 \(index + 1)/\(retryDelays.count)): \(error.localizedDescription)", category: "App")
             }
         }
 
-        print("⚠️ 健康检查最终失败，用户可能拒绝了网络权限或网络不可用")
-        print("ℹ️ 应用仍可使用，但部分功能可能受限")
+        Log.w("⚠️ 健康检查最终失败，用户可能拒绝了网络权限或网络不可用", category: "App")
+        Log.i("ℹ️ 应用仍可使用，但部分功能可能受限", category: "App")
     }
     
     /// 检查认证状态，返回是否已登录
     private func checkAuthentication() async -> Bool {
         // 首先检查是否有 token 且未过期
         guard authService.isAuthenticated() else {
-            print("⚠️ 无有效 token，需要登录")
+            Log.w("⚠️ 无有效 token，需要登录", category: "App")
             return false
         }
 
         // 如果 token 存在且未过期，直接返回 true
         // 避免因为网络问题或后端服务未启动导致用户被登出
-        print("✅ 本地 token 有效，用户已登录")
+        Log.i("✅ 本地 token 有效，用户已登录", category: "App")
 
         // 后台异步验证 token（不阻塞启动流程）
         Task {
             do {
                 _ = try await authService.verifyAndRefreshTokenIfNeeded()
-                print("✅ Token 远程验证成功")
+                Log.i("✅ Token 远程验证成功", category: "App")
             } catch {
-                print("⚠️ Token 远程验证失败（网络或服务器问题）: \(error.localizedDescription)")
+                Log.w("⚠️ Token 远程验证失败（网络或服务器问题）: \(error.localizedDescription)", error: error, category: "App")
                 // 注意：即使远程验证失败，也不登出用户，只要本地 token 未过期
             }
         }
@@ -471,7 +472,7 @@ struct MainTabView: View {
 
         switch deeplink {
         case .dailyReport(let msgId, let from):
-            print("📍 导航到 Talk Tab，参数: msg_id=\(msgId), from=\(from)")
+            Log.i("📍 导航到 Talk Tab，参数: msg_id=\(msgId), from=\(from)", category: "App")
             // 设置参数
             chatParameters = ["msg_id": msgId, "from": from]
             // 切换到 Talk Tab
@@ -480,7 +481,7 @@ struct MainTabView: View {
             deeplinkHandler.clearPendingDeeplink()
 
         case .unknown(let url):
-            print("⚠️ 未知的 deeplink: \(url)")
+            Log.w("⚠️ 未知的 deeplink: \(url)", category: "App")
             deeplinkHandler.clearPendingDeeplink()
         }
     }

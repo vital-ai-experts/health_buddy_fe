@@ -1,4 +1,5 @@
 import Foundation
+import LibraryBase
 
 /// Service for fetching weather data
 actor WeatherService {
@@ -31,7 +32,7 @@ actor WeatherService {
         do {
             return try await fetchShanghaiWeather()
         } catch {
-            print("⚠️ Failed to fetch weather: \(error), using mock data")
+            Log.w("⚠️ Failed to fetch weather: \(error), using mock data", category: "Weather")
             return mockWeather()
         }
     }

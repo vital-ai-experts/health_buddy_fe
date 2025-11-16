@@ -1,6 +1,7 @@
 import AppIntents
 import ActivityKit
 import LibraryNotification
+import LibraryBase
 import Foundation
 
 /// App Intent to mark task as complete and switch to next task
@@ -11,13 +12,13 @@ struct ToggleTaskIntent: LiveActivityIntent {
 
     /// Execute the intent to complete task and get new one
     func perform() async throws -> some IntentResult {
-        print("🎯 ToggleTaskIntent: Starting task completion flow")
+        Log.i("🎯 ToggleTaskIntent: Starting task completion flow", category: "AgendaWidget")
 
         // Get all active activities
         let activities = Activity<AgendaActivityAttributes>.activities
 
         guard let activity = activities.first else {
-            print("⚠️ No active Agenda activity found")
+            Log.w("⚠️ No active Agenda activity found", category: "AgendaWidget")
             return .result()
         }
 
@@ -26,7 +27,7 @@ struct ToggleTaskIntent: LiveActivityIntent {
         let taskId = UUID().uuidString // Generate task ID
 
         // Step 1: Notify server about task completion (best-effort, non-blocking)
-        print("📤 Step 1: Notifying server of task completion")
+        Log.i("📤 Step 1: Notifying server of task completion", category: "AgendaWidget")
         Task.detached(priority: .utility) {
             do {
                 _ = try await AgendaAPIClient.shared.notifyTaskCompletion(
@@ -35,12 +36,12 @@ struct ToggleTaskIntent: LiveActivityIntent {
                     task: currentState.task
                 )
             } catch {
-                print("⚠️ Server notification failed (continuing): \(error)")
+                Log.w("⚠️ Server notification failed (continuing): \(error)", category: "AgendaWidget")
             }
         }
 
         // Step 2: Mark current task as completed (immediate UI feedback)
-        print("✅ Step 2: Marking task as completed")
+        Log.i("✅ Step 2: Marking task as completed", category: "AgendaWidget")
         let completedState = AgendaActivityAttributes.ContentState(
             weather: currentState.weather,
             task: currentState.task,
@@ -56,13 +57,13 @@ struct ToggleTaskIntent: LiveActivityIntent {
         )
 
         // Step 3: Wait 1.5 seconds to show completion
-        print("⏳ Step 3: Waiting 1.5 seconds...")
+        Log.i("⏳ Step 3: Waiting 1.5 seconds...", category: "AgendaWidget")
         try? await Task.sleep(nanoseconds: 1_500_000_000)
 
         // Step 4: Generate and show new task
         // Note: In production, this should come from server push notification
         // For now, we generate locally as fallback
-        print("🆕 Step 4: Generating new task (local fallback)")
+        Log.i("🆕 Step 4: Generating new task (local fallback)", category: "AgendaWidget")
         let newTask = generateNextTask()
 
         let newState = AgendaActivityAttributes.ContentState(
@@ -86,8 +87,8 @@ struct ToggleTaskIntent: LiveActivityIntent {
             alertConfiguration: alertConfig
         )
 
-        print("✅ Task completed and switched to: \(newTask)")
-        print("💡 Server will push updated task via APNs when available")
+        Log.i("✅ Task completed and switched to: \(newTask)", category: "AgendaWidget")
+        Log.i("💡 Server will push updated task via APNs when available", category: "AgendaWidget")
         return .result()
     }
 

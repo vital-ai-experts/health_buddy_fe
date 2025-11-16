@@ -1,6 +1,7 @@
 import Foundation
 import LibraryNetworking
 import DomainChat  // 导入StreamMessage
+import LibraryBase
 
 /// Onboarding服务实现
 public final class OnboardingServiceImpl: OnboardingService {
@@ -14,7 +15,7 @@ public final class OnboardingServiceImpl: OnboardingService {
     public func startOnboarding(
         eventHandler: @escaping (OnboardingStreamEvent) -> Void
     ) async throws {
-        print("🚀 [OnboardingService] startOnboarding called")
+        Log.i("🚀 [OnboardingService] startOnboarding called", category: "Onboarding")
         
         let request = StartOnboardingRequest()
         
@@ -25,14 +26,14 @@ public final class OnboardingServiceImpl: OnboardingService {
             requiresAuth: true
         )
         
-        print("📤 [OnboardingService] Calling API...")
+        Log.i("📤 [OnboardingService] Calling API...", category: "Onboarding")
         do {
             try await apiClient.streamRequest(endpoint) { sseEvent in
                 self.handleSSEEvent(sseEvent, eventHandler: eventHandler)
             }
-            print("✅ [OnboardingService] startOnboarding completed")
+            Log.i("✅ [OnboardingService] startOnboarding completed", category: "Onboarding")
         } catch {
-            print("❌ [OnboardingService] startOnboarding failed: \(error)")
+            Log.e("❌ [OnboardingService] startOnboarding failed: \(error)", category: "Onboarding")
             throw error
         }
     }
@@ -44,10 +45,10 @@ public final class OnboardingServiceImpl: OnboardingService {
         healthData: String?,
         eventHandler: @escaping (OnboardingStreamEvent) -> Void
     ) async throws {
-        print("🚀 [OnboardingService] continueOnboarding called")
-        print("  onboardingId: \(onboardingId)")
-        print("  userInput: \(userInput ?? "nil")")
-        print("  healthData: \(healthData ?? "nil")")
+        Log.i("🚀 [OnboardingService] continueOnboarding called", category: "Onboarding")
+        Log.i("  onboardingId: \(onboardingId)", category: "Onboarding")
+        Log.i("  userInput: \(userInput ?? "nil")", category: "Onboarding")
+        Log.i("  healthData: \(healthData ?? "nil")", category: "Onboarding")
         
         let request = ContinueOnboardingRequest(
             onboardingId: onboardingId,
@@ -62,14 +63,14 @@ public final class OnboardingServiceImpl: OnboardingService {
             requiresAuth: true
         )
         
-        print("📤 [OnboardingService] Calling API...")
+        Log.i("📤 [OnboardingService] Calling API...", category: "Onboarding")
         do {
             try await apiClient.streamRequest(endpoint) { sseEvent in
                 self.handleSSEEvent(sseEvent, eventHandler: eventHandler)
             }
-            print("✅ [OnboardingService] continueOnboarding completed")
+            Log.i("✅ [OnboardingService] continueOnboarding completed", category: "Onboarding")
         } catch {
-            print("❌ [OnboardingService] continueOnboarding failed: \(error)")
+            Log.e("❌ [OnboardingService] continueOnboarding failed: \(error)", category: "Onboarding")
             throw error
         }
     }
@@ -104,15 +105,15 @@ public final class OnboardingServiceImpl: OnboardingService {
         _ sseEvent: ServerSentEvent,
         eventHandler: @escaping (OnboardingStreamEvent) -> Void
     ) {
-        print("🔄 [OnboardingService] handleSSEEvent")
-        print("  Event type: \(sseEvent.event)")
-        print("  Data: \(sseEvent.data.prefix(200))...")  // 只打印前200字符
+        Log.i("🔄 [OnboardingService] handleSSEEvent", category: "Onboarding")
+        Log.i("  Event type: \(sseEvent.event)", category: "Onboarding")
+        Log.i("  Data: \(sseEvent.data.prefix(200))...", category: "Onboarding")  // 只打印前200字符
         
         // SSE事件格式：data: { "id": "1", "data": {...} }
         // 只有一个data字段，对应的JSON反序列化后的StreamMessage
         
         guard let data = sseEvent.data.data(using: .utf8) else {
-            print("❌ [OnboardingService] Invalid data encoding")
+            Log.e("❌ [OnboardingService] Invalid data encoding", category: "Onboarding")
             eventHandler(.error("Invalid data encoding"))
             return
         }
@@ -122,32 +123,32 @@ public final class OnboardingServiceImpl: OnboardingService {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let streamMessage = try decoder.decode(StreamMessage.self, from: data)
             
-            print("✅ [OnboardingService] Decoded StreamMessage")
-            print("  id: \(streamMessage.id)")
-            print("  msgId: \(streamMessage.data.msgId)")
-            print("  dataType: \(streamMessage.data.dataType)")
-            print("  messageType: \(String(describing: streamMessage.data.messageType))")
-            print("  onboardingId: \(String(describing: streamMessage.data.onboardingId))")
-            print("  content length: \(streamMessage.data.content?.count ?? 0)")
+            Log.i("✅ [OnboardingService] Decoded StreamMessage", category: "Onboarding")
+            Log.i("  id: \(streamMessage.id)", category: "Onboarding")
+            Log.i("  msgId: \(streamMessage.data.msgId)", category: "Onboarding")
+            Log.i("  dataType: \(streamMessage.data.dataType)", category: "Onboarding")
+            Log.i("  messageType: \(String(describing: streamMessage.data.messageType))", category: "Onboarding")
+            Log.i("  onboardingId: \(String(describing: streamMessage.data.onboardingId))", category: "Onboarding")
+            Log.i("  content length: \(streamMessage.data.content?.count ?? 0)", category: "Onboarding")
             
             eventHandler(.streamMessage(streamMessage))
         } catch {
-            print("❌ [OnboardingService] Failed to decode: \(error)")
+            Log.e("❌ [OnboardingService] Failed to decode: \(error)", category: "Onboarding")
             if let decodingError = error as? DecodingError {
                 switch decodingError {
                 case .keyNotFound(let key, let context):
-                    print("  Missing key: \(key.stringValue)")
-                    print("  Context: \(context.debugDescription)")
+                    Log.i("  Missing key: \(key.stringValue)", category: "Onboarding")
+                    Log.i("  Context: \(context.debugDescription)", category: "Onboarding")
                 case .typeMismatch(let type, let context):
-                    print("  Type mismatch: expected \(type)")
-                    print("  Context: \(context.debugDescription)")
+                    Log.i("  Type mismatch: expected \(type)", category: "Onboarding")
+                    Log.i("  Context: \(context.debugDescription)", category: "Onboarding")
                 case .valueNotFound(let type, let context):
-                    print("  Value not found: \(type)")
-                    print("  Context: \(context.debugDescription)")
+                    Log.i("  Value not found: \(type)", category: "Onboarding")
+                    Log.i("  Context: \(context.debugDescription)", category: "Onboarding")
                 case .dataCorrupted(let context):
-                    print("  Data corrupted: \(context.debugDescription)")
+                    Log.i("  Data corrupted: \(context.debugDescription)", category: "Onboarding")
                 @unknown default:
-                    print("  Unknown decoding error")
+                    Log.i("  Unknown decoding error", category: "Onboarding")
                 }
             }
             eventHandler(.error("Failed to decode stream message: \(error.localizedDescription)"))

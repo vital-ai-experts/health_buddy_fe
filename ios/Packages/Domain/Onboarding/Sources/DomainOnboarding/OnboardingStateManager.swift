@@ -1,4 +1,5 @@
 import Foundation
+import LibraryBase
 
 /// Onboarding状态管理器
 /// 使用UserDefaults记录用户是否已完成Onboarding流程
@@ -18,7 +19,7 @@ public final class OnboardingStateManager {
         }
         set {
             userDefaults.set(newValue, forKey: hasCompletedOnboardingKey)
-            print("✅ Onboarding状态已更新: \(newValue ? "已完成" : "未完成")")
+            Log.i("✅ Onboarding状态已更新: \(newValue ? "已完成" : "未完成")", category: "Onboarding")
         }
     }
 
@@ -31,7 +32,7 @@ public final class OnboardingStateManager {
     /// 重置Onboarding状态（用于测试或重新引导）
     public func resetOnboardingState() {
         hasCompletedOnboarding = false
-        print("⚠️ Onboarding状态已重置")
+        Log.w("⚠️ Onboarding状态已重置", category: "Onboarding")
     }
 
     /// 检查是否需要显示Onboarding
@@ -40,18 +41,18 @@ public final class OnboardingStateManager {
     public func shouldShowOnboarding(isAuthenticated: Bool) -> Bool {
         // 如果用户已登录，不显示Onboarding
         if isAuthenticated {
-            print("ℹ️ 用户已登录，跳过Onboarding")
+            Log.i("ℹ️ 用户已登录，跳过Onboarding", category: "Onboarding")
             return false
         }
 
         // 如果用户未登录但已完成过Onboarding，也不显示
         if hasCompletedOnboarding {
-            print("ℹ️ 用户已完成过Onboarding，跳过")
+            Log.i("ℹ️ 用户已完成过Onboarding，跳过", category: "Onboarding")
             return false
         }
 
         // 未登录且未完成Onboarding，需要显示
-        print("ℹ️ 新用户，需要显示Onboarding")
+        Log.i("ℹ️ 新用户，需要显示Onboarding", category: "Onboarding")
         return true
     }
 
@@ -60,16 +61,16 @@ public final class OnboardingStateManager {
     /// 保存 Onboarding ID
     public func saveOnboardingID(_ id: String) {
         userDefaults.set(id, forKey: onboardingIDKey)
-        print("✅ Onboarding ID 已保存: \(id)")
+        Log.i("✅ Onboarding ID 已保存: \(id)", category: "Onboarding")
     }
 
     /// 获取 Onboarding ID
     public func getOnboardingID() -> String? {
         let id = userDefaults.string(forKey: onboardingIDKey)
         if let id = id {
-            print("ℹ️ 获取 Onboarding ID: \(id)")
+            Log.i("ℹ️ 获取 Onboarding ID: \(id)", category: "Onboarding")
         } else {
-            print("⚠️ 没有找到 Onboarding ID")
+            Log.w("⚠️ 没有找到 Onboarding ID", category: "Onboarding")
         }
         return id
     }
@@ -77,6 +78,6 @@ public final class OnboardingStateManager {
     /// 清除 Onboarding ID
     public func clearOnboardingID() {
         userDefaults.removeObject(forKey: onboardingIDKey)
-        print("✅ Onboarding ID 已清除")
+        Log.i("✅ Onboarding ID 已清除", category: "Onboarding")
     }
 }

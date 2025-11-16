@@ -4,6 +4,7 @@ import DomainChat
 import LibraryServiceLoader
 import LibraryChatUI
 import LibraryNotification
+import LibraryBase
 
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
@@ -74,9 +75,9 @@ struct PersistentChatView: View {
         let msgId = params["msg_id"] ?? ""
         let from = params["from"] ?? ""
 
-        print("📬 Chat Tab 收到通知参数:")
-        print("   msg_id: \(msgId)")
-        print("   from: \(from)")
+        Log.i("📬 Chat Tab 收到通知参数:", category: "Chat")
+        Log.i("   msg_id: \(msgId)", category: "Chat")
+        Log.i("   from: \(from)", category: "Chat")
 
         // TODO: 根据 msg_id 和 from 执行相应的操作
         // 例如：滚动到特定消息、显示特定内容等
@@ -165,12 +166,12 @@ final class PersistentChatViewModel: ObservableObject {
             savedMessageIds = Set(localMessages.map { $0.id })
             rebuildMessageMap()
 
-            print("✅ 加载了 \(localMessages.count) 条本地消息（共 \(totalMessageCount) 条）")
+            Log.i("✅ 加载了 \(localMessages.count) 条本地消息（共 \(totalMessageCount) 条）", category: "Chat")
             if hasMoreMessages {
-                print("📚 还有 \(totalMessageCount - loadedMessageCount) 条更早的消息")
+                Log.i("📚 还有 \(totalMessageCount - loadedMessageCount) 条更早的消息", category: "Chat")
             }
         } catch {
-            print("❌ 加载本地消息失败: \(error.localizedDescription)")
+            Log.e("❌ 加载本地消息失败: \(error.localizedDescription)", category: "Chat")
             errorMessage = "加载历史消息失败"
         }
     }
@@ -178,17 +179,17 @@ final class PersistentChatViewModel: ObservableObject {
     /// 加载更多历史消息（用户往上滑动时调用）
     func loadMoreMessages() async {
         guard !isLoadingMore else {
-            print("⏳ 正在加载中，跳过重复请求")
+            Log.i("⏳ 正在加载中，跳过重复请求", category: "Chat")
             return
         }
         guard hasMoreMessages else {
-            print("📭 没有更多消息了")
+            Log.i("📭 没有更多消息了", category: "Chat")
             return
         }
         guard let storageService = storageService else { return }
 
         isLoadingMore = true
-        print("📥 开始加载更多消息，当前已加载: \(loadedMessageCount)")
+        Log.i("📥 开始加载更多消息，当前已加载: \(loadedMessageCount)", category: "Chat")
 
         do {
             // 从当前已加载的位置继续加载
@@ -198,7 +199,7 @@ final class PersistentChatViewModel: ObservableObject {
             )
 
             if olderMessages.isEmpty {
-                print("📭 没有更多消息了")
+                Log.i("📭 没有更多消息了", category: "Chat")
             } else {
                 // 将更早的消息插入到列表前面
                 let newChatMessages = olderMessages.map { localMsg in
@@ -220,10 +221,10 @@ final class PersistentChatViewModel: ObservableObject {
                 // 重建messageMap（索引变了）
                 rebuildMessageMap()
 
-                print("✅ 加载了 \(olderMessages.count) 条更早的消息，总计: \(loadedMessageCount)/\(totalMessageCount)")
+                Log.i("✅ 加载了 \(olderMessages.count) 条更早的消息，总计: \(loadedMessageCount)/\(totalMessageCount)", category: "Chat")
             }
         } catch {
-            print("❌ 加载更多消息失败: \(error.localizedDescription)")
+            Log.e("❌ 加载更多消息失败: \(error.localizedDescription)", category: "Chat")
             errorMessage = "加载更多消息失败"
         }
 
@@ -236,7 +237,7 @@ final class PersistentChatViewModel: ObservableObject {
         do {
             let conversations = try await chatService.getConversations(limit: 1, offset: nil)
             guard let latestConversation = conversations.first else {
-                print("📝 [PersistentChat] 服务端没有对话记录")
+                Log.i("📝 [PersistentChat] 服务端没有对话记录", category: "Chat")
                 return
             }
 
@@ -246,37 +247,37 @@ final class PersistentChatViewModel: ObservableObject {
             if conversationId == nil {
                 conversationId = latestConversation.id
                 conversationUpdatedAt = serverUpdatedAt
-                print("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.updatedAt)")
+                Log.i("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.updatedAt)", category: "Chat")
             }
             // 如果本地有conversationId，比较更新时间
             else if let localUpdatedAt = conversationUpdatedAt {
                 // 比较本地和服务端的更新时间，选择更新的那个
                 if serverUpdatedAt > localUpdatedAt {
-                    print("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.updatedAt))，切换到最新对话: \(latestConversation.id)")
+                    Log.i("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.updatedAt))，切换到最新对话: \(latestConversation.id)", category: "Chat")
                     conversationId = latestConversation.id
                     conversationUpdatedAt = serverUpdatedAt
                 } else {
-                    print("📝 [PersistentChat] 保持本地对话: \(conversationId!), 本地更新时间更近")
+                    Log.i("📝 [PersistentChat] 保持本地对话: \(conversationId!), 本地更新时间更近", category: "Chat")
                 }
             }
             // 本地有conversationId但没有时间戳，比较ID后使用服务端时间
             else if conversationId != latestConversation.id {
-                print("📝 [PersistentChat] 本地对话ID与服务端不同，切换到最新对话: \(latestConversation.id)")
+                Log.i("📝 [PersistentChat] 本地对话ID与服务端不同，切换到最新对话: \(latestConversation.id)", category: "Chat")
                 conversationId = latestConversation.id
                 conversationUpdatedAt = serverUpdatedAt
             } else {
                 // ID相同，更新时间戳
                 conversationUpdatedAt = serverUpdatedAt
-                print("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.updatedAt)")
+                Log.i("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.updatedAt)", category: "Chat")
             }
         } catch {
-            print("⚠️ [PersistentChat] 获取最新conversation失败: \(error)")
+            Log.w("⚠️ [PersistentChat] 获取最新conversation失败: \(error)", category: "Chat")
             // 不阻塞，继续执行
         }
 
         // 2. 如果有conversationId，同步消息
         guard let conversationId = conversationId else {
-            print("📝 [PersistentChat] 没有conversationId，跳过同步")
+            Log.i("📝 [PersistentChat] 没有conversationId，跳过同步", category: "Chat")
             return
         }
 
@@ -290,7 +291,7 @@ final class PersistentChatViewModel: ObservableObject {
             let missingMessages = serverMessages.filter { !localMessageIds.contains($0.id) }
 
             if !missingMessages.isEmpty {
-                print("📥 [PersistentChat] 同步 \(missingMessages.count) 条缺失的消息")
+                Log.i("📥 [PersistentChat] 同步 \(missingMessages.count) 条缺失的消息", category: "Chat")
 
                 // 将缺失的消息添加到本地
                 for message in missingMessages {
@@ -335,7 +336,7 @@ final class PersistentChatViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("⚠️ [PersistentChat] 同步消息失败: \(error)")
+            Log.w("⚠️ [PersistentChat] 同步消息失败: \(error)", category: "Chat")
             // 不阻塞，继续执行
         }
     }
@@ -350,7 +351,7 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 情况1: 最后一条是用户消息，说明还没有收到assistant回复
         if lastMessage.isFromUser {
-            print("⏸️ [PersistentChat] 最后一条是用户消息，尝试恢复...")
+            Log.i("⏸️ [PersistentChat] 最后一条是用户消息，尝试恢复...", category: "Chat")
             await resumeConversation()
             return
         }
@@ -358,19 +359,19 @@ final class PersistentChatViewModel: ObservableObject {
         // 情况2: 最后一条assistant消息可能未完成
         // 检查消息是否为空（可能被中断）
         if lastMessage.text.isEmpty && lastMessage.thinkingContent == nil {
-            print("⚠️ [PersistentChat] 最后一条assistant消息为空，尝试恢复...")
+            Log.w("⚠️ [PersistentChat] 最后一条assistant消息为空，尝试恢复...", category: "Chat")
             await resumeConversation()
             return
         }
 
-        print("✅ [PersistentChat] 消息完整，无需恢复")
+        Log.i("✅ [PersistentChat] 消息完整，无需恢复", category: "Chat")
     }
 
     /// 恢复对话streaming
     private func resumeConversation() async {
         guard let conversationId = conversationId else { return }
 
-        print("🔄 [PersistentChat] 恢复对话: \(conversationId)")
+        Log.i("🔄 [PersistentChat] 恢复对话: \(conversationId)", category: "Chat")
         isSending = true
 
         do {
@@ -383,7 +384,7 @@ final class PersistentChatViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("❌ [PersistentChat] 恢复失败: \(error)")
+            Log.e("❌ [PersistentChat] 恢复失败: \(error)", category: "Chat")
             // Resume失败不算严重错误
         }
 
@@ -404,12 +405,12 @@ final class PersistentChatViewModel: ObservableObject {
         if let conversationId = conversationId, let updatedAt = conversationUpdatedAt {
             let timeSinceLastUpdate = Date().timeIntervalSince(updatedAt)
             if timeSinceLastUpdate > conversationTimeoutHours {
-                print("⏰ [PersistentChat] 对话超时 (\(Int(timeSinceLastUpdate/3600))小时)，开始新对话")
+                Log.i("⏰ [PersistentChat] 对话超时 (\(Int(timeSinceLastUpdate/3600))小时)，开始新对话", category: "Chat")
                 effectiveConversationId = nil
                 self.conversationId = nil
                 self.conversationUpdatedAt = nil
             } else {
-                print("✅ [PersistentChat] 使用现有对话: \(conversationId), 距上次更新: \(Int(timeSinceLastUpdate/60))分钟")
+                Log.i("✅ [PersistentChat] 使用现有对话: \(conversationId), 距上次更新: \(Int(timeSinceLastUpdate/60))分钟", category: "Chat")
             }
         }
 
@@ -456,7 +457,7 @@ final class PersistentChatViewModel: ObservableObject {
     private func handleStreamEvent(_ event: ConversationStreamEvent) {
         switch event {
         case .streamMessage(let streamMessage):
-            print("📩 [PersistentChat] Received stream message")
+            Log.i("📩 [PersistentChat] Received stream message", category: "Chat")
 
             // 记录lastDataId用于断线重连
             lastDataId = streamMessage.id
@@ -468,7 +469,7 @@ final class PersistentChatViewModel: ObservableObject {
                 if conversationId == nil || conversationId != cid {
                     conversationId = cid
                     conversationUpdatedAt = Date()
-                    print("✅ 对话ID: \(cid), 更新时间: \(Date())")
+                    Log.i("✅ 对话ID: \(cid), 更新时间: \(Date())", category: "Chat")
                 } else {
                     // 即使是同一个对话，也更新时间戳
                     conversationUpdatedAt = Date()
@@ -488,7 +489,7 @@ final class PersistentChatViewModel: ObservableObject {
             }
 
         case .error(let message):
-            print("❌ [PersistentChat] Stream error: \(message)")
+            Log.e("❌ [PersistentChat] Stream error: \(message)", category: "Chat")
             errorMessage = message
             isSending = false
         }
@@ -500,20 +501,20 @@ final class PersistentChatViewModel: ObservableObject {
 
         switch status {
         case .generating:
-            print("🤖 Agent 生成中...")
+            Log.i("🤖 Agent 生成中...", category: "Chat")
 
         case .finished:
-            print("✅ Agent 完成")
+            Log.i("✅ Agent 完成", category: "Chat")
             finalizeStreamingMessages(shouldPersist: true)
             isSending = false
 
         case .error:
-            print("❌ Agent 错误")
+            Log.e("❌ Agent 错误", category: "Chat")
             markStreamingMessageAsError("Agent error")
             isSending = false
 
         case .stopped:
-            print("⏸️ Agent 停止")
+            Log.i("⏸️ Agent 停止", category: "Chat")
             finalizeStreamingMessages(shouldPersist: true)
             isSending = false
         }
@@ -523,9 +524,9 @@ final class PersistentChatViewModel: ObservableObject {
     private func handleAgentMessage(_ data: StreamMessageData) {
         let msgId = data.msgId
 
-        print("💭 [PersistentChat] handleAgentMessage")
-        print("  msgId: \(msgId)")
-        print("  messageType: \(String(describing: data.messageType))")
+        Log.i("💭 [PersistentChat] handleAgentMessage", category: "Chat")
+        Log.i("  msgId: \(msgId)", category: "Chat")
+        Log.i("  messageType: \(String(describing: data.messageType))", category: "Chat")
 
         // 检查是否有内容
         let hasContent = data.content != nil && !data.content!.isEmpty
@@ -551,7 +552,7 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 查找或创建消息
         if let index = messageMap[msgId] {
-            print("  → Updating existing message at index \(index)")
+            Log.i("  → Updating existing message at index \(index)", category: "Chat")
             let existingMessage = displayMessages[index]
 
             let message = ChatMessage(
@@ -566,7 +567,7 @@ final class PersistentChatViewModel: ObservableObject {
             displayMessages[index] = message
 
         } else {
-            print("  → Creating new message")
+            Log.i("  → Creating new message", category: "Chat")
 
             // 新消息到来时，将之前所有消息设为非streaming并保存
             finalizeStreamingMessages(shouldPersist: true)
@@ -588,9 +589,9 @@ final class PersistentChatViewModel: ObservableObject {
 
     /// 处理工具调用
     private func handleToolCall(_ data: StreamMessageData) {
-        print("🔧 [PersistentChat] handleToolCall")
-        print("  msgId: \(data.msgId)")
-        print("  toolCalls: \(data.toolCalls?.count ?? 0)")
+        Log.i("🔧 [PersistentChat] handleToolCall", category: "Chat")
+        Log.i("  msgId: \(data.msgId)", category: "Chat")
+        Log.i("  toolCalls: \(data.toolCalls?.count ?? 0)", category: "Chat")
     }
 
     private func finalizeStreamingMessages(shouldPersist: Bool) {
@@ -668,9 +669,9 @@ final class PersistentChatViewModel: ObservableObject {
         do {
             try storageService.saveMessage(localMessage)
             savedMessageIds.insert(id)
-            print("✅ 消息已保存到本地: \(content.prefix(20))...")
+            Log.i("✅ 消息已保存到本地: \(content.prefix(20))...", category: "Chat")
         } catch {
-            print("❌ 保存消息失败: \(error.localizedDescription)")
+            Log.e("❌ 保存消息失败: \(error.localizedDescription)", category: "Chat")
         }
     }
 
@@ -687,9 +688,9 @@ final class PersistentChatViewModel: ObservableObject {
             savedMessageIds.removeAll()
             loadedMessageCount = 0
             totalMessageCount = 0
-            print("✅ 历史记录已清除")
+            Log.i("✅ 历史记录已清除", category: "Chat")
         } catch {
-            print("❌ 清除历史记录失败: \(error.localizedDescription)")
+            Log.e("❌ 清除历史记录失败: \(error.localizedDescription)", category: "Chat")
             errorMessage = "清除历史记录失败"
         }
     }

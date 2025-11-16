@@ -1,6 +1,7 @@
 import Foundation
 import FeatureAgendaApi
 import LibraryNotification
+import LibraryBase
 
 /// Implementation of AgendaService
 public final class AgendaServiceImpl: AgendaService {
@@ -17,12 +18,12 @@ public final class AgendaServiceImpl: AgendaService {
         let wasActive = UserDefaults.standard.bool(forKey: agendaStateKey)
 
         if wasActive {
-            print("📱 Restoring previously active Agenda...")
+            Log.i("📱 Restoring previously active Agenda...", category: "Agenda")
             do {
                 try await startAgenda()
-                print("✅ Agenda successfully restored")
+                Log.i("✅ Agenda successfully restored", category: "Agenda")
             } catch {
-                print("❌ Failed to restore Agenda: \(error)")
+                Log.e("❌ Failed to restore Agenda: \(error)", category: "Agenda")
                 // Clear the flag if restoration fails
                 UserDefaults.standard.set(false, forKey: agendaStateKey)
             }
@@ -50,8 +51,8 @@ public final class AgendaServiceImpl: AgendaService {
 
         // Save state for auto-restore
         UserDefaults.standard.set(true, forKey: agendaStateKey)
-        print("💾 Agenda state saved")
-        print("✅ Agenda started - updates will be pushed from server")
+        Log.i("💾 Agenda state saved", category: "Agenda")
+        Log.i("✅ Agenda started - updates will be pushed from server", category: "Agenda")
     }
 
     @MainActor
@@ -65,7 +66,7 @@ public final class AgendaServiceImpl: AgendaService {
 
         // Clear saved state
         UserDefaults.standard.set(false, forKey: agendaStateKey)
-        print("💾 Agenda state cleared")
+        Log.i("💾 Agenda state cleared", category: "Agenda")
     }
 
     @MainActor

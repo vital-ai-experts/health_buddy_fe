@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import LibraryBase
 
 /// Deeplink 类型
 public enum DeeplinkDestination: Equatable {
@@ -29,17 +30,17 @@ public class DeeplinkHandler: ObservableObject {
     /// 处理 deeplink URL
     /// - Parameter urlString: deeplink URL 字符串
     public func handle(_ urlString: String) {
-        print("🔗 收到 Deeplink: \(urlString)")
+        Log.i("🔗 收到 Deeplink: \(urlString)", category: "Notification")
 
         guard let url = URL(string: urlString),
               url.scheme == "thrivebody" else {
-            print("⚠️ 无效的 deeplink URL: \(urlString)")
+            Log.w("⚠️ 无效的 deeplink URL: \(urlString)", category: "Notification")
             pendingDeeplink = .unknown(url: urlString)
             return
         }
 
         let destination = parseDeeplink(url)
-        print("✅ Deeplink 解析结果: \(destination)")
+        Log.i("✅ Deeplink 解析结果: \(destination)", category: "Notification")
         pendingDeeplink = destination
     }
 

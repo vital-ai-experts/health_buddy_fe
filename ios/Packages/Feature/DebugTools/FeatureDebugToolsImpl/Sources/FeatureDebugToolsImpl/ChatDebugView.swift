@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import FeatureChatImpl
+import LibraryBase
 
 /// 调试视图：查看本地存储的聊天消息
 struct ChatDebugView: View {
@@ -126,10 +127,10 @@ struct ChatDebugView: View {
             let allMessages = try storageService.fetchAllMessages()
             messages = allMessages
 
-            print("✅ [Debug] 加载了 \(allMessages.count) 条消息")
+            Log.i("✅ [Debug] 加载了 \(allMessages.count) 条消息", category: "Debug")
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ [Debug] 加载失败: \(error)")
+            Log.e("❌ [Debug] 加载失败: \(error)", category: "Debug")
         }
 
         isLoading = false
@@ -140,10 +141,10 @@ struct ChatDebugView: View {
             let storageService = ChatStorageService(modelContext: modelContext)
             try storageService.deleteAllMessages()
             loadMessages()
-            print("✅ [Debug] 已清空所有消息")
+            Log.i("✅ [Debug] 已清空所有消息", category: "Debug")
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ [Debug] 清空失败: \(error)")
+            Log.e("❌ [Debug] 清空失败: \(error)", category: "Debug")
         }
     }
 
@@ -151,26 +152,26 @@ struct ChatDebugView: View {
         // 打印数据库文件路径
         let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         if let appSupportPath = paths.first {
-            print("📂 [Debug] 应用支持目录: \(appSupportPath.path)")
+            Log.i("📂 [Debug] 应用支持目录: \(appSupportPath.path)", category: "Debug")
 
             // 列出所有文件
             do {
                 let files = try FileManager.default.contentsOfDirectory(at: appSupportPath, includingPropertiesForKeys: nil)
-                print("📂 [Debug] 目录下的文件:")
+                Log.i("📂 [Debug] 目录下的文件:", category: "Debug")
                 for file in files {
                     let fileSize = try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int64
                     let sizeStr = fileSize.map { "\($0 / 1024) KB" } ?? "未知"
-                    print("  - \(file.lastPathComponent) (\(sizeStr))")
+                    Log.i("  - \(file.lastPathComponent) (\(sizeStr))", category: "Debug")
                 }
             } catch {
-                print("❌ [Debug] 无法列出文件: \(error)")
+                Log.e("❌ [Debug] 无法列出文件: \(error)", category: "Debug")
             }
         }
 
         // 也打印Documents目录
         let docPaths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         if let docPath = docPaths.first {
-            print("📂 [Debug] Documents目录: \(docPath.path)")
+            Log.i("📂 [Debug] Documents目录: \(docPath.path)", category: "Debug")
         }
     }
 

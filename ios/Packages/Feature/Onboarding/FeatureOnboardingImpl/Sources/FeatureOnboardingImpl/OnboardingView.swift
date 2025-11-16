@@ -4,6 +4,7 @@ import DomainOnboarding
 import LibraryChatUI
 import DomainHealth
 import DomainChat
+import LibraryBase
 
 /// Onboarding view with conversational Q&A flow
 struct OnboardingView: View {
@@ -151,10 +152,10 @@ struct OnboardingView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // 当 Scene 从非激活状态变为激活状态时
             if oldPhase != .active && newPhase == .active {
-                print("ℹ️ [OnboardingView] Scene became active")
+                Log.i("ℹ️ [OnboardingView] Scene became active", category: "Onboarding")
                 // 如果初始化失败，自动重试
                 if viewModel.initializationFailed {
-                    print("♻️ [OnboardingView] Auto-retrying initialization")
+                    Log.i("♻️ [OnboardingView] Auto-retrying initialization", category: "Onboarding")
                     Task {
                         await viewModel.retryInitialization()
                     }
@@ -201,7 +202,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func initializeOnboarding() async {
-        print("🎬 [OnboardingViewModel] initializeOnboarding started")
+        Log.i("🎬 [OnboardingViewModel] initializeOnboarding started", category: "Onboarding")
         initializationFailed = false
         isLoading = true
 
@@ -213,30 +214,30 @@ final class OnboardingViewModel: ObservableObject {
             )
 
             isLoading = false
-            print("✅ [OnboardingViewModel] initializeOnboarding completed")
+            Log.i("✅ [OnboardingViewModel] initializeOnboarding completed", category: "Onboarding")
         } catch {
-            print("❌ [OnboardingViewModel] 初始化失败: \(error)")
+            Log.e("❌ [OnboardingViewModel] 初始化失败: \(error)", category: "Onboarding")
             isLoading = false
             initializationFailed = true
         }
     }
 
     func retryInitialization() async {
-        print("♻️ [OnboardingViewModel] Retrying initialization")
+        Log.i("♻️ [OnboardingViewModel] Retrying initialization", category: "Onboarding")
         await initializeOnboarding()
     }
 
     func sendMessage(_ text: String) {
-        print("💬 [OnboardingViewModel] sendMessage called: \(text.prefix(50))...")
+        Log.i("💬 [OnboardingViewModel] sendMessage called: \(text.prefix(50))...", category: "Onboarding")
 
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("⚠️ [OnboardingViewModel] Empty message, skipping")
+            Log.w("⚠️ [OnboardingViewModel] Empty message, skipping", category: "Onboarding")
             return
         }
 
         // 特殊逻辑：检测 "skip" 命令，直接跳过 onboarding
         if text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == "skip" {
-            print("⏭️ [OnboardingViewModel] 检测到 skip 命令，跳过 onboarding")
+            Log.i("⏭️ [OnboardingViewModel] 检测到 skip 命令，跳过 onboarding", category: "Onboarding")
 
             // 添加用户消息到UI
             let userMsg = ChatMessage(
@@ -273,7 +274,7 @@ final class OnboardingViewModel: ObservableObject {
         }
 
         guard let onboardingId = onboardingId else {
-            print("❌ [OnboardingViewModel] onboardingId 为空，无法发送消息")
+            Log.e("❌ [OnboardingViewModel] onboardingId 为空，无法发送消息", category: "Onboarding")
             return
         }
 
@@ -289,7 +290,7 @@ final class OnboardingViewModel: ObservableObject {
             isStreaming: false
         )
         displayMessages.append(userMsg)
-        print("✅ [OnboardingViewModel] User message added to UI")
+        Log.i("✅ [OnboardingViewModel] User message added to UI", category: "Onboarding")
 
         // 2. 清空输入框
         inputText = ""
@@ -300,7 +301,7 @@ final class OnboardingViewModel: ObservableObject {
             self.isLoading = true
 
             do {
-                print("📤 [OnboardingViewModel] Calling continueOnboarding...")
+                Log.i("📤 [OnboardingViewModel] Calling continueOnboarding...", category: "Onboarding")
                 try await onboardingService.continueOnboarding(
                     onboardingId: onboardingId,
                     userInput: text,
@@ -311,9 +312,9 @@ final class OnboardingViewModel: ObservableObject {
                 )
 
                 self.isLoading = false
-                print("✅ [OnboardingViewModel] continueOnboarding completed")
+                Log.i("✅ [OnboardingViewModel] continueOnboarding completed", category: "Onboarding")
             } catch {
-                print("❌ [OnboardingViewModel] 发送消息失败: \(error)")
+                Log.e("❌ [OnboardingViewModel] 发送消息失败: \(error)", category: "Onboarding")
                 self.isLoading = false
                 self.handleError(error: error)
             }
@@ -368,9 +369,9 @@ final class OnboardingViewModel: ObservableObject {
         Task { @MainActor in
             switch event {
             case .streamMessage(let streamMessage):
-                print("📩 [OnboardingViewModel] Received stream message")
-                print("  id: \(streamMessage.id)")
-                print("  dataType: \(streamMessage.data.dataType)")
+                Log.i("📩 [OnboardingViewModel] Received stream message", category: "Onboarding")
+                Log.i("  id: \(streamMessage.id)", category: "Onboarding")
+                Log.i("  dataType: \(streamMessage.data.dataType)", category: "Onboarding")
                 
                 // 记录最新的data id
                 lastDataId = streamMessage.id
@@ -380,7 +381,7 @@ final class OnboardingViewModel: ObservableObject {
                 // 保存onboardingId
                 if let oid = data.onboardingId {
                     if onboardingId == nil {
-                        print("✅ [OnboardingViewModel] Got onboardingId: \(oid)")
+                        Log.i("✅ [OnboardingViewModel] Got onboardingId: \(oid)", category: "Onboarding")
                         // 保存到 OnboardingStateManager
                         OnboardingStateManager.shared.saveOnboardingID(oid)
                     }
@@ -389,26 +390,26 @@ final class OnboardingViewModel: ObservableObject {
                 
                 switch data.dataType {
                 case .agentStatus:
-                    print("  → Processing agentStatus")
+                    Log.i("  → Processing agentStatus", category: "Onboarding")
                     // 处理Agent状态
                     handleAgentStatus(data.agentStatus)
                     
                 case .agentMessage:
-                    print("  → Processing agentMessage")
-                    print("    msgId: \(data.msgId)")
-                    print("    messageType: \(String(describing: data.messageType))")
-                    print("    content length: \(data.content?.count ?? 0)")
+                    Log.i("  → Processing agentMessage", category: "Onboarding")
+                    Log.i("    msgId: \(data.msgId)", category: "Onboarding")
+                    Log.i("    messageType: \(String(describing: data.messageType))", category: "Onboarding")
+                    Log.i("    content length: \(data.content?.count ?? 0)", category: "Onboarding")
                     // 处理Agent消息（chunk或whole）
                     handleAgentMessage(data)
                     
                 case .agentToolCall:
-                    print("  → Processing agentToolCall")
+                    Log.i("  → Processing agentToolCall", category: "Onboarding")
                     // 处理工具调用
                     handleToolCall(data)
                 }
 
             case .error(let message):
-                print("❌ [OnboardingViewModel] Stream error: \(message)")
+                Log.e("❌ [OnboardingViewModel] Stream error: \(message)", category: "Onboarding")
                 isLoading = false
 
                 // 显示错误消息
@@ -448,10 +449,10 @@ final class OnboardingViewModel: ObservableObject {
         
         switch status {
         case .generating:
-            print("🤖 Agent 生成中...")
+            Log.i("🤖 Agent 生成中...", category: "Onboarding")
             
         case .finished:
-            print("✅ Agent 完成")
+            Log.i("✅ Agent 完成", category: "Onboarding")
             // 将所有仍在 streaming 状态的消息更新为非 streaming
             for (index, message) in displayMessages.enumerated() {
                 if message.isStreaming {
@@ -468,13 +469,13 @@ final class OnboardingViewModel: ObservableObject {
                         specialMessageData: updatedMessage.specialMessageData
                     )
                     displayMessages[index] = updatedMessage
-                    print("  → Message at index \(index) set to non-streaming")
+                    Log.i("  → Message at index \(index) set to non-streaming", category: "Onboarding")
                 }
             }
             isLoading = false
             
         case .error:
-            print("❌ Agent 错误")
+            Log.e("❌ Agent 错误", category: "Onboarding")
             // 错误时将所有流式消息标记为失败
             for (index, message) in displayMessages.enumerated() {
                 if message.isStreaming {
@@ -498,7 +499,7 @@ final class OnboardingViewModel: ObservableObject {
             isLoading = false
 
         case .stopped:
-            print("⏸️ Agent 停止")
+            Log.i("⏸️ Agent 停止", category: "Onboarding")
             // 停止时也将所有消息设为非 streaming
             for (index, message) in displayMessages.enumerated() {
                 if message.isStreaming {
@@ -524,12 +525,12 @@ final class OnboardingViewModel: ObservableObject {
     private func handleAgentMessage(_ data: StreamMessageData) {
         let msgId = data.msgId
         
-        print("💭 [OnboardingViewModel] handleAgentMessage")
-        print("  msgId: \(msgId)")
-        print("  content: \(data.content ?? "nil")")
-        print("  thinking_content: \(data.thinkingContent ?? "nil")")
-        print("  messageType: \(String(describing: data.messageType))")
-        print("  toolCalls count: \(data.toolCalls?.count ?? 0)")
+        Log.i("💭 [OnboardingViewModel] handleAgentMessage", category: "Onboarding")
+        Log.i("  msgId: \(msgId)", category: "Onboarding")
+        Log.i("  content: \(data.content ?? "nil")", category: "Onboarding")
+        Log.i("  thinking_content: \(data.thinkingContent ?? "nil")", category: "Onboarding")
+        Log.i("  messageType: \(String(describing: data.messageType))", category: "Onboarding")
+        Log.i("  toolCalls count: \(data.toolCalls?.count ?? 0)", category: "Onboarding")
         
         // 检查是否有任何内容需要显示
         let hasContent = data.content != nil && !data.content!.isEmpty
@@ -538,7 +539,7 @@ final class OnboardingViewModel: ObservableObject {
         
         // 如果content、thinking和toolCalls都为空，才跳过
         guard hasContent || hasThinking || hasToolCalls else {
-            print("  → No content, thinking or tool calls, skipping UI update")
+            Log.i("  → No content, thinking or tool calls, skipping UI update", category: "Onboarding")
             return
         }
         
@@ -584,7 +585,7 @@ final class OnboardingViewModel: ObservableObject {
         
         // 查找或创建消息
         if let index = messageMap[msgId] {
-            print("  → Updating existing message at index \(index)")
+            Log.i("  → Updating existing message at index \(index)", category: "Onboarding")
             // 更新现有消息（每次收到的content都是完整的，不是delta）
             let existingMessage = displayMessages[index]
 
@@ -606,7 +607,7 @@ final class OnboardingViewModel: ObservableObject {
             displayMessages[index] = message
 
         } else {
-            print("  → Creating new message")
+            Log.i("  → Creating new message", category: "Onboarding")
 
             // 新消息到来时，将之前所有的消息设置为非 streaming 状态
             for (idx, msg) in displayMessages.enumerated() {
@@ -624,7 +625,7 @@ final class OnboardingViewModel: ObservableObject {
                         specialMessageData: updatedMsg.specialMessageData
                     )
                     displayMessages[idx] = updatedMsg
-                    print("  ✅ Previous message at index \(idx) set to non-streaming")
+                    Log.i("  ✅ Previous message at index \(idx) set to non-streaming", category: "Onboarding")
                 }
             }
 
@@ -642,16 +643,16 @@ final class OnboardingViewModel: ObservableObject {
             )
             displayMessages.append(newMessage)
             messageMap[msgId] = displayMessages.count - 1
-            print("  ✅ Message added at index \(displayMessages.count - 1)")
+            Log.i("  ✅ Message added at index \(displayMessages.count - 1)", category: "Onboarding")
         }
         
         // 如果是完整消息，检查是否有工具调用需要处理
         if data.messageType == .whole {
-            print("  → Message is complete (WHOLE)")
+            Log.i("  → Message is complete (WHOLE)", category: "Onboarding")
             
             // 根据 toolCalls 决定是否需要显示action button
             if let toolCalls = data.toolCalls, !toolCalls.isEmpty {
-                print("  → Has \(toolCalls.count) tool calls")
+                Log.i("  → Has \(toolCalls.count) tool calls", category: "Onboarding")
                 for toolCall in toolCalls {
                     handleToolCallForUI(toolCall)
                 }
@@ -664,17 +665,17 @@ final class OnboardingViewModel: ObservableObject {
         guard let toolCalls = data.toolCalls else { return }
         
         for toolCall in toolCalls {
-            print("🔧 Tool call: \(toolCall.toolCallName), status: \(String(describing: toolCall.toolCallStatus))")
+            Log.i("🔧 Tool call: \(toolCall.toolCallName), status: \(String(describing: toolCall.toolCallStatus))", category: "Onboarding")
             
             // 根据工具调用状态更新UI
             if let status = toolCall.toolCallStatus {
                 switch status {
                 case .started:
-                    print("  ▶️ 开始执行")
+                    Log.i("  ▶️ 开始执行", category: "Onboarding")
                 case .success:
-                    print("  ✅ 执行成功")
+                    Log.i("  ✅ 执行成功", category: "Onboarding")
                 case .failed:
-                    print("  ❌ 执行失败")
+                    Log.e("  ❌ 执行失败", category: "Onboarding")
                 }
             }
         }
@@ -727,16 +728,16 @@ final class OnboardingViewModel: ObservableObject {
             
         case .notiPermit:
             // TODO: 请求通知权限
-            print("处理通知权限")
+            Log.i("处理通知权限", category: "Onboarding")
             showActionButton = false
             
         case .healthPermit:
-            print("🏥 [OnboardingViewModel] 处理健康数据权限")
+            Log.i("🏥 [OnboardingViewModel] 处理健康数据权限", category: "Onboarding")
             showActionButton = false
 
             Task {
                 guard let onboardingId = onboardingId else {
-                    print("❌ [OnboardingViewModel] onboardingId为空")
+                    Log.e("❌ [OnboardingViewModel] onboardingId为空", category: "Onboarding")
                     return
                 }
 
@@ -744,29 +745,29 @@ final class OnboardingViewModel: ObservableObject {
 
                 do {
                     // 1. 请求HealthKit授权
-                    print("📋 [OnboardingViewModel] 请求HealthKit授权...")
+                    Log.i("📋 [OnboardingViewModel] 请求HealthKit授权...", category: "Onboarding")
                     let authStatus = try await authorizationService.requestAuthorization()
-                    print("✅ [OnboardingViewModel] HealthKit授权状态: \(authStatus)")
+                    Log.i("✅ [OnboardingViewModel] HealthKit授权状态: \(authStatus)", category: "Onboarding")
 
                     // 2. 获取24小时健康数据并聚合为JSON
                     let healthDataJSON: String
                     if authStatus == .authorized {
-                        print("📊 [OnboardingViewModel] 获取健康数据...")
+                        Log.i("📊 [OnboardingViewModel] 获取健康数据...", category: "Onboarding")
                         do {
                             healthDataJSON = try await healthDataService.fetchRecentDataAsJSON()
-                            print("✅ [OnboardingViewModel] 健康数据获取成功，JSON长度: \(healthDataJSON.count)")
+                            Log.i("✅ [OnboardingViewModel] 健康数据获取成功，JSON长度: \(healthDataJSON.count)", category: "Onboarding")
                         } catch {
-                            print("⚠️ [OnboardingViewModel] 获取健康数据失败: \(error)")
+                            Log.w("⚠️ [OnboardingViewModel] 获取健康数据失败: \(error)", category: "Onboarding")
                             // 如果获取数据失败，发送授权状态信息
                             healthDataJSON = "{\"authorized\": true, \"dataFetchError\": \"\(error.localizedDescription)\"}"
                         }
                     } else {
-                        print("⚠️ [OnboardingViewModel] 用户未授权或授权失败")
+                        Log.w("⚠️ [OnboardingViewModel] 用户未授权或授权失败", category: "Onboarding")
                         healthDataJSON = "{\"authorized\": false, \"status\": \"\(authStatus)\"}"
                     }
 
                     // 3. 添加用户消息 "Done" 到 UI
-                    print("💬 [OnboardingViewModel] 添加用户消息: Done")
+                    Log.i("💬 [OnboardingViewModel] 添加用户消息: Done", category: "Onboarding")
                     let userMessage = ChatMessage(
                         id: UUID().uuidString,
                         text: "Done",
@@ -780,7 +781,7 @@ final class OnboardingViewModel: ObservableObject {
                     try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
 
                     // 5. 调用continueOnboarding，同时传入 userInput="Done" 和 healthData
-                    print("📤 [OnboardingViewModel] 发送 'Done' 和健康数据到服务器...")
+                    Log.i("📤 [OnboardingViewModel] 发送 'Done' 和健康数据到服务器...", category: "Onboarding")
                     try await onboardingService.continueOnboarding(
                         onboardingId: onboardingId,
                         userInput: "Done",
@@ -791,9 +792,9 @@ final class OnboardingViewModel: ObservableObject {
                     )
 
                     isLoading = false
-                    print("✅ [OnboardingViewModel] 'Done' 和健康数据已发送")
+                    Log.i("✅ [OnboardingViewModel] 'Done' 和健康数据已发送", category: "Onboarding")
                 } catch {
-                    print("❌ [OnboardingViewModel] 健康数据授权流程失败: \(error)")
+                    Log.e("❌ [OnboardingViewModel] 健康数据授权流程失败: \(error)", category: "Onboarding")
                     isLoading = false
 
                     // 发送错误信息到服务器
@@ -808,7 +809,7 @@ final class OnboardingViewModel: ObservableObject {
                             }
                         )
                     } catch {
-                        print("❌ [OnboardingViewModel] 发送错误信息失败: \(error)")
+                        Log.e("❌ [OnboardingViewModel] 发送错误信息失败: \(error)", category: "Onboarding")
                     }
                 }
             }
@@ -817,7 +818,7 @@ final class OnboardingViewModel: ObservableObject {
 
     /// 处理特殊消息的按钮操作（如健康档案确认）
     func handleSpecialMessageAction(messageId: String, action: String) {
-        print("🔘 [OnboardingViewModel] handleSpecialMessageAction: \(action) for message: \(messageId)")
+        Log.i("🔘 [OnboardingViewModel] handleSpecialMessageAction: \(action) for message: \(messageId)", category: "Onboarding")
 
         // 直接将用户的选择作为消息发送
         sendMessage(action)
