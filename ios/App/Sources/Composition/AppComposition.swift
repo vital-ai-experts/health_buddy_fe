@@ -2,6 +2,7 @@ import FeatureHealthKitImpl
 import FeatureAccountImpl
 import FeatureChatImpl
 import FeatureOnboardingImpl
+import FeatureAgendaImpl
 import DomainHealth
 import DomainAuth
 import DomainChat
@@ -26,6 +27,7 @@ enum AppComposition {
         AccountModule.register()
         ChatModule.register()
         OnboardingModule.register()
+        AgendaModule.register()
 
         #if DEBUG
         DebugToolsFeatureModule.register()

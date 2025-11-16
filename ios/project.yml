@@ -54,6 +54,10 @@ packages:
     path: Packages/Feature/DebugTools/FeatureDebugToolsApi
   FeatureDebugToolsImpl:
     path: Packages/Feature/DebugTools/FeatureDebugToolsImpl
+  FeatureAgendaApi:
+    path: Packages/Feature/Agenda/FeatureAgendaApi
+  FeatureAgendaImpl:
+    path: Packages/Feature/Agenda/FeatureAgendaImpl
 targets:
   ThriveBody:
     templates: [BaseAppTarget]
@@ -111,12 +115,41 @@ targets:
         product: FeatureDebugToolsApi
       - package: FeatureDebugToolsImpl
         product: FeatureDebugToolsImpl
+      - package: FeatureAgendaApi
+        product: FeatureAgendaApi
+      - package: FeatureAgendaImpl
+        product: FeatureAgendaImpl
+      - target: AgendaWidget
+        embed: true
+  AgendaWidget:
+    platform: iOS
+    deploymentTarget: '17.0'
+    type: app-extension
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.AgendaWidget
+      CODE_SIGN_ENTITLEMENTS: AgendaWidget/AgendaWidget.entitlements
+      INFOPLIST_FILE: AgendaWidget/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+    sources:
+      - path: AgendaWidget
+    dependencies:
+      - package: LibraryNotification
+        product: LibraryNotification
 schemes:
   ThriveBody:
     build:
       targets:
         ThriveBody: all
+        AgendaWidget: all
     run:
+      config: Debug
+      executable: ThriveBody
+    test:
       config: Debug
     archive:
       config: Release
+    management:
+      shared: true

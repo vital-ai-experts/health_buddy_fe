@@ -11,6 +11,7 @@ import FeatureHealthKitApi
 import FeatureAccountApi
 import FeatureChatApi
 import FeatureOnboardingApi
+import FeatureAgendaApi
 import DomainAuth
 import DomainOnboarding
 import LibraryServiceLoader
@@ -173,6 +174,11 @@ struct RootView: View {
 
         // 请求推送通知权限
         await requestNotificationPermission()
+
+        // 如果用户已登录，尝试恢复之前的 Agenda 状态
+        if isAuthenticated {
+            await restoreAgendaIfNeeded()
+        }
     }
 
     /// 请求推送通知权限
@@ -182,6 +188,12 @@ struct RootView: View {
         } catch {
             print("❌ 请求通知权限失败: \(error.localizedDescription)")
         }
+    }
+
+    /// 恢复之前的 Agenda 状态（如果之前开启了）
+    private func restoreAgendaIfNeeded() async {
+        let agendaService = ServiceManager.shared.resolve(AgendaService.self)
+        await agendaService.restoreAgendaIfNeeded()
     }
 
     /// 等待网络可用（带30秒超时）
