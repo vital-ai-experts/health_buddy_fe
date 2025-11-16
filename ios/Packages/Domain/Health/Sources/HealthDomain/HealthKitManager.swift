@@ -7,6 +7,7 @@
 
 import Foundation
 import HealthKit
+import LibraryBase
 
 /// 负责与 HealthKit 交互的底层客户端，提供授权与数据拉取能力。
 public final class HealthKitManager {
@@ -695,7 +696,7 @@ public extension HealthKitManager {
                 ]
             } catch {
                 // 单位不兼容时跳过此样本
-                print("⚠️ 跳过单位不兼容的样本 (\(key)): \(error)")
+                Log.w("⚠️ 跳过单位不兼容的样本 (\(key)): \(error)", category: "HealthKit")
                 return nil
             }
         }
@@ -1473,10 +1474,10 @@ public extension HealthKitManager {
         // 启用后台推送频率（immediate 表示立即推送）
         healthStore.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { success, error in
             if success {
-                print("✅ 已启用 \(sampleType.identifier) 的后台推送")
+                Log.i("✅ 已启用 \(sampleType.identifier) 的后台推送", category: "HealthKit")
                 self.startObserverQuery(for: sampleType)
             } else if let error = error {
-                print("❌ 启用后台推送失败: \(error.localizedDescription)")
+                Log.e("❌ 启用后台推送失败: \(error.localizedDescription)", category: "HealthKit")
             }
         }
     }
@@ -1490,12 +1491,12 @@ public extension HealthKitManager {
             }
 
             if let error = error {
-                print("❌ 观察者查询错误: \(error.localizedDescription)")
+                Log.e("❌ 观察者查询错误: \(error.localizedDescription)", category: "HealthKit")
                 completionHandler()
                 return
             }
 
-            print("📱 检测到 \(sampleType.identifier) 数据更新")
+            Log.i("📱 检测到 \(sampleType.identifier) 数据更新", category: "HealthKit")
 
             // 通知所有注册的处理器
             for handler in self.updateHandlers {

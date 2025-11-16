@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import LibraryBase
 
 /// Manager for handling Live Activities
 @available(iOS 16.1, *)
@@ -27,14 +28,14 @@ public final class LiveActivityManager: ObservableObject {
         initialWeather: String,
         initialTask: String
     ) async throws {
-        print("🚀 Starting Live Activity...")
-        print("   - User ID: \(userId)")
-        print("   - Weather: \(initialWeather)")
-        print("   - Task: \(initialTask)")
+        Log.i("🚀 Starting Live Activity...", category: "Notification")
+        Log.i("   - User ID: \(userId)", category: "Notification")
+        Log.i("   - Weather: \(initialWeather)", category: "Notification")
+        Log.i("   - Task: \(initialTask)", category: "Notification")
 
         // Check if activities are enabled
         let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
-        print("   - Activities enabled: \(areActivitiesEnabled)")
+        Log.i("   - Activities enabled: \(areActivitiesEnabled)", category: "Notification")
 
         // Clean up ALL existing activities first
         await cleanupAllActivities()
@@ -54,16 +55,16 @@ public final class LiveActivityManager: ObservableObject {
                 pushType: .token
             )
             currentAgendaActivity = activity
-            print("✅ Live Activity started successfully!")
-            print("   - Activity ID: \(activity.id)")
-            print("   - Activity State: \(activity.activityState)")
+            Log.i("✅ Live Activity started successfully!", category: "Notification")
+            Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+            Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
 
             // Start observing push token updates
             startObservingPushToken(for: activity)
         } catch {
-            print("❌ Failed to start Live Activity: \(error)")
-            print("   - Error type: \(type(of: error))")
-            print("   - Error description: \(error.localizedDescription)")
+            Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
+            Log.i("   - Error type: \(type(of: error))", category: "Notification")
+            Log.i("   - Error description: \(error.localizedDescription)", category: "Notification")
             throw error
         }
     }
@@ -75,13 +76,13 @@ public final class LiveActivityManager: ObservableObject {
     /// - Throws: ActivityKit errors if update fails
     public func updateAgendaActivity(weather: String, task: String) async throws {
         guard let activity = currentAgendaActivity else {
-            print("⚠️ No currentAgendaActivity stored, cannot update")
+            Log.w("⚠️ No currentAgendaActivity stored, cannot update", category: "Notification")
             throw LiveActivityError.noActiveActivity
         }
 
         // Check if activity is still active
         guard activity.activityState == .active else {
-            print("⚠️ Activity is no longer active (state: \(activity.activityState)), clearing reference")
+            Log.w("⚠️ Activity is no longer active (state: \(activity.activityState)), clearing reference", category: "Notification")
             currentAgendaActivity = nil
             throw LiveActivityError.noActiveActivity
         }
@@ -107,7 +108,7 @@ public final class LiveActivityManager: ObservableObject {
             alertConfiguration: alertConfiguration
         )
 
-        print("✅ Live Activity updated: weather=\(weather), task=\(task), completed=\(currentIsCompleted)")
+        Log.i("✅ Live Activity updated: weather=\(weather), task=\(task), completed=\(currentIsCompleted)", category: "Notification")
     }
 
     /// Stop the current agenda live activity
@@ -117,7 +118,7 @@ public final class LiveActivityManager: ObservableObject {
 
         // Clean up all activities to ensure nothing is left running
         await cleanupAllActivities()
-        print("✅ Live Activity stopped")
+        Log.i("✅ Live Activity stopped", category: "Notification")
     }
 
     /// Check if there's an active agenda activity
@@ -132,11 +133,11 @@ public final class LiveActivityManager: ObservableObject {
         let count = activities.count
 
         if count > 0 {
-            print("🧹 Cleaning up \(count) existing Live Activity(ies)...")
+            Log.i("🧹 Cleaning up \(count) existing Live Activity(ies)...", category: "Notification")
         }
 
         for activity in activities {
-            print("   - Ending activity: \(activity.id) (state: \(activity.activityState))")
+            Log.i("   - Ending activity: \(activity.id) (state: \(activity.activityState))", category: "Notification")
             let finalState = AgendaActivityAttributes.ContentState(
                 weather: "Session ended",
                 task: "See you next time!",
@@ -153,7 +154,7 @@ public final class LiveActivityManager: ObservableObject {
         currentAgendaActivity = nil
 
         if count > 0 {
-            print("✅ Cleanup completed, all activities ended")
+            Log.i("✅ Cleanup completed, all activities ended", category: "Notification")
         }
     }
 
@@ -164,15 +165,15 @@ public final class LiveActivityManager: ObservableObject {
         // Cancel any existing observation
         stopObservingPushToken()
 
-        print("🔔 Starting push token observation...")
+        Log.i("🔔 Starting push token observation...", category: "Notification")
 
         pushTokenTask = Task {
             for await pushToken in activity.pushTokenUpdates {
                 let tokenString = pushToken.map { String(format: "%02x", $0) }.joined()
-                print("📱 Live Activity Push Token Updated:")
-                print("   - Activity ID: \(activity.id)")
-                print("   - Push Token: \(tokenString)")
-                print("   - Token Data: \(pushToken.base64EncodedString())")
+                Log.i("📱 Live Activity Push Token Updated:", category: "Notification")
+                Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+                Log.i("   - Push Token: \(tokenString)", category: "Notification")
+                Log.i("   - Token Data: \(pushToken.base64EncodedString())", category: "Notification")
 
                 // TODO: Send this token to your backend server
                 // await sendPushTokenToServer(activityId: activity.id, token: tokenString)
@@ -184,7 +185,7 @@ public final class LiveActivityManager: ObservableObject {
     private func stopObservingPushToken() {
         pushTokenTask?.cancel()
         pushTokenTask = nil
-        print("🔕 Stopped push token observation")
+        Log.i("🔕 Stopped push token observation", category: "Notification")
     }
 }
 

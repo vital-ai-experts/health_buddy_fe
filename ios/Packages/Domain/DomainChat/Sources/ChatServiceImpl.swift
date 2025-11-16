@@ -1,5 +1,6 @@
 import Foundation
 import LibraryNetworking
+import LibraryBase
 
 /// Default implementation of ChatService
 public final class ChatServiceImpl: ChatService {
@@ -130,16 +131,16 @@ public final class ChatServiceImpl: ChatService {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let streamMessage = try decoder.decode(StreamMessage.self, from: data)
 
-            print("✅ [ChatService] Decoded StreamMessage")
-            print("  id: \(streamMessage.id)")
-            print("  msgId: \(streamMessage.data.msgId)")
-            print("  dataType: \(streamMessage.data.dataType)")
-            print("  conversationId: \(streamMessage.data.conversationId ?? "nil")")
-            print("  content length: \(streamMessage.data.content?.count ?? 0)")
+            Log.i("✅ [ChatService] Decoded StreamMessage", category: "Chat")
+            Log.i("  id: \(streamMessage.id)", category: "Chat")
+            Log.i("  msgId: \(streamMessage.data.msgId)", category: "Chat")
+            Log.i("  dataType: \(streamMessage.data.dataType)", category: "Chat")
+            Log.i("  conversationId: \(streamMessage.data.conversationId ?? "nil")", category: "Chat")
+            Log.i("  content length: \(streamMessage.data.content?.count ?? 0)", category: "Chat")
 
             eventHandler(.streamMessage(streamMessage))
         } catch {
-            print("❌ [ChatService] Failed to decode: \(error)")
+            Log.e("❌ [ChatService] Failed to decode: \(error)", category: "Chat")
             eventHandler(.error("Failed to decode stream message: \(error.localizedDescription)"))
         }
     }

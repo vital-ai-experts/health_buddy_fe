@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import DomainHealth
 import FeatureChatImpl
+import LibraryBase
 
 @main
 @MainActor
@@ -40,11 +41,11 @@ struct MainApp: App {
                 configurations: [modelConfiguration]
             )
 
-            print("✅ SwiftData 模型容器初始化成功")
+            Log.i("✅ SwiftData 模型容器初始化成功", category: "App")
         } catch {
             // 降级处理：使用内存模式
-            print("⚠️ 无法初始化持久化 ModelContainer: \(error)")
-            print("⚠️ 使用内存模式代替")
+            Log.w("⚠️ 无法初始化持久化 ModelContainer: \(error)", category: "App")
+            Log.w("⚠️ 使用内存模式代替", category: "App")
 
             do {
                 let schema = Schema([
@@ -63,7 +64,7 @@ struct MainApp: App {
                     configurations: [modelConfiguration]
                 )
 
-                print("✅ SwiftData 内存模式初始化成功")
+                Log.i("✅ SwiftData 内存模式初始化成功", category: "App")
             } catch {
                 // 真正无法恢复的错误
                 fatalError("无法初始化 ModelContainer（包括内存模式）: \(error)")

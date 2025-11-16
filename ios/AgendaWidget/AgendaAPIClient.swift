@@ -1,4 +1,5 @@
 import Foundation
+import LibraryBase
 
 /// API client for Agenda task completion notifications
 actor AgendaAPIClient {
@@ -20,7 +21,7 @@ actor AgendaAPIClient {
         let endpoint = "\(baseURL)/api/agenda/task/complete"
 
         guard let url = URL(string: endpoint) else {
-            print("❌ Invalid API endpoint: \(endpoint)")
+            Log.e("❌ Invalid API endpoint: \(endpoint)", category: "AgendaAPI")
             throw APIError.invalidURL
         }
 
@@ -39,14 +40,14 @@ actor AgendaAPIClient {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            print("❌ Failed to serialize request payload: \(error)")
+            Log.e("❌ Failed to serialize request payload: \(error)", category: "AgendaAPI")
             throw APIError.serializationError
         }
 
-        print("📤 Sending task completion to server...")
-        print("   - URL: \(endpoint)")
-        print("   - User ID: \(userId)")
-        print("   - Task: \(task)")
+        Log.i("📤 Sending task completion to server...", category: "AgendaAPI")
+        Log.i("   - URL: \(endpoint)", category: "AgendaAPI")
+        Log.i("   - User ID: \(userId)", category: "AgendaAPI")
+        Log.i("   - Task: \(task)", category: "AgendaAPI")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -55,28 +56,28 @@ actor AgendaAPIClient {
                 throw APIError.invalidResponse
             }
 
-            print("📥 Server response: \(httpResponse.statusCode)")
+            Log.i("📥 Server response: \(httpResponse.statusCode)", category: "AgendaAPI")
 
             guard (200...299).contains(httpResponse.statusCode) else {
-                print("❌ Server returned error status: \(httpResponse.statusCode)")
+                Log.e("❌ Server returned error status: \(httpResponse.statusCode)", category: "AgendaAPI")
                 throw APIError.serverError(statusCode: httpResponse.statusCode)
             }
 
             // Log response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("   - Response body: \(responseString)")
+                Log.i("   - Response body: \(responseString)", category: "AgendaAPI")
             }
 
-            print("✅ Task completion notification sent successfully")
+            Log.i("✅ Task completion notification sent successfully", category: "AgendaAPI")
             return true
 
         } catch let error as APIError {
             throw error
         } catch {
-            print("❌ Network error: \(error)")
+            Log.e("❌ Network error: \(error)", category: "AgendaAPI")
             // Don't throw network errors - we want to continue even if server is unreachable
             // The server update is best-effort
-            print("⚠️ Continuing despite network error (best-effort)")
+            Log.w("⚠️ Continuing despite network error (best-effort)", category: "AgendaAPI")
             return false
         }
     }

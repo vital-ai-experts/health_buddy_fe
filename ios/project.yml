@@ -16,6 +16,8 @@ targetTemplates:
       Debug: Configs/Debug.xcconfig
       Release: Configs/Release.xcconfig
 packages:
+  LibraryBase:
+    path: Packages/Library/Base
   LibraryServiceLoader:
     path: Packages/Library/ServiceLoader
   LibraryThemeKit:
@@ -77,6 +79,8 @@ targets:
         buildPhase: resources
     resources: []
     dependencies:
+      - package: LibraryBase
+        product: LibraryBase
       - package: LibraryServiceLoader
         product: LibraryServiceLoader
       - package: LibraryThemeKit
@@ -136,6 +140,8 @@ targets:
     sources:
       - path: AgendaWidget
     dependencies:
+      - package: LibraryBase
+        product: LibraryBase
       - package: LibraryNotification
         product: LibraryNotification
 schemes:

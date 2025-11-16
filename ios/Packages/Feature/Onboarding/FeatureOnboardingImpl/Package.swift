@@ -7,6 +7,7 @@ let package = Package(
     products: [ .library(name: "FeatureOnboardingImpl", targets: ["FeatureOnboardingImpl"]) ],
     dependencies: [
         .package(name: "FeatureOnboardingApi", path: "../FeatureOnboardingApi"),
+        .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding"),
         .package(name: "DomainChat", path: "../../../Domain/DomainChat"),
@@ -18,6 +19,7 @@ let package = Package(
             name: "FeatureOnboardingImpl",
             dependencies: [
                 .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
+                .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "DomainOnboarding", package: "DomainOnboarding"),
                 .product(name: "DomainChat", package: "DomainChat"),

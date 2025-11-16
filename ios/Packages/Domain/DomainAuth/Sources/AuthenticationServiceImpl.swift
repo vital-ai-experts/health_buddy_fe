@@ -1,5 +1,6 @@
 import Foundation
 import LibraryNetworking
+import LibraryBase
 
 /// Default implementation of AuthenticationService
 public final class AuthenticationServiceImpl: AuthenticationService {
@@ -16,17 +17,17 @@ public final class AuthenticationServiceImpl: AuthenticationService {
 
         // Restore token if available
         if let token = tokenStorage.getToken() {
-            print("🔑 [AuthService] 初始化时从 Keychain 恢复 token: \(token.prefix(20))...")
+            Log.i("🔑 [AuthService] 初始化时从 Keychain 恢复 token: \(token.prefix(20))...", category: "Auth")
             if let expiry = tokenStorage.getTokenExpiry() {
-                print("🔑 [AuthService] Token 过期时间: \(expiry)")
-                print("🔑 [AuthService] 当前时间: \(Date())")
-                print("🔑 [AuthService] Token 是否过期: \(tokenStorage.isTokenExpired())")
+                Log.i("🔑 [AuthService] Token 过期时间: \(expiry)", category: "Auth")
+                Log.i("🔑 [AuthService] 当前时间: \(Date())", category: "Auth")
+                Log.i("🔑 [AuthService] Token 是否过期: \(tokenStorage.isTokenExpired())", category: "Auth")
             } else {
-                print("⚠️ [AuthService] 没有找到 token 过期时间")
+                Log.w("⚠️ [AuthService] 没有找到 token 过期时间", category: "Auth")
             }
             apiClient.setAuthToken(token)
         } else {
-            print("⚠️ [AuthService] Keychain 中没有 token")
+            Log.w("⚠️ [AuthService] Keychain 中没有 token", category: "Auth")
         }
     }
 
@@ -64,8 +65,8 @@ public final class AuthenticationServiceImpl: AuthenticationService {
 
         let tokenResponse: TokenResponse = try await apiClient.request(endpoint, responseType: TokenResponse.self)
 
-        print("🔑 [AuthService] 登录成功，收到 token: \(tokenResponse.accessToken.prefix(20))...")
-        print("🔑 [AuthService] Token 有效期（秒）: \(tokenResponse.expiresIn)")
+        Log.i("🔑 [AuthService] 登录成功，收到 token: \(tokenResponse.accessToken.prefix(20))...", category: "Auth")
+        Log.i("🔑 [AuthService] Token 有效期（秒）: \(tokenResponse.expiresIn)", category: "Auth")
 
         // Save token and expiry time
         try saveTokenWithExpiry(token: tokenResponse.accessToken, expiresIn: tokenResponse.expiresIn)
@@ -133,10 +134,10 @@ public final class AuthenticationServiceImpl: AuthenticationService {
         let isExpired = tokenStorage.isTokenExpired()
         let isAuth = hasToken && !isExpired
 
-        print("🔑 [AuthService] isAuthenticated 检查:")
-        print("  - 有 token: \(hasToken)")
-        print("  - token 已过期: \(isExpired)")
-        print("  - 最终结果: \(isAuth)")
+        Log.i("🔑 [AuthService] isAuthenticated 检查:", category: "Auth")
+        Log.i("  - 有 token: \(hasToken)", category: "Auth")
+        Log.i("  - token 已过期: \(isExpired)", category: "Auth")
+        Log.i("  - 最终结果: \(isAuth)", category: "Auth")
 
         return isAuth
     }
@@ -156,30 +157,30 @@ public final class AuthenticationServiceImpl: AuthenticationService {
     
     /// 保存 token 和过期时间
     private func saveTokenWithExpiry(token: String, expiresIn: Int) throws {
-        print("🔑 [AuthService] 开始保存 token 到 Keychain...")
+        Log.i("🔑 [AuthService] 开始保存 token 到 Keychain...", category: "Auth")
         try tokenStorage.saveToken(token)
-        print("🔑 [AuthService] Token 保存成功")
+        Log.i("🔑 [AuthService] Token 保存成功", category: "Auth")
 
         apiClient.setAuthToken(token)
 
         // 计算过期时间（当前时间 + expiresIn 秒）
         let expiryDate = Date().addingTimeInterval(TimeInterval(expiresIn))
-        print("🔑 [AuthService] 计算过期时间: \(expiryDate)")
+        Log.i("🔑 [AuthService] 计算过期时间: \(expiryDate)", category: "Auth")
 
         try tokenStorage.saveTokenExpiry(expiryDate)
-        print("🔑 [AuthService] 过期时间保存成功")
+        Log.i("🔑 [AuthService] 过期时间保存成功", category: "Auth")
 
         // 验证保存
         if let savedToken = tokenStorage.getToken() {
-            print("🔑 [AuthService] 验证：成功读取保存的 token: \(savedToken.prefix(20))...")
+            Log.i("🔑 [AuthService] 验证：成功读取保存的 token: \(savedToken.prefix(20))...", category: "Auth")
         } else {
-            print("❌ [AuthService] 验证失败：无法读取刚保存的 token")
+            Log.e("❌ [AuthService] 验证失败：无法读取刚保存的 token", category: "Auth")
         }
 
         if let savedExpiry = tokenStorage.getTokenExpiry() {
-            print("🔑 [AuthService] 验证：成功读取保存的过期时间: \(savedExpiry)")
+            Log.i("🔑 [AuthService] 验证：成功读取保存的过期时间: \(savedExpiry)", category: "Auth")
         } else {
-            print("❌ [AuthService] 验证失败：无法读取刚保存的过期时间")
+            Log.e("❌ [AuthService] 验证失败：无法读取刚保存的过期时间", category: "Auth")
         }
     }
 }

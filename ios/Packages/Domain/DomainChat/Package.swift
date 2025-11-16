@@ -6,6 +6,7 @@ let package = Package(
     platforms: [ .iOS(.v17) ],
     products: [ .library(name: "DomainChat", targets: ["DomainChat"]) ],
     dependencies: [
+        .package(name: "LibraryBase", path: "../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../Library/ServiceLoader"),
         .package(name: "LibraryNetworking", path: "../../Library/Networking")
     ],
@@ -13,6 +14,7 @@ let package = Package(
         .target(
             name: "DomainChat",
             dependencies: [
+                .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "LibraryNetworking", package: "LibraryNetworking")
             ],

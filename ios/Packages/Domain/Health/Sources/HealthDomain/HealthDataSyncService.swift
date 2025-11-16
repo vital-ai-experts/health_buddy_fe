@@ -7,6 +7,7 @@
 
 import Foundation
 import HealthKit
+import LibraryBase
 import LibraryNetworking
 
 /// 后台健康数据同步服务，负责聚合并上传数据到服务器
@@ -26,14 +27,14 @@ public final class HealthDataSyncService {
             do {
                 // 检查 HealthKit 是否可用
                 guard HKHealthStore.isHealthDataAvailable() else {
-                    print("⚠️ HealthKit 不可用，跳过后台同步")
+                    Log.w("⚠️ HealthKit 不可用，跳过后台同步", category: "Health")
                     return
                 }
 
                 // 检查授权状态
                 let authStatus = await healthKitManager.authorizationStatus()
                 guard authStatus == .authorized else {
-                    print("⚠️ HealthKit 未授权，跳过后台同步")
+                    Log.w("⚠️ HealthKit 未授权，跳过后台同步", category: "Health")
                     return
                 }
 
@@ -49,9 +50,9 @@ public final class HealthDataSyncService {
                     }
                 }
 
-                print("✅ 后台健康数据同步已启动")
+                Log.i("✅ 后台健康数据同步已启动", category: "Health")
             } catch {
-                print("❌ 启动后台同步失败: \(error.localizedDescription)")
+                Log.e("❌ 启动后台同步失败: \(error.localizedDescription)", category: "Health")
             }
         }
     }
@@ -59,7 +60,7 @@ public final class HealthDataSyncService {
     /// 停止后台同步
     public func stopBackgroundSync() {
         healthKitManager.stopBackgroundDelivery()
-        print("⏹️ 后台健康数据同步已停止")
+        Log.i("⏹️ 后台健康数据同步已停止", category: "Health")
     }
 
     /// 同步健康数据到服务器
@@ -67,7 +68,7 @@ public final class HealthDataSyncService {
     private func syncHealthData() async {
         // 防止重复同步
         guard !isSyncInProgress else {
-            print("⚠️ 同步正在进行中，跳过本次请求")
+            Log.w("⚠️ 同步正在进行中，跳过本次请求", category: "Health")
             return
         }
 
@@ -75,7 +76,7 @@ public final class HealthDataSyncService {
         defer { isSyncInProgress = false }
 
         do {
-            print("📤 开始同步健康数据...")
+            Log.i("📤 开始同步健康数据...", category: "Health")
 
             // 使用统一的健康数据采集方法
             let healthDataJSON = try await healthKitManager.fetchRecentDataAsJSON()
@@ -83,9 +84,9 @@ public final class HealthDataSyncService {
             // 上传到服务器
             try await uploadToServer(healthDataJSON)
 
-            print("✅ 健康数据同步成功")
+            Log.i("✅ 健康数据同步成功", category: "Health")
         } catch {
-            print("❌ 健康数据同步失败: \(error.localizedDescription)")
+            Log.e("❌ 健康数据同步失败: \(error.localizedDescription)", category: "Health")
         }
     }
 
@@ -120,7 +121,7 @@ public final class HealthDataSyncService {
             responseType: UploadResponse.self
         )
 
-        print("✅ 服务器响应: \(response.message ?? "成功")")
+        Log.i("✅ 服务器响应: \(response.message ?? "成功")", category: "Health")
     }
 }
 

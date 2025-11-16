@@ -1,6 +1,7 @@
 import SwiftUI
 import FeatureAgendaApi
 import LibraryServiceLoader
+import LibraryBase
 
 struct AgendaSettingsView: View {
     @StateObject private var viewModel = AgendaSettingsViewModel()
@@ -131,7 +132,7 @@ final class AgendaSettingsViewModel: ObservableObject {
             isActive = true
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to start agenda: \(error)")
+            Log.e("❌ Failed to start agenda: \(error)", category: "Agenda")
         }
     }
 
@@ -143,7 +144,7 @@ final class AgendaSettingsViewModel: ObservableObject {
             isActive = false
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to stop agenda: \(error)")
+            Log.e("❌ Failed to stop agenda: \(error)", category: "Agenda")
         }
     }
 }
