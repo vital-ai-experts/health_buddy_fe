@@ -74,12 +74,7 @@ public class NotificationManager: NSObject, ObservableObject {
         }
 
         // 上报设备信息
-        do {
-            try await DeviceTrackManager.shared.report(deviceToken: deviceToken, accessToken: accessToken)
-            Log.i("✅ [NotificationManager] 设备信息上报成功", category: "Notification")
-        } catch {
-            Log.e("❌ [NotificationManager] 设备信息上报失败: \(error.localizedDescription)", error: error, category: "Notification")
-        }
+        await DeviceTrackManager.shared.report(deviceToken: deviceToken, accessToken: accessToken)
     }
 
     /// 记录注册失败
