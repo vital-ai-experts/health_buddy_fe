@@ -129,3 +129,4 @@ For detailed information on any of these topics, refer to [AGENTS.md](./AGENTS.m
 3. ✅ Package names must match directory names exactly
 4. ✅ Features depend only on Feature APIs, never Impl
 5. ✅ Regenerate project after Package.swift changes: `scripts/generate_project.sh`
+6. ✅ Check CI status with `.github/check_ci_status.sh` when you are running in a sandboxed environment (Codex, Claude Code web)

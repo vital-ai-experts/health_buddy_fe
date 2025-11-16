@@ -146,5 +146,10 @@ schemes:
         AgendaWidget: all
     run:
       config: Debug
+      executable: ThriveBody
+    test:
+      config: Debug
     archive:
       config: Release
+    management:
+      shared: true
