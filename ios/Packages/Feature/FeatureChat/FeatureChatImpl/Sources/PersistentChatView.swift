@@ -264,19 +264,19 @@ final class PersistentChatViewModel: ObservableObject {
                 return
             }
 
-            let serverUpdatedAt = parseDate(latestConversation.updatedAt)
+            let serverUpdatedAt = parseDate(latestConversation.createdAt)
 
             // 如果本地没有conversationId，直接使用服务端最新的
             if conversationId == nil {
                 conversationId = latestConversation.id
                 conversationUpdatedAt = serverUpdatedAt
-                Log.i("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.updatedAt)", category: "Chat")
+                Log.i("📝 [PersistentChat] 使用最新的conversation: \(latestConversation.id), 更新时间: \(latestConversation.createdAt)", category: "Chat")
             }
             // 如果本地有conversationId，比较更新时间
             else if let localUpdatedAt = conversationUpdatedAt {
                 // 比较本地和服务端的更新时间，选择更新的那个
                 if serverUpdatedAt > localUpdatedAt {
-                    Log.i("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.updatedAt))，切换到最新对话: \(latestConversation.id)", category: "Chat")
+                    Log.i("📝 [PersistentChat] 服务端对话更新 (\(latestConversation.createdAt))，切换到最新对话: \(latestConversation.id)", category: "Chat")
                     conversationId = latestConversation.id
                     conversationUpdatedAt = serverUpdatedAt
                 } else {
@@ -291,7 +291,7 @@ final class PersistentChatViewModel: ObservableObject {
             } else {
                 // ID相同，更新时间戳
                 conversationUpdatedAt = serverUpdatedAt
-                Log.i("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.updatedAt)", category: "Chat")
+                Log.i("📝 [PersistentChat] 更新对话时间戳: \(latestConversation.createdAt)", category: "Chat")
             }
         } catch {
             Log.w("⚠️ [PersistentChat] 获取最新conversation失败: \(error)", category: "Chat")
