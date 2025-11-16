@@ -2,6 +2,7 @@ import Foundation
 import LibraryNetworking
 import LibraryBase
 import LibraryTrack
+import LibraryNotification
 
 /// Default implementation of AuthenticationService
 public final class AuthenticationServiceImpl: AuthenticationService {
@@ -57,6 +58,9 @@ public final class AuthenticationServiceImpl: AuthenticationService {
         let user = try await getCurrentUser()
         self.currentUser = user
 
+        // Report device info if device token is available
+        await NotificationManager.shared.reportDeviceInfoIfPossible()
+
         return user
     }
 
@@ -87,6 +91,9 @@ public final class AuthenticationServiceImpl: AuthenticationService {
         // Fetch user profile
         let user = try await getCurrentUser()
         self.currentUser = user
+
+        // Report device info if device token is available
+        await NotificationManager.shared.reportDeviceInfoIfPossible()
 
         return user
     }
