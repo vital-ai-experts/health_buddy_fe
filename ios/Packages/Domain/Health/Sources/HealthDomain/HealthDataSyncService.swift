@@ -63,6 +63,11 @@ public final class HealthDataSyncService {
         Log.i("⏹️ 后台健康数据同步已停止", category: "Health")
     }
 
+    /// 手动触发一次健康数据同步（用于授权后立即上报）
+    public func syncOnce() async {
+        await syncHealthData()
+    }
+
     /// 同步健康数据到服务器
     @MainActor
     private func syncHealthData() async {

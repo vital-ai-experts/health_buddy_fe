@@ -39,7 +39,20 @@ final class HealthKitAuthorizationService: AuthorizationService {
     func requestAuthorization() async throws -> AuthorizationState {
         try await healthKitManager.requestAuthorization()
         let status = await healthKitManager.authorizationStatus()
-        return mapStatus(status)
+        let authState = mapStatus(status)
+
+        // 授权成功后，启动后台同步并主动上报一次数据
+        if authState == .authorized {
+            Task {
+                // 1. 启动后台数据同步监听
+                HealthDataSyncService.shared.startBackgroundSync()
+
+                // 2. 主动上报一次数据
+                await HealthDataSyncService.shared.syncOnce()
+            }
+        }
+
+        return authState
     }
 
     private func mapStatus(_ state: HealthKitManager.HealthKitAuthorizationState) -> AuthorizationState {
