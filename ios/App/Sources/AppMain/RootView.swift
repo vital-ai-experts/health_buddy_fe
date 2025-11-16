@@ -150,7 +150,9 @@ struct RootView: View {
             await triggerNetworkPermissionWithRetry()
 
             // 注册设备（异步，不阻塞流程）
-            await registerDevice()
+            Task {
+                await registerDevice()
+            }
         }
 
         // 确定应用初始状态
