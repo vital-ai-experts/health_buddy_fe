@@ -68,7 +68,7 @@ public class NotificationManager: NSObject, ObservableObject {
         }
 
         // 检查是否有 access token
-        guard let accessToken = KeychainManager.shared.getToken() else {
+        guard let accessToken = UserDefaultsTokenStorage.shared.getToken() else {
             Log.w("⚠️ [NotificationManager] 用户未登录，稍后会在登录后上报", category: "Notification")
             return
         }

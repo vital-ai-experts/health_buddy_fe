@@ -44,8 +44,8 @@ public struct UserResponse: Codable {
     public let id: String
     public let email: String?  // 根据 IDL，email 是可选的
     public let fullName: String?  // 根据 IDL，fullName 是可选的
-    public let createdAt: String
-    public let updatedAt: String  // 根据 IDL，添加 updatedAt 字段
+    public let createdAt: String?
+    public let updatedAt: String?  // 根据 IDL，添加 updatedAt 字段
     // Note: CodingKeys removed - using keyDecodingStrategy = .convertFromSnakeCase from APIClient
 }
 
@@ -69,8 +69,8 @@ public struct User {
     public init(from response: UserResponse) {
         self.id = response.id
         self.email = response.email ?? ""
-        self.fullName = response.fullName ?? ""
-        self.createdAt = response.createdAt
-        self.updatedAt = response.updatedAt
+        self.fullName = response.fullName ?? "Name"
+        self.createdAt = response.createdAt ?? ""
+        self.updatedAt = response.updatedAt ?? ""
     }
 }

@@ -2,8 +2,8 @@ import Foundation
 
 /// Local storage for authentication tokens using UserDefaults
 /// Note: Token will be automatically cleared when app is uninstalled
-public final class KeychainManager {
-    public static let shared = KeychainManager()
+public final class UserDefaultsTokenStorage {
+    public static let shared = UserDefaultsTokenStorage()
 
     private let tokenKey = "com.hehigh.thrivebody.authToken"
     private let tokenExpiryKey = "com.hehigh.thrivebody.tokenExpiry"
@@ -59,7 +59,7 @@ public final class KeychainManager {
     }
 }
 
-public enum KeychainError: LocalizedError {
+public enum TokenStorageError: LocalizedError {
     case saveFailed(OSStatus)
     case deleteFailed(OSStatus)
 

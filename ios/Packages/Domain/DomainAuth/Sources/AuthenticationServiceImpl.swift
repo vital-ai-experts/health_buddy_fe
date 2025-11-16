@@ -207,37 +207,37 @@ public final class AuthenticationServiceImpl: AuthenticationService {
 
 /// Keychain-based token storage
 public final class KeychainTokenStorage: TokenStorage {
-    private let keychainManager: KeychainManager
+    private let storage: UserDefaultsTokenStorage
 
-    public init(keychainManager: KeychainManager = .shared) {
-        self.keychainManager = keychainManager
+    public init(storage: UserDefaultsTokenStorage = .shared) {
+        self.storage = storage
     }
 
     public func saveToken(_ token: String) throws {
-        try keychainManager.saveToken(token)
+        try storage.saveToken(token)
     }
 
     public func getToken() -> String? {
-        return keychainManager.getToken()
+        return storage.getToken()
     }
 
     public func deleteToken() throws {
-        try keychainManager.deleteToken()
+        try storage.deleteToken()
     }
-    
+
     public func saveTokenExpiry(_ expiryDate: Date) throws {
-        try keychainManager.saveTokenExpiry(expiryDate)
+        try storage.saveTokenExpiry(expiryDate)
     }
-    
+
     public func getTokenExpiry() -> Date? {
-        return keychainManager.getTokenExpiry()
+        return storage.getTokenExpiry()
     }
-    
+
     public func isTokenExpired() -> Bool {
-        return keychainManager.isTokenExpired()
+        return storage.isTokenExpired()
     }
-    
+
     public func isTokenExpiringSoon() -> Bool {
-        return keychainManager.isTokenExpiringSoon()
+        return storage.isTokenExpiringSoon()
     }
 }

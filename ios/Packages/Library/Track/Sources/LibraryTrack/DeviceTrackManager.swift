@@ -45,6 +45,9 @@ public class DeviceTrackManager {
     /// Errors are logged internally and do not propagate to caller
     public func register(deviceToken: String = "") async {
         do {
+            if let cachedDeviceId = cachedDeviceId, !cachedDeviceId.isEmpty {
+                return
+            }
             // Get unique identifier (IDFV or stored UUID)
             let uniqueIdentifier = getOrCreateUniqueIdentifier()
 
@@ -128,6 +131,13 @@ public class DeviceTrackManager {
             return cached
         }
 
+        // Check if we have a stored UUID
+        if let storedUUID = storage.getUniqueIdentifier() {
+            Log.d("📱 [DeviceTrack] 使用存储的 UUID: \(storedUUID)", category: "DeviceTrack")
+            cachedUniqueIdentifier = storedUUID
+            return storedUUID
+        }
+
         // Try to get IDFV (Identifier for Vendor)
         if let idfv = UIDevice.current.identifierForVendor?.uuidString {
             Log.d("📱 [DeviceTrack] 使用 IDFV: \(idfv)", category: "DeviceTrack")
@@ -139,13 +149,6 @@ public class DeviceTrackManager {
                 Log.w("⚠️ [DeviceTrack] 保存 IDFV 失败: \(error.localizedDescription)", category: "DeviceTrack")
             }
             return idfv
-        }
-
-        // IDFV not available, check if we have a stored UUID
-        if let storedUUID = storage.getUniqueIdentifier() {
-            Log.d("📱 [DeviceTrack] 使用存储的 UUID: \(storedUUID)", category: "DeviceTrack")
-            cachedUniqueIdentifier = storedUUID
-            return storedUUID
         }
 
         // Generate new UUID and store it
