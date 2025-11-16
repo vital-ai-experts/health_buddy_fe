@@ -100,8 +100,8 @@ final class PersistentChatViewModel: ObservableObject {
     private var lastDataId: String?  // 用于断线重连
     private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
     private var savedMessageIds: Set<String> = []  // 已保存到本地的消息ID
-    private var loadedMessageCount = 0  // 已加载的消息数量
-    private var totalMessageCount = 0  // 数据库中的总消息数量
+    private var oldestLoadedMessageDate: Date?  // 已加载的最旧消息的时间（用于游标分页）
+    private var hasMoreMessagesToLoad = true  // 是否还有更多历史消息可以加载
     private var conversationUpdatedAt: Date?  // 对话的最后更新时间
 
     private let initialLoadLimit = 10  // 初次加载消息数量
@@ -113,7 +113,7 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     var hasMoreMessages: Bool {
-        loadedMessageCount < totalMessageCount
+        hasMoreMessagesToLoad
     }
 
     func initialize(modelContext: ModelContext) async {
@@ -137,13 +137,10 @@ final class PersistentChatViewModel: ObservableObject {
         guard let storageService = storageService else { return }
 
         do {
-            // 获取总消息数量
-            totalMessageCount = try storageService.getMessageCount()
-
-            // 只加载最近的10条消息（已按时间正序排列）
+            // 加载最近的10条消息（使用游标分页）
             let localMessages = try storageService.fetchRecentMessages(
                 limit: initialLoadLimit,
-                offset: 0
+                beforeDate: nil  // nil 表示从最新的消息开始
             )
 
             displayMessages = localMessages.map { localMsg in
@@ -159,7 +156,13 @@ final class PersistentChatViewModel: ObservableObject {
             // 确保按时间正序排列（最新的在最后）
             displayMessages.sort { $0.timestamp < $1.timestamp }
 
-            loadedMessageCount = localMessages.count
+            // 记录最旧消息的时间作为下次加载的游标
+            if let oldestMessage = localMessages.first {
+                oldestLoadedMessageDate = oldestMessage.createdAt
+            }
+
+            // 如果加载的消息数量少于限制，说明没有更多了
+            hasMoreMessagesToLoad = localMessages.count >= initialLoadLimit
 
             // 如果有消息，尝试恢复conversationId
             if let lastMsg = localMessages.last, let convId = lastMsg.conversationId {
@@ -169,9 +172,9 @@ final class PersistentChatViewModel: ObservableObject {
             savedMessageIds = Set(localMessages.map { $0.id })
             rebuildMessageMap()
 
-            Log.i("✅ 加载了 \(localMessages.count) 条本地消息（共 \(totalMessageCount) 条）", category: "Chat")
+            Log.i("✅ 加载了 \(localMessages.count) 条本地消息", category: "Chat")
             if hasMoreMessages {
-                Log.i("📚 还有 \(totalMessageCount - loadedMessageCount) 条更早的消息", category: "Chat")
+                Log.i("📚 还有更早的消息可以加载", category: "Chat")
             }
         } catch {
             Log.e("❌ 加载本地消息失败: \(error.localizedDescription)", category: "Chat")
@@ -190,19 +193,24 @@ final class PersistentChatViewModel: ObservableObject {
             return
         }
         guard let storageService = storageService else { return }
+        guard let oldestDate = oldestLoadedMessageDate else {
+            Log.i("📭 没有游标，无法加载更多", category: "Chat")
+            return
+        }
 
         isLoadingMore = true
-        Log.i("📥 开始加载更多消息，当前已加载: \(loadedMessageCount)", category: "Chat")
+        Log.i("📥 开始加载更多消息，游标时间: \(oldestDate)", category: "Chat")
 
         do {
-            // 从当前已加载的位置继续加载
+            // 使用游标加载更旧的消息
             let olderMessages = try storageService.fetchRecentMessages(
                 limit: loadMoreLimit,
-                offset: loadedMessageCount
+                beforeDate: oldestDate
             )
 
             if olderMessages.isEmpty {
                 Log.i("📭 没有更多消息了", category: "Chat")
+                hasMoreMessagesToLoad = false
             } else {
                 // 将更早的消息插入到列表前面
                 let newChatMessages = olderMessages.map { localMsg in
@@ -216,10 +224,19 @@ final class PersistentChatViewModel: ObservableObject {
                 }
 
                 displayMessages.insert(contentsOf: newChatMessages, at: 0)
-                loadedMessageCount += olderMessages.count
 
                 // 确保按时间正序排列（最新的在最后）
                 displayMessages.sort { $0.timestamp < $1.timestamp }
+
+                // 更新游标为新加载的最旧消息的时间
+                if let newOldestMessage = olderMessages.first {
+                    oldestLoadedMessageDate = newOldestMessage.createdAt
+                }
+
+                // 如果加载的消息数量少于限制，说明没有更多了
+                if olderMessages.count < loadMoreLimit {
+                    hasMoreMessagesToLoad = false
+                }
 
                 // 更新savedMessageIds
                 savedMessageIds.formUnion(olderMessages.map { $0.id })
@@ -227,7 +244,7 @@ final class PersistentChatViewModel: ObservableObject {
                 // 重建messageMap（索引变了）
                 rebuildMessageMap()
 
-                Log.i("✅ 加载了 \(olderMessages.count) 条更早的消息，总计: \(loadedMessageCount)/\(totalMessageCount)", category: "Chat")
+                Log.i("✅ 加载了 \(olderMessages.count) 条更早的消息", category: "Chat")
             }
         } catch {
             Log.e("❌ 加载更多消息失败: \(error.localizedDescription)", category: "Chat")
@@ -353,10 +370,9 @@ final class PersistentChatViewModel: ObservableObject {
                 // 重建messageMap(因为索引变了)
                 rebuildMessageMap()
 
-                // 更新计数器
-                loadedMessageCount = displayMessages.count
-                if let storageService = storageService {
-                    totalMessageCount = (try? storageService.getMessageCount()) ?? totalMessageCount
+                // 更新游标：取最旧消息的时间
+                if let oldestMessage = displayMessages.first {
+                    oldestLoadedMessageDate = oldestMessage.timestamp
                 }
 
                 Log.i("✅ [PersistentChat] 消息同步完成，当前显示: \(displayMessages.count)条", category: "Chat")
@@ -712,8 +728,8 @@ final class PersistentChatViewModel: ObservableObject {
             conversationUpdatedAt = nil
             messageMap.removeAll()
             savedMessageIds.removeAll()
-            loadedMessageCount = 0
-            totalMessageCount = 0
+            oldestLoadedMessageDate = nil
+            hasMoreMessagesToLoad = true
             Log.i("✅ 历史记录已清除", category: "Chat")
         } catch {
             Log.e("❌ 清除历史记录失败: \(error.localizedDescription)", category: "Chat")

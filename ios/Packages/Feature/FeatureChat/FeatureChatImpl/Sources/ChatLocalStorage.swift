@@ -58,29 +58,32 @@ public final class ChatStorageService {
         return try modelContext.fetch(descriptor)
     }
 
-    /// 分页获取最近的消息
+    /// 基于游标的分页获取最近的消息（使用 createdAt 作为游标）
     /// - Parameters:
     ///   - limit: 每页消息数量
-    ///   - offset: 跳过的消息数量（从最新往旧数，offset=0表示最新的消息）
+    ///   - beforeDate: 游标，获取此时间之前的消息。nil 表示获取最新的消息
     /// - Returns: 消息列表，按时间正序排列（旧的在前，新的在后）
-    public func fetchRecentMessages(limit: Int, offset: Int = 0) throws -> [LocalChatMessage] {
-        // 先按时间倒序获取所有消息（最新的在前），这样offset=0时能拿到最近的消息
-        let descriptor = FetchDescriptor<LocalChatMessage>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let allMessages = try modelContext.fetch(descriptor)
+    public func fetchRecentMessages(limit: Int, beforeDate: Date? = nil) throws -> [LocalChatMessage] {
+        var descriptor: FetchDescriptor<LocalChatMessage>
 
-        // 计算分页范围
-        let start = offset
-        let end = min(start + limit, allMessages.count)
-
-        guard start < allMessages.count else {
-            return []
+        if let beforeDate = beforeDate {
+            // 获取指定时间之前的消息，按时间倒序
+            descriptor = FetchDescriptor<LocalChatMessage>(
+                predicate: #Predicate { $0.createdAt < beforeDate },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+        } else {
+            // 获取最新的消息，按时间倒序
+            descriptor = FetchDescriptor<LocalChatMessage>(
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
         }
 
-        // 取出这一页的消息，然后反转成时间正序（旧的在前，新的在后）
-        let pageMessages = Array(allMessages[start..<end])
-        return pageMessages.reversed()
+        descriptor.fetchLimit = limit
+        let messages = try modelContext.fetch(descriptor)
+
+        // 反转成时间正序（旧的在前，新的在后）
+        return messages.reversed()
     }
 
     /// 删除所有本地消息
