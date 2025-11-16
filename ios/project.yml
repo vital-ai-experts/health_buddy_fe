@@ -69,7 +69,6 @@ targets:
       GENERATE_INFOPLIST_FILE: NO
     sources:
       - path: App/Sources
-      - path: AgendaWidget/ToggleTaskIntent.swift
       - path: App/Resources/Assets.xcassets
         buildPhase: resources
       - path: App/Resources/en.lproj
