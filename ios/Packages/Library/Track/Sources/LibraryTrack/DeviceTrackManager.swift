@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 import LibraryNetworking
+import LibraryBase
 
 /// Device tracking manager for registration and reporting
 @MainActor
@@ -37,62 +38,72 @@ public class DeviceTrackManager {
     /// Register device with the server
     /// This should be called after network status is confirmed
     /// The call is async and non-blocking
-    public func register(deviceToken: String = "") async throws -> String {
-        // Get unique identifier (IDFV or stored UUID)
-        let uniqueIdentifier = getOrCreateUniqueIdentifier()
+    /// Errors are logged internally and do not propagate to caller
+    public func register(deviceToken: String = "") async {
+        do {
+            // Get unique identifier (IDFV or stored UUID)
+            let uniqueIdentifier = getOrCreateUniqueIdentifier()
 
-        // Create request
-        let request = RegisterDeviceRequest(
-            platform: .ios,
-            uniqueIdentifier: uniqueIdentifier,
-            deviceToken: deviceToken
-        )
+            // Create request
+            let request = RegisterDeviceRequest(
+                platform: .ios,
+                uniqueIdentifier: uniqueIdentifier,
+                deviceToken: deviceToken
+            )
 
-        let endpoint = APIEndpoint(
-            path: "/device/register",
-            method: .post,
-            body: request,
-            requiresAuth: false
-        )
+            let endpoint = APIEndpoint(
+                path: "/device/register",
+                method: .post,
+                body: request,
+                requiresAuth: false
+            )
 
-        let response: RegisterDeviceResponse = try await apiClient.request(endpoint, responseType: RegisterDeviceResponse.self)
+            let response: RegisterDeviceResponse = try await apiClient.request(endpoint, responseType: RegisterDeviceResponse.self)
 
-        // Store device ID
-        try storage.saveDeviceId(response.deviceId)
-        cachedDeviceId = response.deviceId
+            // Store device ID
+            try storage.saveDeviceId(response.deviceId)
+            cachedDeviceId = response.deviceId
 
-        print("✅ [DeviceTrack] Device registered successfully. Device ID: \(response.deviceId)")
-
-        return response.deviceId
+            Log.i("✅ [DeviceTrack] 设备注册成功，Device ID: \(response.deviceId)", category: "DeviceTrack")
+        } catch {
+            Log.e("❌ [DeviceTrack] 设备注册失败: \(error.localizedDescription)", error: error, category: "DeviceTrack")
+            // 注册失败不影响应用正常使用
+        }
     }
 
     /// Report device info (device token) to server
     /// This should be called when the device token is received from push notifications
-    public func report(deviceToken: String, accessToken: String) async throws {
-        guard let deviceId = getDeviceId() else {
-            throw DeviceTrackError.noDeviceId
+    /// Errors are logged internally and do not propagate to caller
+    public func report(deviceToken: String, accessToken: String) async {
+        do {
+            guard let deviceId = getDeviceId() else {
+                Log.w("⚠️ [DeviceTrack] 没有 device ID，无法上报设备信息", category: "DeviceTrack")
+                return
+            }
+
+            let request = ReportDeviceInfoRequest(
+                deviceId: deviceId,
+                deviceToken: deviceToken
+            )
+
+            let endpoint = APIEndpoint(
+                path: "/device/info/report",
+                method: .post,
+                body: request,
+                requiresAuth: true
+            )
+
+            // Set auth token temporarily for this request
+            let originalToken = apiClient.getAuthToken()
+            apiClient.setAuthToken(accessToken)
+            defer { apiClient.setAuthToken(originalToken) }
+
+            let _: ReportDeviceInfoResponse = try await apiClient.request(endpoint, responseType: ReportDeviceInfoResponse.self)
+
+            Log.i("✅ [DeviceTrack] 设备信息上报成功", category: "DeviceTrack")
+        } catch {
+            Log.e("❌ [DeviceTrack] 设备信息上报失败: \(error.localizedDescription)", error: error, category: "DeviceTrack")
         }
-
-        let request = ReportDeviceInfoRequest(
-            deviceId: deviceId,
-            deviceToken: deviceToken
-        )
-
-        let endpoint = APIEndpoint(
-            path: "/device/info/report",
-            method: .post,
-            body: request,
-            requiresAuth: true
-        )
-
-        // Set auth token temporarily for this request
-        let originalToken = apiClient.getAuthToken()
-        apiClient.setAuthToken(accessToken)
-        defer { apiClient.setAuthToken(originalToken) }
-
-        let _: ReportDeviceInfoResponse = try await apiClient.request(endpoint, responseType: ReportDeviceInfoResponse.self)
-
-        print("✅ [DeviceTrack] Device info reported successfully")
     }
 
     /// Get cached device ID
@@ -108,13 +119,13 @@ public class DeviceTrackManager {
     private func getOrCreateUniqueIdentifier() -> String {
         // Try to get IDFV (Identifier for Vendor)
         if let idfv = UIDevice.current.identifierForVendor?.uuidString {
-            print("📱 [DeviceTrack] Using IDFV: \(idfv)")
+            Log.d("📱 [DeviceTrack] 使用 IDFV: \(idfv)", category: "DeviceTrack")
             return idfv
         }
 
         // IDFV not available, check if we have a stored UUID
         if let storedUUID = storage.getUniqueIdentifier() {
-            print("📱 [DeviceTrack] Using stored UUID: \(storedUUID)")
+            Log.d("📱 [DeviceTrack] 使用存储的 UUID: \(storedUUID)", category: "DeviceTrack")
             return storedUUID
         }
 
@@ -122,9 +133,9 @@ public class DeviceTrackManager {
         let newUUID = UUID().uuidString
         do {
             try storage.saveUniqueIdentifier(newUUID)
-            print("📱 [DeviceTrack] Generated and stored new UUID: \(newUUID)")
+            Log.i("📱 [DeviceTrack] 生成并存储新 UUID: \(newUUID)", category: "DeviceTrack")
         } catch {
-            print("⚠️ [DeviceTrack] Failed to save UUID: \(error.localizedDescription)")
+            Log.w("⚠️ [DeviceTrack] 保存 UUID 失败: \(error.localizedDescription)", category: "DeviceTrack")
         }
 
         return newUUID

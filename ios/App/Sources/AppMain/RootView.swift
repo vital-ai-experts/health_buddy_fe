@@ -244,13 +244,7 @@ struct RootView: View {
     /// 注册设备到服务器
     /// 异步调用，不阻塞后续流程
     private func registerDevice() async {
-        do {
-            let deviceId = try await DeviceTrackManager.shared.register()
-            Log.i("✅ [RootView] 设备注册成功，Device ID: \(deviceId)", category: "App")
-        } catch {
-            Log.e("❌ [RootView] 设备注册失败: \(error.localizedDescription)", error: error, category: "App")
-            // 注册失败不影响应用启动流程
-        }
+        await DeviceTrackManager.shared.register()
     }
 
     /// 触发网络权限请求，带智能重试
