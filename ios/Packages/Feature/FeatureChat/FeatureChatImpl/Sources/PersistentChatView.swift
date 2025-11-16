@@ -143,6 +143,11 @@ final class PersistentChatViewModel: ObservableObject {
                 beforeDate: nil  // nil 表示从最新的消息开始
             )
 
+            Log.i("📦 从数据库加载了 \(localMessages.count) 条消息", category: "Chat")
+            for (index, msg) in localMessages.enumerated() {
+                Log.i("  [\(index)] \(msg.isFromUser ? "用户" : "系统"): \(msg.content.prefix(20))... (id: \(msg.id.prefix(8))..., time: \(msg.createdAt))", category: "Chat")
+            }
+
             displayMessages = localMessages.map { localMsg in
                 ChatMessage(
                     id: localMsg.id,
@@ -155,6 +160,11 @@ final class PersistentChatViewModel: ObservableObject {
 
             // 确保按时间正序排列（最新的在最后）
             displayMessages.sort { $0.timestamp < $1.timestamp }
+
+            Log.i("📱 映射后显示 \(displayMessages.count) 条消息", category: "Chat")
+            let userCount = displayMessages.filter { $0.isFromUser }.count
+            let systemCount = displayMessages.filter { !$0.isFromUser }.count
+            Log.i("   用户消息: \(userCount) 条, 系统消息: \(systemCount) 条", category: "Chat")
 
             // 记录最旧消息的时间作为下次加载的游标
             if let oldestMessage = localMessages.first {
@@ -288,10 +298,17 @@ final class PersistentChatViewModel: ObservableObject {
         do {
             let allServerMessages = try await chatService.getConversationHistory(id: conversationId)
 
+            Log.i("📡 服务端返回 \(allServerMessages.count) 条消息", category: "Chat")
+            let serverUserCount = allServerMessages.filter { $0.role == .user }.count
+            let serverAssistantCount = allServerMessages.filter { $0.role == .assistant }.count
+            Log.i("   用户消息: \(serverUserCount) 条, 系统消息: \(serverAssistantCount) 条", category: "Chat")
+
             // 只保留系统消息(assistant messages)，过滤掉用户消息和空内容的消息
             // 因为从服务端拉到的用户消息没有msg_id，所以我们不要了
             // 同时过滤掉content为空的系统消息
             let serverMessages = allServerMessages.filter { $0.role == .assistant && !$0.content.isEmpty }
+
+            Log.i("📥 过滤后保留 \(serverMessages.count) 条系统消息", category: "Chat")
 
             // 创建服务端消息ID集合
             let serverMessageIds = Set(serverMessages.map { $0.id })
@@ -356,7 +373,10 @@ final class PersistentChatViewModel: ObservableObject {
                     oldestLoadedMessageDate = oldestMessage.timestamp
                 }
 
+                let finalUserCount = displayMessages.filter { $0.isFromUser }.count
+                let finalSystemCount = displayMessages.filter { !$0.isFromUser }.count
                 Log.i("✅ [PersistentChat] 消息同步完成，当前显示: \(displayMessages.count)条", category: "Chat")
+                Log.i("   用户消息: \(finalUserCount) 条, 系统消息: \(finalSystemCount) 条", category: "Chat")
             }
         } catch {
             Log.w("⚠️ [PersistentChat] 同步消息失败: \(error)", category: "Chat")
