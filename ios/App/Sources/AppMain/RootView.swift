@@ -18,6 +18,7 @@ import LibraryServiceLoader
 import LibraryNetworking
 import LibraryNotification
 import LibraryBase
+import LibraryTrack
 
 struct RootView: View {
     @State private var showingSplash: Bool = true
@@ -147,6 +148,11 @@ struct RootView: View {
 
             // 发送健康检查请求，触发网络授权弹窗（仍在Splash状态）
             await triggerNetworkPermissionWithRetry()
+
+            // 注册设备（异步，不阻塞流程）
+            Task {
+                await registerDevice()
+            }
         }
 
         // 确定应用初始状态
@@ -176,9 +182,11 @@ struct RootView: View {
         // 请求推送通知权限
         await requestNotificationPermission()
 
-        // 如果用户已登录，尝试恢复之前的 Agenda 状态
+        // 如果用户已登录，尝试恢复之前的 Agenda 状态并上报设备信息
         if isAuthenticated {
             await restoreAgendaIfNeeded()
+            // 上报设备信息（如果有 device token）
+            await NotificationManager.shared.reportDeviceInfoIfPossible()
         }
     }
 
@@ -231,6 +239,12 @@ struct RootView: View {
         } else {
             Log.w("⚠️ [RootView] 网络连接超时，继续启动应用", category: "App")
         }
+    }
+
+    /// 注册设备到服务器
+    /// 异步调用，不阻塞后续流程
+    private func registerDevice() async {
+        await DeviceTrackManager.shared.register()
     }
 
     /// 触发网络权限请求，带智能重试

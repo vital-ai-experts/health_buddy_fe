@@ -26,6 +26,8 @@ packages:
     path: Packages/Library/Networking
   LibraryNotification:
     path: Packages/Library/Notification
+  LibraryTrack:
+    path: Packages/Library/Track
   LibraryChatUI:
     path: Packages/Library/ChatUI
   DomainHealth:
@@ -89,6 +91,8 @@ targets:
         product: LibraryNetworking
       - package: LibraryNotification
         product: LibraryNotification
+      - package: LibraryTrack
+        product: LibraryTrack
       - package: LibraryChatUI
         product: LibraryChatUI
       - package: DomainHealth
