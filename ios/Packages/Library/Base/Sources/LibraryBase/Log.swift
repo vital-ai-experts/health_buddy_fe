@@ -61,12 +61,14 @@ public enum Log {
     /// Logs a warning message
     /// - Parameters:
     ///   - message: The message to log
+    ///   - error: Optional error object to include in the log
     ///   - category: Optional category for organizing logs (defaults to "App")
     ///   - file: Source file (auto-populated)
     ///   - function: Function name (auto-populated)
     ///   - line: Line number (auto-populated)
     public static func w(
         _ message: String,
+        error: Error? = nil,
         category: String = "App",
         file: String = #file,
         function: String = #function,
@@ -74,18 +76,24 @@ public enum Log {
     ) {
         let logger = Logger(subsystem: subsystem, category: category)
         let fileName = (file as NSString).lastPathComponent
-        logger.warning("[\(fileName):\(line)] \(function) - \(message)")
+        if let error = error {
+            logger.warning("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
+        } else {
+            logger.warning("[\(fileName):\(line)] \(function) - \(message)")
+        }
     }
 
     /// Logs an error message
     /// - Parameters:
     ///   - message: The message to log
+    ///   - error: Optional error object to include in the log
     ///   - category: Optional category for organizing logs (defaults to "App")
     ///   - file: Source file (auto-populated)
     ///   - function: Function name (auto-populated)
     ///   - line: Line number (auto-populated)
     public static func e(
         _ message: String,
+        error: Error? = nil,
         category: String = "App",
         file: String = #file,
         function: String = #function,
@@ -93,50 +101,10 @@ public enum Log {
     ) {
         let logger = Logger(subsystem: subsystem, category: category)
         let fileName = (file as NSString).lastPathComponent
-        logger.error("[\(fileName):\(line)] \(function) - \(message)")
-    }
-
-    // MARK: - Convenience Methods with Error Objects
-
-    /// Logs a warning with Error object details
-    /// - Parameters:
-    ///   - message: The warning description
-    ///   - error: The error object
-    ///   - category: Optional category for organizing logs (defaults to "App")
-    ///   - file: Source file (auto-populated)
-    ///   - function: Function name (auto-populated)
-    ///   - line: Line number (auto-populated)
-    public static func w(
-        _ message: String,
-        error: Error,
-        category: String = "App",
-        file: String = #file,
-        function: String = #function,
-        line: Int = #line
-    ) {
-        let logger = Logger(subsystem: subsystem, category: category)
-        let fileName = (file as NSString).lastPathComponent
-        logger.warning("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
-    }
-
-    /// Logs an error with Error object details
-    /// - Parameters:
-    ///   - message: The error description
-    ///   - error: The error object
-    ///   - category: Optional category for organizing logs (defaults to "App")
-    ///   - file: Source file (auto-populated)
-    ///   - function: Function name (auto-populated)
-    ///   - line: Line number (auto-populated)
-    public static func e(
-        _ message: String,
-        error: Error,
-        category: String = "App",
-        file: String = #file,
-        function: String = #function,
-        line: Int = #line
-    ) {
-        let logger = Logger(subsystem: subsystem, category: category)
-        let fileName = (file as NSString).lastPathComponent
-        logger.error("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
+        if let error = error {
+            logger.error("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
+        } else {
+            logger.error("[\(fileName):\(line)] \(function) - \(message)")
+        }
     }
 }
