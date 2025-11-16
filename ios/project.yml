@@ -130,6 +130,7 @@ targets:
       Release: Configs/Release.xcconfig
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.AgendaWidget
+      CODE_SIGN_ENTITLEMENTS: AgendaWidget/AgendaWidget.entitlements
       INFOPLIST_FILE: AgendaWidget/Info.plist
       GENERATE_INFOPLIST_FILE: NO
     sources:
