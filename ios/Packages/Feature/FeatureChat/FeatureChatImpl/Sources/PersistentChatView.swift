@@ -129,7 +129,8 @@ final class PersistentChatViewModel: ObservableObject {
         await syncWithServer()
 
         // 检查是否需要恢复streaming
-        await checkAndResumeIfNeeded()
+        // TODO 先不恢复
+//        await checkAndResumeIfNeeded()
     }
 
     /// 从本地数据库加载历史消息（分页加载，初次只加载最近10条）
@@ -194,6 +195,10 @@ final class PersistentChatViewModel: ObservableObject {
 
     /// 加载更多历史消息（用户往上滑动时调用）
     func loadMoreMessages() async {
+        // TODO 先不加载更多
+        hasMoreMessagesToLoad = false
+        return
+
         guard !isLoadingMore else {
             Log.i("⏳ 正在加载中，跳过重复请求", category: "Chat")
             return
@@ -407,7 +412,7 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 情况2: 最后一条assistant消息可能未完成
         // 检查消息是否为空（可能被中断）
-        if lastMessage.text.isEmpty && lastMessage.thinkingContent == nil {
+        if lastMessage.isStreaming {
             Log.w("⚠️ [PersistentChat] 最后一条assistant消息为空，尝试恢复...", category: "Chat")
             await resumeConversation()
             return

@@ -47,12 +47,10 @@ struct MainApp: App {
             Log.i("✅ SwiftData 模型容器初始化成功", category: "App")
 
             // 添加诊断：检查数据库中的消息数量
-            Task {
-                let context = modelContainer.mainContext
-                let descriptor = FetchDescriptor<LocalChatMessage>()
-                if let count = try? context.fetchCount(descriptor) {
-                    Log.i("📊 数据库中现有 \(count) 条消息", category: "App")
-                }
+            let context = modelContainer.mainContext
+            let descriptor = FetchDescriptor<LocalChatMessage>()
+            if let count = try? context.fetchCount(descriptor) {
+                Log.i("📊 数据库中现有 \(count) 条消息", category: "App")
             }
         } catch {
             // 降级处理：使用内存模式
