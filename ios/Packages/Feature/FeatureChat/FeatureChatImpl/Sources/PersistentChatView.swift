@@ -420,9 +420,17 @@ final class PersistentChatViewModel: ObservableObject {
         isSending = false
     }
 
-    private func parseDate(_ dateString: String) -> Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: dateString) ?? Date()
+    /// 将毫秒时间戳字符串转换为 Date
+    /// - Parameter timestampString: 毫秒时间戳字符串，如 "1763302800241"
+    /// - Returns: Date 对象
+    private func parseDate(_ timestampString: String) -> Date {
+        guard let timestampMs = Double(timestampString) else {
+            Log.e("❌ 无法解析时间戳: \(timestampString)", category: "Chat")
+            return Date()
+        }
+        // 毫秒转秒
+        let timestampSec = timestampMs / 1000.0
+        return Date(timeIntervalSince1970: timestampSec)
     }
 
     /// 发送消息
