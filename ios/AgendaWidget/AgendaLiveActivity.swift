@@ -17,13 +17,14 @@ struct AgendaLiveActivity: Widget {
             DynamicIsland {
                 // Expanded region
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: "figure.walk")
-                        .foregroundStyle(.blue)
+                    Image(systemName: "heart.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.blue, .white)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    Image(systemName: "figure.walk")
-                        .foregroundStyle(.green)
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(.purple)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -39,13 +40,14 @@ struct AgendaLiveActivity: Widget {
                     .padding(.horizontal)
                 }
             } compactLeading: {
-                Image(systemName: "figure.walk.circle.fill")
-                    .foregroundStyle(.blue)
+                Image(systemName: "heart.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.blue, .white)
             } compactTrailing: {
-                Text("💪")
+                Text("✨")
                     .font(.caption2)
             } minimal: {
-                Image(systemName: "figure.walk")
+                Image(systemName: "heart.fill")
                     .foregroundStyle(.blue)
             }
         }
@@ -58,28 +60,50 @@ struct AgendaLiveActivityView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Title
-            HStack {
+        HStack(spacing: 16) {
+            // Logo - Beautiful gradient heart icon
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 56, height: 56)
+
+                Image(systemName: "heart.circle.fill")
+                    .font(.system(size: 32))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.blue, Color.purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        Color.white
+                    )
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                // Title
                 Text(context.state.title)
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)
 
-                Spacer()
-            }
-
-            // Text content - larger and more prominent
-            HStack {
+                // Text content - larger and more prominent
                 Text(context.state.text)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(3)
-
-                Spacer()
+                    .lineLimit(2)
             }
+
+            Spacer(minLength: 0)
         }
         .padding()
     }
@@ -92,11 +116,11 @@ struct AgendaLiveActivityView: View {
     AgendaLiveActivity()
 } contentStates: {
     AgendaActivityAttributes.ContentState(
-        title: "Thrive mission 💪",
-        text: "Take a 10-minute walk"
+        title: "Mission to thrive ✨",
+        text: "Take a deep breath 🌬️"
     )
     AgendaActivityAttributes.ContentState(
-        title: "Wellness reminder",
-        text: "Deep breath and relax"
+        title: "Wellness journey 🌟",
+        text: "Stretch and feel amazing 💫"
     )
 }

@@ -12,7 +12,7 @@ public struct AgendaActivityAttributes: ActivityAttributes {
         /// Text content to display
         public var text: String
 
-        public init(title: String = "Thrive mission 💪", text: String = "Deep breath") {
+        public init(title: String = "Mission to thrive ✨", text: String = "Take a deep breath 🌬️") {
             self.title = title
             self.text = text
         }

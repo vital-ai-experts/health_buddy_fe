@@ -23,13 +23,13 @@ public final class LiveActivityManager: ObservableObject {
     /// Start a new agenda live activity
     /// - Parameters:
     ///   - userId: User identifier
-    ///   - title: Title of the live activity (defaults to "Thrive mission 💪")
-    ///   - text: Text content to display (defaults to "Deep breath")
+    ///   - title: Title of the live activity (defaults to "Mission to thrive ✨")
+    ///   - text: Text content to display (defaults to "Take a deep breath 🌬️")
     /// - Throws: ActivityKit errors if activity cannot be started
     public func startAgendaActivity(
         userId: String,
-        title: String = "Thrive mission 💪",
-        text: String = "Deep breath"
+        title: String = "Mission to thrive ✨",
+        text: String = "Take a deep breath 🌬️"
     ) async throws {
         Log.i("🚀 Starting Live Activity...", category: "Notification")
         Log.i("   - User ID: \(userId)", category: "Notification")
