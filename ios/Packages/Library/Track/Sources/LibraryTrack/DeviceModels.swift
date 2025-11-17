@@ -26,10 +26,12 @@ public struct RegisterDeviceRequest: Codable {
 public struct ReportDeviceInfoRequest: Codable {
     public let deviceId: String
     public let deviceToken: String
+    public let liveActivityToken: String?
 
-    public init(deviceId: String, deviceToken: String) {
+    public init(deviceId: String, deviceToken: String, liveActivityToken: String? = nil) {
         self.deviceId = deviceId
         self.deviceToken = deviceToken
+        self.liveActivityToken = liveActivityToken
     }
 }
 

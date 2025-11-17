@@ -18,8 +18,8 @@ public protocol AgendaService {
     /// Check if agenda is currently active
     var isAgendaActive: Bool { get }
 
-    /// Update the agenda with new task data
-    func updateAgenda(weather: String, task: String) async throws
+    /// Update the agenda with new data
+    func updateAgenda(title: String, text: String) async throws
 
     /// Restore agenda if it was previously active (called on app launch)
     func restoreAgendaIfNeeded() async

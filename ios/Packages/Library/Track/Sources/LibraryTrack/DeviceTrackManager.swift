@@ -78,10 +78,10 @@ public class DeviceTrackManager {
         }
     }
 
-    /// Report device info (device token) to server
+    /// Report device info (device token and optional Live Activity token) to server
     /// This should be called when the device token is received from push notifications
     /// Errors are logged internally and do not propagate to caller
-    public func report(deviceToken: String, accessToken: String) async {
+    public func report(deviceToken: String, accessToken: String, liveActivityToken: String? = nil) async {
         do {
             guard let deviceId = getDeviceId() else {
                 Log.w("⚠️ [DeviceTrack] 没有 device ID，无法上报设备信息", category: "DeviceTrack")
@@ -90,7 +90,8 @@ public class DeviceTrackManager {
 
             let request = ReportDeviceInfoRequest(
                 deviceId: deviceId,
-                deviceToken: deviceToken
+                deviceToken: deviceToken,
+                liveActivityToken: liveActivityToken
             )
 
             let endpoint = APIEndpoint(
@@ -107,7 +108,11 @@ public class DeviceTrackManager {
 
             let _: ReportDeviceInfoResponse = try await apiClient.request(endpoint, responseType: ReportDeviceInfoResponse.self)
 
-            Log.i("✅ [DeviceTrack] 设备信息上报成功", category: "DeviceTrack")
+            if let liveToken = liveActivityToken {
+                Log.i("✅ [DeviceTrack] 设备信息上报成功 (包含 Live Activity Token: \(liveToken.prefix(20))...)", category: "DeviceTrack")
+            } else {
+                Log.i("✅ [DeviceTrack] 设备信息上报成功", category: "DeviceTrack")
+            }
         } catch {
             Log.e("❌ [DeviceTrack] 设备信息上报失败: \(error.localizedDescription)", error: error, category: "DeviceTrack")
         }

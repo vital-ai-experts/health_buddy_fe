@@ -38,15 +38,9 @@ public final class AgendaServiceImpl: AgendaService {
             throw AgendaError.notSupported
         }
 
-        // Fetch initial data
-        let weather = await weatherService.fetchWeatherSafely()
-        let task = TaskGenerator.generateContextualTask()
-
-        // Start live activity
+        // Start live activity with default values
         try await LiveActivityManager.shared.startAgendaActivity(
-            userId: "current_user", // TODO: Get from auth service
-            initialWeather: weather,
-            initialTask: task
+            userId: "current_user" // TODO: Get from auth service
         )
 
         // Save state for auto-restore
@@ -78,14 +72,14 @@ public final class AgendaServiceImpl: AgendaService {
     }
 
     @MainActor
-    public func updateAgenda(weather: String, task: String) async throws {
+    public func updateAgenda(title: String, text: String) async throws {
         guard #available(iOS 16.1, *) else {
             throw AgendaError.notSupported
         }
 
         try await LiveActivityManager.shared.updateAgendaActivity(
-            weather: weather,
-            task: task
+            title: title,
+            text: text
         )
     }
 }

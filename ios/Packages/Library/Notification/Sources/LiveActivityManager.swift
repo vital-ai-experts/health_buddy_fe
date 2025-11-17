@@ -12,6 +12,9 @@ public final class LiveActivityManager: ObservableObject {
     /// Current active agenda activity
     @Published public private(set) var currentAgendaActivity: Activity<AgendaActivityAttributes>?
 
+    /// Live Activity push token (stored in memory)
+    @Published public private(set) var liveActivityToken: String?
+
     /// Push token observation task
     private var pushTokenTask: Task<Void, Never>?
 
@@ -20,18 +23,18 @@ public final class LiveActivityManager: ObservableObject {
     /// Start a new agenda live activity
     /// - Parameters:
     ///   - userId: User identifier
-    ///   - initialWeather: Initial weather information
-    ///   - initialTask: Initial task for the user
+    ///   - title: Title of the live activity (defaults to "Thrive mission 💪")
+    ///   - text: Text content to display (defaults to "Deep breath")
     /// - Throws: ActivityKit errors if activity cannot be started
     public func startAgendaActivity(
         userId: String,
-        initialWeather: String,
-        initialTask: String
+        title: String = "Thrive mission 💪",
+        text: String = "Deep breath"
     ) async throws {
         Log.i("🚀 Starting Live Activity...", category: "Notification")
         Log.i("   - User ID: \(userId)", category: "Notification")
-        Log.i("   - Weather: \(initialWeather)", category: "Notification")
-        Log.i("   - Task: \(initialTask)", category: "Notification")
+        Log.i("   - Title: \(title)", category: "Notification")
+        Log.i("   - Text: \(text)", category: "Notification")
 
         // Check if activities are enabled
         let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
@@ -42,10 +45,8 @@ public final class LiveActivityManager: ObservableObject {
 
         let attributes = AgendaActivityAttributes(userId: userId)
         let contentState = AgendaActivityAttributes.ContentState(
-            weather: initialWeather,
-            task: initialTask,
-            isCompleted: false,
-            lastUpdate: Date()
+            title: title,
+            text: text
         )
 
         do {
@@ -71,10 +72,10 @@ public final class LiveActivityManager: ObservableObject {
 
     /// Update the current agenda live activity
     /// - Parameters:
-    ///   - weather: New weather information
-    ///   - task: New task for the user
+    ///   - title: New title
+    ///   - text: New text content
     /// - Throws: ActivityKit errors if update fails
-    public func updateAgendaActivity(weather: String, task: String) async throws {
+    public func updateAgendaActivity(title: String, text: String) async throws {
         guard let activity = currentAgendaActivity else {
             Log.w("⚠️ No currentAgendaActivity stored, cannot update", category: "Notification")
             throw LiveActivityError.noActiveActivity
@@ -87,19 +88,14 @@ public final class LiveActivityManager: ObservableObject {
             throw LiveActivityError.noActiveActivity
         }
 
-        // Preserve the current isCompleted status
-        let currentIsCompleted = activity.content.state.isCompleted
-
         let newState = AgendaActivityAttributes.ContentState(
-            weather: weather,
-            task: task,
-            isCompleted: currentIsCompleted, // Preserve the completion status
-            lastUpdate: Date()
+            title: title,
+            text: text
         )
 
         let alertConfiguration = AlertConfiguration(
-            title: .init(stringLiteral: "New Task"),
-            body: .init(stringLiteral: task),
+            title: .init(stringLiteral: title),
+            body: .init(stringLiteral: text),
             sound: .default
         )
 
@@ -108,7 +104,7 @@ public final class LiveActivityManager: ObservableObject {
             alertConfiguration: alertConfiguration
         )
 
-        Log.i("✅ Live Activity updated: weather=\(weather), task=\(task), completed=\(currentIsCompleted)", category: "Notification")
+        Log.i("✅ Live Activity updated: title=\(title), text=\(text)", category: "Notification")
     }
 
     /// Stop the current agenda live activity
@@ -139,10 +135,8 @@ public final class LiveActivityManager: ObservableObject {
         for activity in activities {
             Log.i("   - Ending activity: \(activity.id) (state: \(activity.activityState))", category: "Notification")
             let finalState = AgendaActivityAttributes.ContentState(
-                weather: "Session ended",
-                task: "See you next time!",
-                isCompleted: false,
-                lastUpdate: Date()
+                title: "Session ended",
+                text: "See you next time!"
             )
             await activity.end(
                 .init(state: finalState, staleDate: nil),
@@ -175,9 +169,24 @@ public final class LiveActivityManager: ObservableObject {
                 Log.i("   - Push Token: \(tokenString)", category: "Notification")
                 Log.i("   - Token Data: \(pushToken.base64EncodedString())", category: "Notification")
 
-                // TODO: Send this token to your backend server
-                // await sendPushTokenToServer(activityId: activity.id, token: tokenString)
+                // Store the token
+                self.liveActivityToken = tokenString
+
+                // Report to backend via DeviceTrackManager
+                await reportLiveActivityToken(tokenString)
             }
+        }
+    }
+
+    /// Report Live Activity push token to backend
+    private func reportLiveActivityToken(_ token: String) async {
+        // Import LibraryTrack to access DeviceTrackManager
+        // This will be called by NotificationManager to report the token
+        Log.i("📤 Reporting Live Activity token to backend...", category: "Notification")
+
+        // Trigger NotificationManager to report device info with Live Activity token
+        Task {
+            await NotificationManager.shared.reportDeviceInfoWithLiveActivityToken()
         }
     }
 
