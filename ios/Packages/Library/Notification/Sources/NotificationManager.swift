@@ -38,8 +38,56 @@ public class NotificationManager: NSObject, ObservableObject {
 
         if granted {
             Log.i("✅ 通知权限已授予", category: "Notification")
+            // Auto-start Live Activity if user is logged in
+            await autoStartLiveActivityIfNeeded()
         } else {
             Log.e("❌ 通知权限被拒绝", category: "Notification")
+        }
+    }
+
+    /// 检查通知权限状态
+    public func checkNotificationPermission() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        return settings.authorizationStatus == .authorized
+    }
+
+    /// 自动启动 Live Activity（如果满足条件）
+    /// 条件：同时满足有通知权限且已登录
+    public func autoStartLiveActivityIfNeeded() async {
+        // Check if notification permission is granted
+        let hasNotificationPermission = await checkNotificationPermission()
+        guard hasNotificationPermission else {
+            Log.i("ℹ️ [NotificationManager] 没有通知权限，跳过自动启动 Live Activity", category: "Notification")
+            return
+        }
+
+        // Check if user is logged in
+        let isLoggedIn = UserDefaultsTokenStorage.shared.getToken() != nil
+        guard isLoggedIn else {
+            Log.i("ℹ️ [NotificationManager] 用户未登录，跳过自动启动 Live Activity", category: "Notification")
+            return
+        }
+
+        // Both conditions are met, auto-start Live Activity
+        Log.i("✅ [NotificationManager] 满足条件，自动启动 Live Activity", category: "Notification")
+
+        if #available(iOS 16.1, *) {
+            // Check if Live Activity is already active
+            if LiveActivityManager.shared.isAgendaActive {
+                Log.i("ℹ️ [NotificationManager] Live Activity 已经在运行中", category: "Notification")
+                return
+            }
+
+            // Start Live Activity with default values
+            do {
+                // Get user ID from token or use default
+                let userId = "auto-start"
+                try await LiveActivityManager.shared.startAgendaActivity(userId: userId)
+                Log.i("✅ [NotificationManager] Live Activity 已自动启动", category: "Notification")
+            } catch {
+                Log.e("❌ [NotificationManager] 自动启动 Live Activity 失败: \(error.localizedDescription)", error: error, category: "Notification")
+            }
         }
     }
 
@@ -73,8 +121,24 @@ public class NotificationManager: NSObject, ObservableObject {
             return
         }
 
+        // Get Live Activity token if available
+        var liveActivityToken: String?
+        if #available(iOS 16.1, *) {
+            liveActivityToken = LiveActivityManager.shared.liveActivityToken
+        }
+
         // 上报设备信息
-        await DeviceTrackManager.shared.report(deviceToken: deviceToken, accessToken: accessToken)
+        await DeviceTrackManager.shared.report(
+            deviceToken: deviceToken,
+            accessToken: accessToken,
+            liveActivityToken: liveActivityToken
+        )
+    }
+
+    /// 上报设备信息（包含 Live Activity Token）
+    /// 当 Live Activity push token 更新时调用
+    public func reportDeviceInfoWithLiveActivityToken() async {
+        await reportDeviceInfoIfPossible()
     }
 
     /// 记录注册失败

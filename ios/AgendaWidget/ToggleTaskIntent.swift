@@ -10,9 +10,11 @@ struct ToggleTaskIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Complete Task"
     static var description = IntentDescription("Mark current task as complete and get a new one")
 
-    /// Execute the intent to complete task and get new one
+    /// Execute the intent to update content
+    /// Note: This intent is no longer used after Live Activity simplification
+    /// Kept for backward compatibility
     func perform() async throws -> some IntentResult {
-        Log.i("🎯 ToggleTaskIntent: Starting task completion flow", category: "AgendaWidget")
+        Log.i("🎯 ToggleTaskIntent: This intent is deprecated", category: "AgendaWidget")
 
         // Get all active activities
         let activities = Activity<AgendaActivityAttributes>.activities
@@ -24,58 +26,19 @@ struct ToggleTaskIntent: LiveActivityIntent {
 
         let currentState = activity.content.state
         let userId = activity.attributes.userId
-        let taskId = UUID().uuidString // Generate task ID
 
-        // Step 1: Notify server about task completion (best-effort, non-blocking)
-        Log.i("📤 Step 1: Notifying server of task completion", category: "AgendaWidget")
-        Task.detached(priority: .utility) {
-            do {
-                _ = try await AgendaAPIClient.shared.notifyTaskCompletion(
-                    userId: userId,
-                    taskId: taskId,
-                    task: currentState.task
-                )
-            } catch {
-                Log.w("⚠️ Server notification failed (continuing): \(error)", category: "AgendaWidget")
-            }
-        }
-
-        // Step 2: Mark current task as completed (immediate UI feedback)
-        Log.i("✅ Step 2: Marking task as completed", category: "AgendaWidget")
-        let completedState = AgendaActivityAttributes.ContentState(
-            weather: currentState.weather,
-            task: currentState.task,
-            isCompleted: true,
-            lastUpdate: Date()
-        )
-
-        await activity.update(
-            ActivityContent(
-                state: completedState,
-                staleDate: nil
-            )
-        )
-
-        // Step 3: Wait 1.5 seconds to show completion
-        Log.i("⏳ Step 3: Waiting 1.5 seconds...", category: "AgendaWidget")
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-
-        // Step 4: Generate and show new task
-        // Note: In production, this should come from server push notification
-        // For now, we generate locally as fallback
-        Log.i("🆕 Step 4: Generating new task (local fallback)", category: "AgendaWidget")
-        let newTask = generateNextTask()
+        // Simply update with a new message
+        Log.i("🆕 Updating Live Activity content", category: "AgendaWidget")
+        let newText = generateNextMessage()
 
         let newState = AgendaActivityAttributes.ContentState(
-            weather: currentState.weather,
-            task: newTask,
-            isCompleted: false,
-            lastUpdate: Date()
+            title: currentState.title,
+            text: newText
         )
 
         let alertConfig = AlertConfiguration(
-            title: .init(stringLiteral: "New Task"),
-            body: .init(stringLiteral: newTask),
+            title: .init(stringLiteral: currentState.title),
+            body: .init(stringLiteral: newText),
             sound: .default
         )
 
@@ -87,26 +50,23 @@ struct ToggleTaskIntent: LiveActivityIntent {
             alertConfiguration: alertConfig
         )
 
-        Log.i("✅ Task completed and switched to: \(newTask)", category: "AgendaWidget")
-        Log.i("💡 Server will push updated task via APNs when available", category: "AgendaWidget")
+        Log.i("✅ Content updated to: \(newText)", category: "AgendaWidget")
+        Log.i("💡 Server will push updated content via APNs when available", category: "AgendaWidget")
         return .result()
     }
 
-    /// Generate a new task
-    private func generateNextTask() -> String {
-        let tasks = [
-            "Take a 5-minute walk 🚶",
-            "Do 15 push-ups 💪",
-            "Drink a glass of water 💧",
-            "Stretch for 3 minutes 🧘",
-            "Do 20 jumping jacks 🤸",
-            "Take 5 deep breaths 🌬️",
-            "Stand up and move around 🏃",
-            "Do 10 squats 🦵",
-            "Roll your shoulders 5 times 🔄",
-            "Look away from screen for 20 seconds 👀"
+    /// Generate a new wellness message
+    private func generateNextMessage() -> String {
+        let messages = [
+            "Take a 5-minute walk",
+            "Do some stretches",
+            "Drink water",
+            "Take deep breaths",
+            "Stand and move around",
+            "Rest your eyes",
+            "Stay active"
         ]
 
-        return tasks.randomElement() ?? "Stay active! 💪"
+        return messages.randomElement() ?? "Stay healthy! 💪"
     }
 }

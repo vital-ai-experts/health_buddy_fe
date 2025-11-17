@@ -61,6 +61,9 @@ public final class AuthenticationServiceImpl: AuthenticationService {
         // Report device info if device token is available
         await NotificationManager.shared.reportDeviceInfoIfPossible()
 
+        // Auto-start Live Activity if notification permission is granted
+        await NotificationManager.shared.autoStartLiveActivityIfNeeded()
+
         return user
     }
 
@@ -94,6 +97,9 @@ public final class AuthenticationServiceImpl: AuthenticationService {
 
         // Report device info if device token is available
         await NotificationManager.shared.reportDeviceInfoIfPossible()
+
+        // Auto-start Live Activity if notification permission is granted
+        await NotificationManager.shared.autoStartLiveActivityIfNeeded()
 
         return user
     }
