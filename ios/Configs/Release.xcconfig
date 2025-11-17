@@ -2,6 +2,4 @@
 #include "Signing.xcconfig"
 
 SWIFT_OPTIMIZATION_LEVEL = -O
-// TODO 测试阶段先用sandbox
-// APS_ENVIRONMENT = production
-APS_ENVIRONMENT = development
+APS_ENVIRONMENT = production
