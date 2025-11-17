@@ -63,6 +63,11 @@ struct PersistentChatView: View {
         .task {
             await viewModel.initialize(modelContext: modelContext)
         }
+        .onAppear {
+            Task {
+                await viewModel.syncWithServer()
+            }
+        }
         .onChange(of: notificationParameters) { _, newParams in
             handleNotificationParameters(newParams)
         }
@@ -124,9 +129,6 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 从本地加载历史消息
         await loadLocalHistory()
-
-        // 检查是否需要从服务端同步消息
-        await syncWithServer()
 
         // 检查是否需要恢复streaming
         // TODO 先不恢复
@@ -270,11 +272,12 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 从服务端同步消息
-    private func syncWithServer() async {
+    func syncWithServer() async {
         // 1. 首先检查是否有最新的conversation
         do {
             let conversations = try await chatService.getConversations(limit: 1, offset: nil)
-            guard let latestConversation = conversations.first else {
+            // 按createdAt降序排列，确保获取最新的对话
+            guard let latestConversation = conversations.sorted(by: { $0.createdAt > $1.createdAt }).first else {
                 Log.i("📝 [PersistentChat] 服务端没有对话记录", category: "Chat")
                 return
             }
@@ -315,13 +318,19 @@ final class PersistentChatViewModel: ObservableObject {
 
             Log.i("📥 过滤后保留 \(serverMessages.count) 条系统消息", category: "Chat")
 
-            // 创建服务端消息ID集合
-            let serverMessageIds = Set(serverMessages.map { $0.id })
+            // 创建服务端消息ID->Message的映射
+            let serverMessageMap = Dictionary(uniqueKeysWithValues: serverMessages.map { ($0.id, $0) })
 
-            // 从displayMessages中移除与服务端重复的系统消息(优先使用服务端消息)
-            let removedCount = displayMessages.filter { !$0.isFromUser && serverMessageIds.contains($0.id) }.count
+            // 从displayMessages中移除与服务端重复的系统消息
+            // 只有当服务端的content和本地的content不相同时，才移除本地消息(优先使用服务端消息)
+            let removedCount = displayMessages.filter { message in
+                guard !message.isFromUser, let serverMessage = serverMessageMap[message.id] else { return false }
+                return message.text != serverMessage.content
+            }.count
+
             displayMessages.removeAll { message in
-                !message.isFromUser && serverMessageIds.contains(message.id)
+                guard !message.isFromUser, let serverMessage = serverMessageMap[message.id] else { return false }
+                return message.text != serverMessage.content
             }
 
             // 创建更新后的本地消息ID集合
