@@ -66,12 +66,12 @@ struct RootView: View {
                 case .onboarding:
                     // Onboarding 引导流程
                     onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后，标记为已完成，切换到主界面，并打开登录页（不可关闭）
+                        // Onboarding 完成后，标记为已完成，切换到主界面，并打开登录页
                         OnboardingStateManager.shared.markOnboardingAsCompleted()
                         appState = .authenticated
-                        // 使用路由打开登录页（不可关闭）
-                        if let loginURL = URL(string: "thrivebody://account/login?dismissable=false") {
-                            router.open(url: loginURL, preferredPresentation: .sheet)
+                        // 使用路由打开登录页
+                        if let loginURL = URL(string: "thrivebody://account/login") {
+                            router.open(url: loginURL)
                         }
                     }
                     
@@ -86,8 +86,8 @@ struct RootView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LoginSuccessful"))) { _ in
-                // 登录成功，关闭登录页并切换到已认证状态
-                router.dismissSheet()
+                // 登录成功，返回并切换到已认证状态
+                router.navigateBack()
                 appState = .authenticated
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("UserLoggedOut"))) { _ in
@@ -172,7 +172,7 @@ struct RootView: View {
             // 如果未登录但已完成Onboarding，使用路由系统打开登录页
             if !isAuthenticated && !shouldShowOnboarding {
                 if let loginURL = URL(string: "thrivebody://account/login") {
-                    router.open(url: loginURL, preferredPresentation: .sheet)
+                    router.open(url: loginURL)
                 }
             }
         }
