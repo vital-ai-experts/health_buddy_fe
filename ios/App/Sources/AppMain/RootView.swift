@@ -21,10 +21,9 @@ import LibraryBase
 import LibraryTrack
 
 struct RootView: View {
+    @EnvironmentObject var router: RouteManager
     @State private var showingSplash: Bool = true
     @State private var appState: AppState = .initializing
-    @State private var showLoginSheet: Bool = false
-    @State private var showLoginFullScreen: Bool = false
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
     @ObservedObject private var notificationManager = NotificationManager.shared
 
@@ -33,6 +32,8 @@ struct RootView: View {
     private let chatFeature: FeatureChatBuildable
     private let onboardingFeature: FeatureOnboardingBuildable
     private let authService: AuthenticationService
+    private let loginURL = URL(string: "thrivebody://login")!
+    private let nonDismissableLoginURL = URL(string: "thrivebody://login?dismissable=false")!
     
     // MARK: - App State
     enum AppState {
@@ -56,63 +57,56 @@ struct RootView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Main content - 根据 appState 显示对应内容
-            Group {
-                switch appState {
-                case .initializing:
-                    // 初始化阶段不显示任何内容，等待 Splash
-                    Color.clear
-                    
-                case .onboarding:
-                    // Onboarding 引导流程
-                    onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后，标记为已完成并弹出全屏登录页
-                        OnboardingStateManager.shared.markOnboardingAsCompleted()
-                        showLoginFullScreen = true
+        NavigationStack(path: $router.path) {
+            ZStack {
+                Group {
+                    switch appState {
+                    case .initializing:
+                        Color.clear
+
+                    case .onboarding:
+                        onboardingFeature.makeOnboardingView {
+                            OnboardingStateManager.shared.markOnboardingAsCompleted()
+                            Task { @MainActor in
+                                appState = .authenticated
+                                presentLogin(dismissable: false)
+                            }
+                        }
+
+                    case .authenticated:
+                        MainTabView(
+                            healthKitFeature: healthKitFeature,
+                            chatFeature: chatFeature,
+                            accountFeature: accountFeature,
+                            onLogout: handleLogout
+                        )
                     }
-                    
-                case .authenticated:
-                    // 主界面 - TabView包含AI助手、健康数据和我的三个Tab
-                    MainTabView(
-                        healthKitFeature: healthKitFeature,
-                        chatFeature: chatFeature,
-                        accountFeature: accountFeature,
-                        onLogout: handleLogout
-                    )
+                }
+
+                if showingSplash {
+                    Color.black
+                        .ignoresSafeArea()
+                        .overlay {
+                            SplashView()
+                        }
+                        .zIndex(999)
+                        .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.5), value: showingSplash)
+                        .task {
+                            await initializeApp()
+                        }
                 }
             }
-            .sheet(isPresented: $showLoginSheet) {
-                // 登录页面以 Sheet 形式按需弹出（可关闭）
-                accountFeature.makeAccountLandingView(onSuccess: {
-                    // 登录成功
-                    showLoginSheet = false
-                    appState = .authenticated
-                }, isDismissable: true)
+            .navigationDestination(for: RouteMatch.self) { match in
+                router.buildView(for: match)
             }
-            .fullScreenCover(isPresented: $showLoginFullScreen) {
-                // Onboarding 后的全屏登录页面（不可关闭）
-                accountFeature.makeAccountLandingView(onSuccess: {
-                    // 登录成功
-                    showLoginFullScreen = false
-                    appState = .authenticated
-                }, isDismissable: false)
-            }
-
-            // Splash 启动画面 - 完全覆盖在最上层
-            if showingSplash {
-                Color.black
-                    .ignoresSafeArea()
-                    .overlay {
-                        SplashView()
-                    }
-                    .zIndex(999)
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.5), value: showingSplash)
-                    .task {
-                        await initializeApp()
-                    }
-            }
+        }
+        .sheet(item: $router.activeSheet) { match in
+            router.buildView(for: match)
+        }
+        .onAppear(perform: configureRouterCallbacks)
+        .onOpenURL { url in
+            handleIncomingURL(url)
         }
     }
 
@@ -175,7 +169,7 @@ struct RootView: View {
 
             // 如果未登录但已完成Onboarding，立即弹出登录页
             if !isAuthenticated && !shouldShowOnboarding {
-                showLoginSheet = true
+                presentLogin()
             }
         }
 
@@ -308,7 +302,33 @@ struct RootView: View {
     private func handleLogout() {
         appState = .onboarding
         // 退出登录后，显示登录页
-        showLoginSheet = true
+        presentLogin()
+    }
+
+    private func presentLogin(dismissable: Bool = true) {
+        let targetURL = dismissable ? loginURL : nonDismissableLoginURL
+        router.open(url: targetURL, preferredPresentation: .sheet)
+    }
+
+    private func configureRouterCallbacks() {
+        router.onLoginSuccess = {
+            appState = .authenticated
+            Task {
+                await NotificationManager.shared.reportDeviceInfoIfPossible()
+            }
+        }
+        router.onLogout = { handleLogout() }
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "thrivebody" else { return }
+
+        let path = url.host.map { "/\($0)" } ?? (url.path.isEmpty ? "/" : url.path)
+        if path == "/main" {
+            return
+        }
+
+        router.open(url: url)
     }
 }
 
@@ -411,8 +431,6 @@ private class PreviewAuthService: AuthenticationService {
 /// 主界面TabView，包含AI助手、健康数据和我的三个Tab
 struct MainTabView: View {
     @State private var selectedTab: Tab = .chat
-    @State private var chatParameters: [String: String]?
-    @ObservedObject private var deeplinkHandler = DeeplinkHandler.shared
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let chatFeature: FeatureChatBuildable
@@ -442,7 +460,6 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             // Talk Tab
             chatFeature.makeChatTabView()
-                .environment(\.notificationParameters, chatParameters)
                 .tabItem {
                     Label("Talk", systemImage: "message.fill")
                 }
@@ -468,29 +485,6 @@ struct MainTabView: View {
                     Label("Me", systemImage: "person.fill")
                 }
                 .tag(Tab.profile)
-        }
-        .onChange(of: deeplinkHandler.pendingDeeplink) { _, newValue in
-            handleDeeplink(newValue)
-        }
-    }
-
-    /// 处理 deeplink
-    private func handleDeeplink(_ deeplink: DeeplinkDestination?) {
-        guard let deeplink = deeplink else { return }
-
-        switch deeplink {
-        case .dailyReport(let msgId, let from):
-            Log.i("📍 导航到 Talk Tab，参数: msg_id=\(msgId), from=\(from)", category: "App")
-            // 设置参数
-            chatParameters = ["msg_id": msgId, "from": from]
-            // 切换到 Talk Tab
-            selectedTab = .chat
-            // 清除 deeplink
-            deeplinkHandler.clearPendingDeeplink()
-
-        case .unknown(let url):
-            Log.w("⚠️ 未知的 deeplink: \(url)", category: "App")
-            deeplinkHandler.clearPendingDeeplink()
         }
     }
 }

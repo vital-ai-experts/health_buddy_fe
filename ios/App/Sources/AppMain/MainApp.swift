@@ -10,6 +10,7 @@ import SwiftData
 import DomainHealth
 import FeatureChatImpl
 import LibraryBase
+import LibraryServiceLoader
 
 @main
 @MainActor
@@ -18,10 +19,13 @@ struct MainApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     // 创建 SwiftData 模型容器
     let modelContainer: ModelContainer
+    let router: RouteManager
 
     init() {
         // 先配置服务
-        AppComposition.bootstrap()
+        let router = RouteManager.shared
+        self.router = router
+        AppComposition.bootstrap(router: router)
 
         do {
             // 配置 SwiftData 模型 - 使用迁移计划处理字段重命名
@@ -88,7 +92,7 @@ struct MainApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            SceneRoot(router: router)
         }
         .modelContainer(modelContainer)
     }
