@@ -23,7 +23,6 @@ import LibraryTrack
 struct RootView: View {
     @State private var showingSplash: Bool = true
     @State private var appState: AppState = .initializing
-    @State private var showLoginFullScreen: Bool = false
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var router = RouteManager.shared
@@ -67,9 +66,13 @@ struct RootView: View {
                 case .onboarding:
                     // Onboarding 引导流程
                     onboardingFeature.makeOnboardingView {
-                        // Onboarding 完成后，标记为已完成并弹出全屏登录页
+                        // Onboarding 完成后，标记为已完成，切换到主界面，并打开登录页（不可关闭）
                         OnboardingStateManager.shared.markOnboardingAsCompleted()
-                        showLoginFullScreen = true
+                        appState = .authenticated
+                        // 使用路由打开登录页（不可关闭）
+                        if let loginURL = URL(string: "thrivebody://account/login?dismissable=false") {
+                            router.open(url: loginURL, preferredPresentation: .sheet)
+                        }
                     }
                     
                 case .authenticated:
@@ -81,14 +84,6 @@ struct RootView: View {
                         onLogout: handleLogout
                     )
                 }
-            }
-            .fullScreenCover(isPresented: $showLoginFullScreen) {
-                // Onboarding 后的全屏登录页面（不可关闭）
-                accountFeature.makeAccountLandingView(onSuccess: {
-                    // 登录成功
-                    showLoginFullScreen = false
-                    appState = .authenticated
-                }, isDismissable: false)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LoginSuccessful"))) { _ in
                 // 登录成功，关闭登录页并切换到已认证状态

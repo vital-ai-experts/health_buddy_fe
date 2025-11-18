@@ -16,6 +16,7 @@ public enum AccountModule {
     public static func registerRoutes(on router: RouteRegistering) {
         // Login route: thrivebody://account/login
         // Can be presented as sheet (default) or push
+        // Use ?dismissable=false for non-dismissible login (after onboarding)
         router.register(
             path: "/account/login",
             defaultPresentation: .sheet
@@ -32,6 +33,7 @@ public enum AccountModule {
                     },
                     isDismissable: isDismissable
                 )
+                .interactiveDismissDisabled(!isDismissable)
             )
         }
 
