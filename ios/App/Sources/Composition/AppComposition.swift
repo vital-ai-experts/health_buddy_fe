@@ -32,5 +32,8 @@ enum AppComposition {
         #if DEBUG
         DebugToolsFeatureModule.register()
         #endif
+
+        // 3. 注册路由
+        AppRouteRegistry.configure(router: RouteManager.shared)
     }
 }

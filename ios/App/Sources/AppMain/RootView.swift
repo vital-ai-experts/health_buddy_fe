@@ -23,10 +23,10 @@ import LibraryTrack
 struct RootView: View {
     @State private var showingSplash: Bool = true
     @State private var appState: AppState = .initializing
-    @State private var showLoginSheet: Bool = false
     @State private var showLoginFullScreen: Bool = false
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
     @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var router = RouteManager.shared
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let accountFeature: FeatureAccountBuildable
@@ -82,14 +82,6 @@ struct RootView: View {
                     )
                 }
             }
-            .sheet(isPresented: $showLoginSheet) {
-                // 登录页面以 Sheet 形式按需弹出（可关闭）
-                accountFeature.makeAccountLandingView(onSuccess: {
-                    // 登录成功
-                    showLoginSheet = false
-                    appState = .authenticated
-                }, isDismissable: true)
-            }
             .fullScreenCover(isPresented: $showLoginFullScreen) {
                 // Onboarding 后的全屏登录页面（不可关闭）
                 accountFeature.makeAccountLandingView(onSuccess: {
@@ -97,6 +89,15 @@ struct RootView: View {
                     showLoginFullScreen = false
                     appState = .authenticated
                 }, isDismissable: false)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LoginSuccessful"))) { _ in
+                // 登录成功，关闭登录页并切换到已认证状态
+                router.dismissSheet()
+                appState = .authenticated
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("UserLoggedOut"))) { _ in
+                // 退出登录，处理登出逻辑
+                handleLogout()
             }
 
             // Splash 启动画面 - 完全覆盖在最上层
@@ -173,9 +174,11 @@ struct RootView: View {
             appState = initialState
             showingSplash = false
 
-            // 如果未登录但已完成Onboarding，立即弹出登录页
+            // 如果未登录但已完成Onboarding，使用路由系统打开登录页
             if !isAuthenticated && !shouldShowOnboarding {
-                showLoginSheet = true
+                if let loginURL = URL(string: "thrivebody://account/login") {
+                    router.open(url: loginURL, preferredPresentation: .sheet)
+                }
             }
         }
 
@@ -413,6 +416,7 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .chat
     @State private var chatParameters: [String: String]?
     @ObservedObject private var deeplinkHandler = DeeplinkHandler.shared
+    @ObservedObject private var router = RouteManager.shared
 
     private let healthKitFeature: FeatureHealthKitBuildable
     private let chatFeature: FeatureChatBuildable
@@ -463,15 +467,33 @@ struct MainTabView: View {
                 .tag(Tab.health)
 
             // Me Tab
-            accountFeature.makeProfileView(onLogout: onLogout)
-                .tabItem {
-                    Label("Me", systemImage: "person.fill")
-                }
-                .tag(Tab.profile)
+            NavigationStack(path: $router.navigationPath) {
+                accountFeature.makeProfileView(onLogout: onLogout)
+                    .navigationDestination(for: RouteMatch.self) { match in
+                        router.buildView(for: match)
+                    }
+            }
+            .tabItem {
+                Label("Me", systemImage: "person.fill")
+            }
+            .tag(Tab.profile)
+        }
+        .sheet(item: $router.activeSheet) { match in
+            router.buildView(for: match)
         }
         .onChange(of: deeplinkHandler.pendingDeeplink) { _, newValue in
             handleDeeplink(newValue)
         }
+        .onOpenURL { url in
+            handleURL(url)
+        }
+    }
+
+    /// 处理 URL (from onOpenURL)
+    private func handleURL(_ url: URL) {
+        Log.i("📍 处理 URL: \(url)", category: "App")
+        // Use RouteManager to handle the URL
+        router.open(url: url)
     }
 
     /// 处理 deeplink
@@ -479,6 +501,11 @@ struct MainTabView: View {
         guard let deeplink = deeplink else { return }
 
         switch deeplink {
+        case .main:
+            // 主页 deeplink，不需要导航，直接清除
+            Log.i("📍 收到主页 deeplink，当前已在主页，无需导航", category: "App")
+            deeplinkHandler.clearPendingDeeplink()
+
         case .dailyReport(let msgId, let from):
             Log.i("📍 导航到 Talk Tab，参数: msg_id=\(msgId), from=\(from)", category: "App")
             // 设置参数
@@ -490,6 +517,10 @@ struct MainTabView: View {
 
         case .unknown(let url):
             Log.w("⚠️ 未知的 deeplink: \(url)", category: "App")
+            // Try handling with RouteManager as fallback
+            if let urlObject = URL(string: url) {
+                router.open(url: urlObject)
+            }
             deeplinkHandler.clearPendingDeeplink()
         }
     }

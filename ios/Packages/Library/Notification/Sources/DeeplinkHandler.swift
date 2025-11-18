@@ -12,6 +12,7 @@ import LibraryBase
 /// Deeplink 类型
 public enum DeeplinkDestination: Equatable {
     case dailyReport(msgId: String, from: String)
+    case main  // 主页，不需要导航
     case unknown(url: String)
 }
 
@@ -54,6 +55,9 @@ public class DeeplinkHandler: ObservableObject {
         let host = url.host ?? ""
 
         switch host {
+        case "main":
+            // 主页 deeplink，不需要导航
+            return .main
         case "daily_report":
             return parseDailyReport(url)
         default:

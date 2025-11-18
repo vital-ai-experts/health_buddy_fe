@@ -11,6 +11,7 @@ import LibraryBase
 public struct ProfileView: View {
     @State private var user: DomainAuth.User?
     @State private var isLoading = true
+    @ObservedObject private var router = RouteManager.shared
 
     private let authService: AuthenticationService
     private let onLogout: () -> Void
@@ -24,8 +25,7 @@ public struct ProfileView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            List {
+        List {
                 // 用户信息部分
                 Section {
                     if isLoading {
@@ -60,35 +60,69 @@ public struct ProfileView: View {
 
                 // 设置选项
                 Section {
-                    NavigationLink {
-                        AccountSettingsView(onLogout: onLogout)
+                    Button {
+                        if let url = URL(string: "thrivebody://account/settings") {
+                            router.open(url: url)
+                        }
                     } label: {
-                        Label("账号", systemImage: "person.crop.circle")
+                        HStack {
+                            Label("账号", systemImage: "person.crop.circle")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .foregroundColor(.primary)
 
-                    NavigationLink {
-                        SettingsView()
+                    Button {
+                        if let url = URL(string: "thrivebody://settings") {
+                            router.open(url: url)
+                        }
                     } label: {
-                        Label("设置", systemImage: "gearshape")
+                        HStack {
+                            Label("设置", systemImage: "gearshape")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .foregroundColor(.primary)
 
-                    NavigationLink {
-                        AboutView()
+                    Button {
+                        if let url = URL(string: "thrivebody://about") {
+                            router.open(url: url)
+                        }
                     } label: {
-                        Label("关于", systemImage: "info.circle")
+                        HStack {
+                            Label("关于", systemImage: "info.circle")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .foregroundColor(.primary)
                 }
 
                 // 开发者选项
                 #if DEBUG
                 Section("开发者选项") {
-                    if let debugToolsBuilder = ServiceManager.shared.resolveOptional(FeatureDebugToolsBuildable.self) {
-                        NavigationLink {
-                            debugToolsBuilder.makeDebugToolsView()
-                        } label: {
+                    Button {
+                        if let url = URL(string: "thrivebody://debug/tools") {
+                            router.open(url: url)
+                        }
+                    } label: {
+                        HStack {
                             Label("开发者工具", systemImage: "wrench.and.screwdriver")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
+                    .foregroundColor(.primary)
 
                     Button {
                         OnboardingStateManager.shared.resetOnboardingState()
@@ -99,10 +133,10 @@ public struct ProfileView: View {
                 }
                 #endif
             }
-            .navigationTitle("Me")
-            .task {
-                await loadUserInfo()
-            }
+        }
+        .navigationTitle("Me")
+        .task {
+            await loadUserInfo()
         }
     }
 
