@@ -71,7 +71,7 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 - 可以依赖 Domain 层和 Library 层
 
 **模块注册**:
-每个 Feature Impl 包导出 `[Name]Module.register()` 函数，在 `AppComposition.bootstrap()` 中调用
+每个 Feature Impl 包导出 `[Name]Module.register(router:)` 函数（可选地接受 `ServiceManager`），该函数既负责向容器注册 `Buildable`，也会在内部触发 `registerRoutes(on:)` 将页面路由挂载到共享 `RouteManager`。所有注册都在 `AppComposition.bootstrap(router:)` 中集中调用。
 
 ### App 层
 
@@ -185,8 +185,13 @@ public struct AccountBuilder: FeatureAccountBuildable {
 
 ```swift
 public enum AccountModule {
-    public static func register(in manager: ServiceManager = .shared) {
+    public static func register(
+        in manager: ServiceManager = .shared,
+        router: RouteRegistering
+    ) {
         manager.register(FeatureAccountBuildable.self) { AccountBuilder() }
+
+        registerRoutes(on: router)
     }
 }
 ```
@@ -195,16 +200,16 @@ public enum AccountModule {
 ```swift
 enum AppComposition {
     @MainActor
-    static func bootstrap() {
+    static func bootstrap(router: RouteRegistering) {
         // 1. 配置 Domain 服务
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
         ChatDomainBootstrap.configure()
 
-        // 2. 注册 Feature
-        HealthKitModule.register()
-        AccountModule.register()
-        ChatModule.register()
+        // 2. 注册 Feature（注册构建器 + 路由）
+        HealthKitModule.register(router: router)
+        AccountModule.register(router: router)
+        ChatModule.register(router: router)
     }
 }
 ```
