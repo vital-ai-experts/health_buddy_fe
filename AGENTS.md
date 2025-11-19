@@ -124,3 +124,7 @@ git push
 - `GITHUB_CI_TOKEN` - GitHub Personal Access Token with `repo` and `actions` permissions
 
 For more details on the CI status check script, see `.github/README.md`.
+
+
+## Work with user
+Remember! Answer in Chinese! 
