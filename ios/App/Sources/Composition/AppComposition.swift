@@ -8,7 +8,6 @@ import DomainAuth
 import DomainChat
 import DomainOnboarding
 import LibraryServiceLoader
-import LibraryNetworking
 import LibraryTrack
 
 #if DEBUG
@@ -18,8 +17,8 @@ import FeatureDebugToolsImpl
 enum AppComposition {
     @MainActor
     static func bootstrap(router: RouteRegistering) {
-        // 1. 配置Networking层（必须在所有服务配置之前完成，确保所有API请求都包含通用参数）
-        NetworkingBootstrap.configure(commonParamsProvider: CommonParamsProviderImpl.shared)
+        // 1. 配置Library层
+        TrackBootstrap.configure()  // Track层会自动注册CommonParamsProvider到Networking层
 
         // 2. 配置Domain层服务
         HealthDomainBootstrap.configure()
