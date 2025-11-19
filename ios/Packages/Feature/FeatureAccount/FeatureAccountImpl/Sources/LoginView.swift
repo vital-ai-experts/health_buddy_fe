@@ -45,7 +45,7 @@ struct LoginView: View {
 
                         TextField("Enter your email", text: $viewModel.email)
                             .textFieldStyle(.plain)
-                            .textContentType(.emailAddress)
+                            .textContentType(.username)
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             .padding()
