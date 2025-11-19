@@ -1,12 +1,10 @@
 import SwiftUI
 import DomainAuth
 import DomainHealth
-import DomainOnboarding
 import LibraryServiceLoader
 import FeatureDebugToolsApi
 import FeatureAgendaApi
 import LibraryBase
-import LibraryServiceLoader
 
 /// Me页面，显示用户信息和设置选项
 public struct ProfileView: View {
@@ -89,13 +87,6 @@ public struct ProfileView: View {
                     } label: {
                         Label("开发者工具", systemImage: "wrench.and.screwdriver")
                     }
-                }
-
-                Button {
-                    OnboardingStateManager.shared.resetOnboardingState()
-                } label: {
-                    Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
-                        .foregroundColor(.orange)
                 }
             }
             #endif
