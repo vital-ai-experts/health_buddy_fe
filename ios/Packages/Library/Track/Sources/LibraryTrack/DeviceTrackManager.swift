@@ -120,8 +120,8 @@ public class DeviceTrackManager {
 
     /// Get cached device ID
     /// Returns nil if device has not been registered yet
-    public func getDeviceId() -> String? {
-        return cachedDeviceId ?? storage.getDeviceId()
+    nonisolated public func getDeviceId() -> String? {
+        return storage.getDeviceId()
     }
 
     // MARK: - Private Methods
