@@ -6,7 +6,7 @@ import DomainOnboarding
 struct DebugToolsView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showCopiedAlert = false
-    @State private var showResetOnboardingAlert = false
+    @State private var hasJustReset = false
 
     var body: some View {
         List {
@@ -17,12 +17,19 @@ struct DebugToolsView: View {
                     Label("SwiftData 聊天消息", systemImage: "internaldrive")
                 }
 
-                Button {
-                    resetOnboardingState()
-                } label: {
-                    Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
-                        .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Button {
+                        resetOnboardingState()
+                    } label: {
+                        Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
+                            .foregroundColor(.orange)
+                    }
+
+                    Text(onboardingStatusText)
+                        .font(.caption)
+                        .foregroundColor(hasJustReset ? .green : .secondary)
                 }
+                .padding(.vertical, 4)
             }
 
             // 推送通知
@@ -101,17 +108,21 @@ struct DebugToolsView: View {
         } message: {
             Text("Device Token 已复制到剪切板")
         }
-        .alert("重置成功", isPresented: $showResetOnboardingAlert) {
-            Button("确定", role: .cancel) {}
-        } message: {
-            Text("Onboarding 状态已重置")
+    }
+
+    /// Onboarding 状态文字
+    private var onboardingStatusText: String {
+        if hasJustReset {
+            return "已重置onboarding状态"
+        } else {
+            return OnboardingStateManager.shared.hasCompletedOnboarding ? "已完成onboarding" : "未完成onboarding"
         }
     }
 
     /// 重置 Onboarding 状态
     private func resetOnboardingState() {
         OnboardingStateManager.shared.resetOnboardingState()
-        showResetOnboardingAlert = true
+        hasJustReset = true
     }
 
     /// 复制 Device Token 到剪切板
