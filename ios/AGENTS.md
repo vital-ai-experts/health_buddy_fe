@@ -14,70 +14,18 @@ ThriveBody is an intelligent health management iOS app built with SwiftUI and Sw
 - Xcode 15.0+
 - XcodeGen (install via `brew install xcodegen`)
 
+> ⚠️ **创建新模块或新增页面之前**：务必先阅读 [`modularization.md`](./modularization.md)。该文档汇总了分层边界、命名、脚本、路由注册等所有结构化约束。
+
 ## Architecture Overview
 
-ThriveBody follows a strict layered architecture with dependency flow: `App → Feature(Impl) → Feature(Api) → Domain → Library`
+ThriveBody 遵循严格的分层架构：`App → Feature(Impl) → Feature(Api) → Domain → Library`。详细的分层职责、目录示例、脚本指引以及路由体系，请以 [`modularization.md`](./modularization.md) 为准；任何涉及模块拆分、路由扩展、页面新增的工作都应先阅读该文档。
 
-### Layer Responsibilities
+- **App 层 (`App/Sources/`)**：入口、全局路由与依赖组装，只能依赖 Feature Impl，核心文件为 `AppMain/` 与 `Composition/`。
+- **Feature 层 (`Packages/Feature/`)**：每个功能拆分为 `Api` + `Impl` 包，`Api` 暴露协议，`Impl` 实现 UI + 路由注册。
+- **Domain 层 (`Packages/Domain/`)**：跨功能业务服务，通过 `[Name]DomainBootstrap.configure()` 将服务注入 `ServiceManager`。
+- **Library 层 (`Packages/Library/`)**：业务无关工具，可被所有上层依赖。
 
-**App Layer** (`App/Sources/`):
-- `AppMain/`: Application entry point (`MainApp.swift`), root navigation (`RootView.swift`), splash screen, main TabView
-- `Composition/`: Dependency injection setup (`AppComposition.swift`) - registers all domain services and feature builders
-- Only layer allowed to depend on Feature `Impl` modules
-
-**Feature Layer** (`Packages/Feature/`):
-- Each feature split into two packages: `Feature[Name]Api` (protocols) and `Feature[Name]Impl` (implementation)
-- **Directory names must match package names exactly** (e.g., `FeatureAccountApi`, not `api`)
-- Current features:
-  - `FeatureAccount`: User registration, login, account management
-  - `FeatureChat`: AI chat interface and conversation management
-  - `FeatureHealthKit`: HealthKit authorization, dashboard, data visualization
-- Features depend only on other Feature `Api` modules, never `Impl`
-- Register via `[Name]Module.register()` in `AppComposition.bootstrap()`
-
-**Domain Layer** (`Packages/Domain/`):
-- Core business logic and cross-feature services
-- Current domains:
-  - `DomainAuth`: Authentication service, user model
-  - `DomainChat`: AI chat service
-  - `DomainHealth`: Health data services, HealthKit manager
-- Export `[Name]DomainBootstrap.configure()` to register services into `ServiceManager`
-- Can integrate system frameworks directly (e.g., HealthKit in DomainHealth)
-
-**Library Layer** (`Packages/Library/`):
-- Business-agnostic utilities
-- Current libraries:
-  - `ServiceLoader`: Dependency injection container (`ServiceManager`)
-  - `Networking`: HTTP client wrapper
-  - `ThemeKit`: App theming and styling
-
-### Module Structure Example
-
-```
-Packages/
-├── Feature/
-│   └── FeatureAccount/
-│       ├── FeatureAccountApi/            # API protocols
-│       │   └── Sources/FeatureAccountApi/
-│       │       └── FeatureAccountApi.swift
-│       └── FeatureAccountImpl/           # Implementation
-│           └── Sources/
-│               ├── AccountModule.swift   # Module registration
-│               ├── AccountBuilder.swift  # Builder implementation
-│               └── Views...              # SwiftUI views
-│
-├── Domain/
-│   └── DomainAuth/
-│       └── Sources/DomainAuth/
-│           ├── AuthDomainBootstrap.swift # Service registration
-│           ├── AuthenticationService.swift
-│           └── User.swift                # Domain models
-│
-└── Library/
-    └── ServiceLoader/
-        └── Sources/ServiceLoader/
-            └── ServiceManager.swift
-```
+需要示例目录结构、命名规范或拓展说明时，直接跳转到 `modularization.md` 查阅。
 
 ## Build, Test, and Development Commands
 
@@ -118,23 +66,33 @@ public enum AuthDomainBootstrap {
 
 // Feature Module Registration
 public enum AccountModule {
-    public static func register(in manager: ServiceManager = .shared) {
+    public static func register(
+        in manager: ServiceManager = .shared,
+        router: RouteRegistering
+    ) {
         manager.register(FeatureAccountBuildable.self) { AccountBuilder() }
+
+        registerRoutes(on: router)
     }
 }
 ```
 
-**2. App Composition** (`AppComposition.bootstrap()`):
+**2. App Composition** (`AppComposition.bootstrap(router:)`):
 ```swift
-// 1. Configure domain services first
-HealthDomainBootstrap.configure()
-AuthDomainBootstrap.configure()
-ChatDomainBootstrap.configure()
+enum AppComposition {
+    @MainActor
+    static func bootstrap(router: RouteRegistering) {
+        // 1. Configure domain services first
+        HealthDomainBootstrap.configure()
+        AuthDomainBootstrap.configure()
+        ChatDomainBootstrap.configure()
 
-// 2. Register features
-HealthKitModule.register()
-AccountModule.register()
-ChatModule.register()
+        // 2. Register features (buildable + routes)
+        HealthKitModule.register(router: router)
+        AccountModule.register(router: router)
+        ChatModule.register(router: router)
+    }
+}
 ```
 
 **3. Resolution** (at view initialization):
@@ -144,7 +102,7 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 
 ## App Flow
 
-1. Launch → `MainApp.init()` → `AppComposition.bootstrap()`
+1. Launch → `MainApp.init()` → `AppComposition.bootstrap(router:)`
 2. Splash screen (1.5s) while checking authentication
 3. If authenticated → MainTabView (AI Assistant, Health, Profile)
 4. If not authenticated → AccountLandingView
@@ -260,17 +218,17 @@ import FeatureYourFeatureImpl  // Add import
 
 enum AppComposition {
     @MainActor
-    static func bootstrap() {
+    static func bootstrap(router: RouteRegistering) {
         // Domain services...
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
         ChatDomainBootstrap.configure()
 
         // Features...
-        HealthKitModule.register()
-        AccountModule.register()
-        ChatModule.register()
-        YourFeatureModule.register()  // Add this
+        HealthKitModule.register(router: router)
+        AccountModule.register(router: router)
+        ChatModule.register(router: router)
+        YourFeatureModule.register(router: router)  // Add this
     }
 }
 ```
@@ -288,7 +246,7 @@ scripts/build.sh -i
    ```swift
    manager.register(YourService.self) { YourServiceImpl() }
    ```
-3. Call bootstrap in `AppComposition.bootstrap()`
+3. Call bootstrap in `AppComposition.bootstrap(router:)`
 4. Resolve where needed: `ServiceManager.shared.resolve(YourService.self)`
 
 ## Testing Guidelines
@@ -390,5 +348,6 @@ import FeatureAccountApi        // Feature API modules
 AuthDomainBootstrap.configure()
 
 // Feature Module
-AccountModule.register()
+let router = RouteManager.shared
+AccountModule.register(router: router)
 ```
