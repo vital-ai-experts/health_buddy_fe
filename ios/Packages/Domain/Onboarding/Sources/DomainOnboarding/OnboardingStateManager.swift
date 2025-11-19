@@ -25,8 +25,7 @@ public final class OnboardingStateManager {
 
     /// 标记Onboarding为已完成
     public func markOnboardingAsCompleted() {
-        // TODO: 暂时未登录就每次都出
-        // hasCompletedOnboarding = true
+         hasCompletedOnboarding = true
     }
 
     /// 重置Onboarding状态（用于测试或重新引导）
