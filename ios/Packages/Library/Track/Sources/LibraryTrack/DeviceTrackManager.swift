@@ -11,7 +11,6 @@ import LibraryNetworking
 import LibraryBase
 
 /// Device tracking manager for registration and reporting
-@MainActor
 public class DeviceTrackManager {
     /// Shared singleton instance
     public static let shared = DeviceTrackManager()
@@ -118,9 +117,9 @@ public class DeviceTrackManager {
         }
     }
 
-    /// Get cached device ID
+    /// Get device ID from storage
     /// Returns nil if device has not been registered yet
-    nonisolated public func getDeviceId() -> String? {
+    public func getDeviceId() -> String? {
         return storage.getDeviceId()
     }
 
