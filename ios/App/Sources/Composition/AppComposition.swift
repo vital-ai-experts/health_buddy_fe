@@ -18,7 +18,7 @@ enum AppComposition {
     @MainActor
     static func bootstrap(router: RouteRegistering) {
         // 1. 配置Library层
-        TrackBootstrap.configure()  // Track层会自动注册CommonParamsProvider到Networking层
+        TrackBootstrap.configure()
 
         // 2. 配置Domain层服务
         HealthDomainBootstrap.configure()

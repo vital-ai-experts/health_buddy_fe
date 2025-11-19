@@ -217,15 +217,12 @@ public final class APIClient {
 
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
 
-        // Merge common parameters from provider with endpoint-specific parameters
         var allQueryItems: [URLQueryItem] = []
 
-        // Add common parameters first (if provider is set)
         if let provider = commonParamsProvider {
             allQueryItems.append(contentsOf: provider.getCommonQueryParams())
         }
 
-        // Add endpoint-specific parameters (these can override common params if needed)
         allQueryItems.append(contentsOf: endpoint.queryItems)
 
         if !allQueryItems.isEmpty {
