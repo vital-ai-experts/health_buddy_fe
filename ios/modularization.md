@@ -94,18 +94,13 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 
 ## 路由与导航基建
 
-- **核心组件**: `RouteManager`（位于 `Packages/Library/ServiceLoader/.../RouteManager.swift`）是一个 `ObservableObject`，在 App 启动时由 `MainApp` 初始化并注入到 `SceneRoot`，随后通过 `environmentObject` 提供给 `RootView` 及整个 SwiftUI 树。【F:App/Sources/AppMain/MainApp.swift†L19-L62】【F:App/Sources/AppMain/Routing/SceneRoot.swift†L1-L14】
-- **职责**: 统一维护多 Tab 导航栈（Talk/Agenda/Report/Me）以及 `sheet`、`fullscreen` 展示状态，提供 URL 解析、路由匹配、页面构建与打开逻辑，并向登录/登出场景暴露回调。【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L6-L118】【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L133-L205】
-- **展示层级**: 默认提供 `.tab`、`.sheet`、`.fullscreen` 三种 `RouteSurface`，默认展示层可在注册路由时指定，也可通过 `thrivebody://path?present=sheet` 等 query hint 或 `router.open(url:on:)` 传入的 `surface` 参数覆盖。【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L10-L115】【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L133-L205】
-- **路由注册**: 任何实现 `RouteRegistering` 的模块可调用 `router.register(path:defaultSurface:builder:)` 注册 SwiftUI 页面。Feature Impl 通常在 `[Name]Module.register()` 内调用自定义的 `registerRoutes(on:)`，例如账户模块在注册构建器后同步注册 `/login`、`/settings` 等路由。【F:Packages/Feature/FeatureAccount/FeatureAccountImpl/Sources/AccountModule.swift†L7-L16】【F:Packages/Feature/FeatureAccount/FeatureAccountImpl/Sources/AccountModule+Routing.swift†L1-L34】
-- **路由构建**: `builder` 闭包接收 `RouteContext`，可读取 query 参数（如 `dismissable`）并返回 `AnyView`。若需触发登录/登出结果，可使用 `RouteManager` 的 `handleLoginSuccess()`、`handleLogoutRequested()`。【F:Packages/Feature/FeatureAccount/FeatureAccountImpl/Sources/AccountModule+Routing.swift†L1-L37】
-- **路由调用**: 上层通过 `router.buildURL()` 组装目标 URL，再使用 `router.open(url:on:)` 触发导航。`RootView` 在登录、处理深链及 Onboarding 结束时均调用该能力，同时利用 `onOpenURL` 将系统 URL Scheme 交给路由器统一处理。【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L206-L259】【F:App/Sources/AppMain/RootView.swift†L25-L120】【F:App/Sources/AppMain/RootView.swift†L282-L320】
-- **展示绑定**: `RootView` 通过 `.sheet(item:)` 和 `.fullScreenCover(item:)` 监听 `router.activeSheet`、`router.activeFullscreen`，从而让 `RouteManager` 控制弹出层；Tab 内的 `NavigationStack` 则依赖 `router.chatPath` 等 Published 属性，允许 `RouteManager` 直接在当前 Tab 推入页面。【F:App/Sources/AppMain/RootView.swift†L92-L119】【F:Packages/Library/ServiceLoader/Sources/ServiceLoader/RouteManager.swift†L46-L118】
-
-> **最佳实践**
-> 1. 新增 Feature 路由时，优先放在 Feature Impl 内部的 `Module+Routing` 扩展中，并在 `Module.register` 时调用 `registerRoutes`，确保路由注册与模块生命周期绑定。
-> 2. 通过 `RouteManager.buildURL` 统一构建 `thrivebody://...` URL，避免字符串拼接错误；必要时可使用 `queryItems` 传递轻量参数或 `present` 控制展示层级。
-> 3. 如果 Feature 需要对登录/登出流程做特殊处理，可监听 `RouteManager` 暴露的 `onLoginSuccess`、`onLogout` 回调，或在自身 `View` 中注入 `@EnvironmentObject var router: RouteManager` 以便调用辅助方法。
+- **核心理念**: 通过全局 `RouteManager` 统一接管 Tab 栈、Sheet、Fullscreen 等展示层级，让 App 层只负责注入路由器，具体页面的注册和展示交给 Feature。
+- **设计要点**: `RouteManager` 会持有各 Tab 的 `NavigationPath`，并暴露 `activeSheet`、`activeFullscreen` 等状态；任意 Feature 都能在注册阶段把自己的 URL 映射到对应 View Builder，默认展示层可以在注册时配置，也可以在打开时临时指定。
+- **使用方式**:
+  1. Feature Impl 提供 `Module+Routing` 扩展，在自身的 `Module.register()` 里调用 `registerRoutes(on:)` 并传入共享的 `RouteManager`。
+  2. 注册时实现 `builder(context:)` 闭包，根据 URL、Query、路由参数构建 SwiftUI View，需要回调登录/登出等事件时可直接调用 `RouteManager` 提供的辅助方法。
+  3. 业务侧通过 `router.buildURL("/path", queryItems:)` 组装目标，再用 `router.open(url:on:)` 或 `router.open(path:on:)` 触发导航；`RootView` 负责把外部深链交给路由器，并通过 `.sheet`、`.fullScreenCover` 等绑定展示状态。
+- **实践建议**: 保持 URL 命名与 Feature 一致，轻参数走 query，复杂状态交给共享数据模型；Sheet / Fullscreen 入口最好都能通过 `present` 参数覆盖，方便统一的深链调起；需要跨 Feature 触发导航时，优先复用路由 URL，而不是直接引用具体视图。
 
 ## 目录结构示意
 
