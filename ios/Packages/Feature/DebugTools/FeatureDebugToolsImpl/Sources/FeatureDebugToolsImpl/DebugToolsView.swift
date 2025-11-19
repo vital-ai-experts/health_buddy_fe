@@ -1,10 +1,12 @@
 import SwiftUI
 import LibraryNotification
+import DomainOnboarding
 
 /// Debug Tools Main View - 调试工具主界面
 struct DebugToolsView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showCopiedAlert = false
+    @State private var showResetOnboardingAlert = false
 
     var body: some View {
         List {
@@ -13,6 +15,13 @@ struct DebugToolsView: View {
                     ChatDebugView()
                 } label: {
                     Label("SwiftData 聊天消息", systemImage: "internaldrive")
+                }
+
+                Button {
+                    resetOnboardingState()
+                } label: {
+                    Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
+                        .foregroundColor(.orange)
                 }
             }
 
@@ -92,6 +101,17 @@ struct DebugToolsView: View {
         } message: {
             Text("Device Token 已复制到剪切板")
         }
+        .alert("重置成功", isPresented: $showResetOnboardingAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text("Onboarding 状态已重置")
+        }
+    }
+
+    /// 重置 Onboarding 状态
+    private func resetOnboardingState() {
+        OnboardingStateManager.shared.resetOnboardingState()
+        showResetOnboardingAlert = true
     }
 
     /// 复制 Device Token 到剪切板
