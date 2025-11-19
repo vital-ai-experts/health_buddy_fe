@@ -6,6 +6,7 @@ struct SceneRoot: View {
 
     init(router: RouteManager = .shared) {
         _router = StateObject(wrappedValue: router)
+        print("[RouteManager] SceneRoot wrap")
     }
 
     var body: some View {

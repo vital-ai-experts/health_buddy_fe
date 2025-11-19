@@ -4,21 +4,21 @@ import LibraryServiceLoader
 
 extension AccountModule {
     static func registerRoutes(on router: RouteRegistering) {
-        router.register(path: "/login", defaultPresentation: .sheet) { context in
+        router.register(path: "/login", defaultSurface: .fullscreen) { context in
             let accountFeature = ServiceManager.shared.resolve(FeatureAccountBuildable.self)
             let isDismissable = context.queryItems["dismissable"]?.lowercased() != "false"
             return AnyView(LoginRouteView(accountFeature: accountFeature, isDismissable: isDismissable))
         }
 
-        router.register(path: "/settings", defaultPresentation: .push) { _ in
+        router.register(path: "/settings", defaultSurface: .tab) { _ in
             AnyView(SettingsView())
         }
 
-        router.register(path: "/settings/account", defaultPresentation: .push) { _ in
+        router.register(path: "/settings/account", defaultSurface: .tab) { _ in
             AnyView(AccountSettingsRouteView())
         }
 
-        router.register(path: "/settings/about", defaultPresentation: .push) { _ in
+        router.register(path: "/settings/about", defaultSurface: .tab) { _ in
             AnyView(AboutView())
         }
     }

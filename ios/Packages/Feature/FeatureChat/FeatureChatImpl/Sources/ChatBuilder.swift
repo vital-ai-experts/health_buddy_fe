@@ -1,5 +1,6 @@
 import SwiftUI
 import FeatureChatApi
+import LibraryServiceLoader
 
 /// Builder for Chat feature views
 public final class ChatBuilder: FeatureChatBuildable {
@@ -16,11 +17,25 @@ public final class ChatBuilder: FeatureChatBuildable {
     }
 
     public func makeChatTabView() -> AnyView {
-        // Tab需要用NavigationStack包裹才能显示navigationTitle和toolbar
-        AnyView(
-            NavigationStack {
-                PersistentChatView()
-            }
-        )
+        AnyView(ChatTabView())
+    }
+}
+
+/// ChatView 的 Tab 包装器，带有独立的 NavigationStack
+private struct ChatTabView: View {
+    @EnvironmentObject var router: RouteManager
+
+    var body: some View {
+        NavigationStack(path: $router.chatPath) {
+            PersistentChatView()
+                .navigationDestination(for: RouteMatch.self) { match in
+                    print("[ChatTab] navigationDestination: \(match.path)")
+                    return router.buildView(for: match)
+                }
+        }
+        .onAppear {
+            // 更新当前 tab
+            router.currentTab = .chat
+        }
     }
 }

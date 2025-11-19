@@ -57,51 +57,51 @@ struct RootView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $router.path) {
-            ZStack {
-                Group {
-                    switch appState {
-                    case .initializing:
-                        Color.clear
+        ZStack {
+            Group {
+                switch appState {
+                case .initializing:
+                    Color.clear
 
-                    case .onboarding:
-                        onboardingFeature.makeOnboardingView {
-                            OnboardingStateManager.shared.markOnboardingAsCompleted()
-                            Task { @MainActor in
-                                appState = .authenticated
-                                presentLogin(dismissable: false)
-                            }
+                case .onboarding:
+                    onboardingFeature.makeOnboardingView {
+                        OnboardingStateManager.shared.markOnboardingAsCompleted()
+                        Task { @MainActor in
+                            appState = .authenticated
+                            presentLogin(dismissable: false)
                         }
-
-                    case .authenticated:
-                        MainTabView(
-                            healthKitFeature: healthKitFeature,
-                            chatFeature: chatFeature,
-                            accountFeature: accountFeature,
-                            onLogout: handleLogout
-                        )
                     }
-                }
 
-                if showingSplash {
-                    Color.black
-                        .ignoresSafeArea()
-                        .overlay {
-                            SplashView()
-                        }
-                        .zIndex(999)
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.5), value: showingSplash)
-                        .task {
-                            await initializeApp()
-                        }
+                case .authenticated:
+                    // ⚠️ 关键修改：不用 NavigationStack 包裹 TabView
+                    // 每个 tab 会有自己的 NavigationStack（在 builder 中）
+                    MainTabView(
+                        healthKitFeature: healthKitFeature,
+                        chatFeature: chatFeature,
+                        accountFeature: accountFeature,
+                        onLogout: handleLogout
+                    )
                 }
             }
-            .navigationDestination(for: RouteMatch.self) { match in
-                router.buildView(for: match)
+
+            if showingSplash {
+                Color.black
+                    .ignoresSafeArea()
+                    .overlay {
+                        SplashView()
+                    }
+                    .zIndex(999)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.5), value: showingSplash)
+                    .task {
+                        await initializeApp()
+                    }
             }
         }
         .sheet(item: $router.activeSheet) { match in
+            router.buildView(for: match)
+        }
+        .fullScreenCover(item: $router.activeFullscreen) { match in
             router.buildView(for: match)
         }
         .onAppear(perform: configureRouterCallbacks)
@@ -307,7 +307,8 @@ struct RootView: View {
 
     private func presentLogin(dismissable: Bool = true) {
         let targetURL = dismissable ? loginURL : nonDismissableLoginURL
-        router.open(url: targetURL, preferredPresentation: .sheet)
+        // 使用默认的 fullscreen presentation
+        router.open(url: targetURL)
     }
 
     private func configureRouterCallbacks() {

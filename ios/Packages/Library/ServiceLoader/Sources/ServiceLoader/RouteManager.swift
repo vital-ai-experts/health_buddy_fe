@@ -6,10 +6,11 @@ import SwiftUI
 public final class RouteManager: ObservableObject, RouteRegistering {
     public static let shared = RouteManager()
 
-    /// 路由展示方式
-    public enum RoutePresentation: Hashable, Equatable {
-        case push
-        case sheet
+    /// 路由展示层级（Surface）
+    public enum RouteSurface: Hashable, Equatable {
+        case tab        // 在当前 tab 的 NavigationStack 中展示
+        case sheet      // 以 sheet 形式展示
+        case fullscreen // 以全屏形式展示
     }
 
     /// 解析 URL 后的上下文
@@ -19,7 +20,7 @@ public final class RouteManager: ObservableObject, RouteRegistering {
         public let host: String?
         public let path: String
         public let queryItems: [String: String]
-        public let presentationHint: RoutePresentation?
+        public let surfaceHint: RouteSurface?
 
         public init(
             url: URL,
@@ -27,14 +28,14 @@ public final class RouteManager: ObservableObject, RouteRegistering {
             host: String?,
             path: String,
             queryItems: [String: String],
-            presentationHint: RoutePresentation?
+            surfaceHint: RouteSurface?
         ) {
             self.url = url
             self.scheme = scheme
             self.host = host
             self.path = path
             self.queryItems = queryItems
-            self.presentationHint = presentationHint
+            self.surfaceHint = surfaceHint
         }
     }
 
@@ -52,114 +53,68 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 
     /// SwiftUI 构建信息
     public struct RouteEntry {
-        public let defaultPresentation: RoutePresentation
+        public let defaultSurface: RouteSurface
         public let builder: (RouteContext) -> AnyView
 
         public init(
-            defaultPresentation: RoutePresentation,
+            defaultSurface: RouteSurface,
             builder: @escaping (RouteContext) -> AnyView
         ) {
-            self.defaultPresentation = defaultPresentation
+            self.defaultSurface = defaultSurface
             self.builder = builder
         }
     }
 
-    /// 路由处理闭包类型
-    public typealias RouteHandler = (RouteInfo) -> Void
-
-    /// 路由信息结构
-    public struct RouteInfo {
-        public let scheme: String
-        public let host: String?
-        public let path: String
-        public let queryItems: [String: String]
-
-        public init(scheme: String, host: String?, path: String, queryItems: [String: String]) {
-            self.scheme = scheme
-            self.host = host
-            self.path = path
-            self.queryItems = queryItems
+    // 为每个 tab 维护独立的导航路径
+    @Published public var chatPath = NavigationPath()
+    @Published public var healthPath = NavigationPath()
+    @Published public var profilePath = NavigationPath()
+    @Published public var currentTab: Tab = .chat {
+        didSet {
+            print("[RouteManager] 📍 Current tab changed to: \(currentTab)")
         }
     }
 
-    @Published public var path = NavigationPath()
     @Published public var activeSheet: RouteMatch?
+    @Published public var activeFullscreen: RouteMatch?
 
     public var onLoginSuccess: (() -> Void)?
     public var onLogout: (() -> Void)?
 
-    private var routeHandlers: [String: RouteHandler] = [:]
     private var viewRoutes: [String: RouteEntry] = [:]
     private let lock = NSLock()
 
-    public init() {}
-
-    /// 注册路由处理器
-    /// - Parameters:
-    ///   - path: 路由路径，例如 "/demo"
-    ///   - handler: 路由处理闭包
-    public func register(path: String, handler: @escaping RouteHandler) {
-        lock.lock()
-        defer { lock.unlock() }
-        routeHandlers[path] = handler
+    public enum Tab {
+        case chat
+        case agenda
+        case health
+        case profile
     }
+
+    public init() {}
 
     /// 注册 SwiftUI 路由
     /// - Parameters:
     ///   - path: 逻辑路径
-    ///   - defaultPresentation: 默认展示方式
+    ///   - defaultSurface: 默认展示层级
     ///   - builder: 构建对应 View 的闭包
     public func register(
         path: String,
-        defaultPresentation: RoutePresentation = .push,
+        defaultSurface: RouteSurface = .tab,
         builder: @escaping (RouteContext) -> AnyView
     ) {
         lock.lock()
-        viewRoutes[path] = RouteEntry(defaultPresentation: defaultPresentation, builder: builder)
+        viewRoutes[path] = RouteEntry(defaultSurface: defaultSurface, builder: builder)
         lock.unlock()
-    }
-
-    /// 处理 URL
-    /// - Parameter url: 需要处理的 URL
-    /// - Returns: 是否成功处理
-    @discardableResult
-    public func handle(url: URL) -> Bool {
-        let context = parse(url: url)
-
-        lock.lock()
-        let hasViewRoute = viewRoutes[context.path] != nil
-        var handler = routeHandlers[context.path]
-        if handler == nil, let host = context.host {
-            handler = routeHandlers[host] ?? routeHandlers["/\(host)"]
-        }
-        lock.unlock()
-
-        if hasViewRoute {
-            open(with: context)
-            return true
-        }
-
-        if let handler = handler {
-            let info = RouteInfo(
-                scheme: context.scheme,
-                host: context.host,
-                path: context.path,
-                queryItems: context.queryItems
-            )
-            handler(info)
-            return true
-        }
-
-        return false
     }
 
     /// 打开 URL 对应的 SwiftUI 路由
     /// - Parameters:
     ///   - url: 目标 URL
-    ///   - preferredPresentation: 期望的展示方式（可覆盖默认与 query 提示）
-    public func open(url: URL, preferredPresentation: RoutePresentation? = nil) {
+    ///   - on: 期望的展示层级（可覆盖默认与 query 提示）
+    public func open(url: URL, on surface: RouteSurface? = nil) {
         let context = parse(url: url)
-        open(with: context, preferredPresentation: preferredPresentation)
+        open(with: context, on: surface)
     }
 
     /// 根据匹配信息构建 View
@@ -178,6 +133,7 @@ public final class RouteManager: ObservableObject, RouteRegistering {
     public func handleLoginSuccess() {
         onLoginSuccess?()
         activeSheet = nil
+        activeFullscreen = nil
     }
 
     public func handleLogoutRequested() {
@@ -186,13 +142,13 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 
     /// 构建 URL
     /// - Parameters:
-    ///   - scheme: URL scheme，例如 "playany"
+    ///   - scheme: URL scheme，例如 "thrivebody"
     ///   - host: 主机名（可选）
-    ///   - path: 路径，例如 "/demo"
+    ///   - path: 路径，例如 "/settings"
     ///   - queryItems: 查询参数
     /// - Returns: 构建的 URL
     public func buildURL(
-        scheme: String = "playany",
+        scheme: String = "thrivebody",
         host: String? = nil,
         path: String,
         queryItems: [String: String] = [:]
@@ -211,22 +167,41 @@ public final class RouteManager: ObservableObject, RouteRegistering {
         return components.url
     }
 
-    private func open(with context: RouteContext, preferredPresentation: RoutePresentation? = nil) {
+    private func open(with context: RouteContext, on surface: RouteSurface? = nil) {
         lock.lock()
         guard let entry = viewRoutes[context.path] else {
             lock.unlock()
+            print("[RouteManager] ⚠️ No route registered for path: \(context.path)")
             return
         }
         lock.unlock()
 
         let match = RouteMatch(path: context.path, context: context)
-        let presentation = preferredPresentation ?? context.presentationHint ?? entry.defaultPresentation
+        let targetSurface = surface ?? context.surfaceHint ?? entry.defaultSurface
 
-        switch presentation {
-        case .push:
-            path.append(match)
+        switch targetSurface {
+        case .tab:
+            // 根据当前 tab 往对应的 path 中 append
+            switch currentTab {
+            case .chat:
+                print("[RouteManager] 🚀 open: \(context.path) on Chat tab, current path.count = \(chatPath.count)")
+                chatPath.append(match)
+            case .agenda:
+                print("[RouteManager] 🚀 open: \(context.path) on Agenda tab")
+                // Agenda tab 暂时不支持导航
+            case .health:
+                print("[RouteManager] 🚀 open: \(context.path) on Health tab, current path.count = \(healthPath.count)")
+                healthPath.append(match)
+            case .profile:
+                print("[RouteManager] 🚀 open: \(context.path) on Profile tab, current path.count = \(profilePath.count)")
+                profilePath.append(match)
+            }
         case .sheet:
+            print("[RouteManager] 📄 Showing on sheet surface")
             activeSheet = match
+        case .fullscreen:
+            print("[RouteManager] 🖥️ Showing on fullscreen surface")
+            activeFullscreen = match
         }
     }
 
@@ -251,18 +226,20 @@ public final class RouteManager: ObservableObject, RouteRegistering {
             }
         }
 
-        let presentationHint: RoutePresentation?
+        let surfaceHint: RouteSurface?
         if let present = queryItems["present"]?.lowercased() {
             switch present {
+            case "tab":
+                surfaceHint = .tab
             case "sheet":
-                presentationHint = .sheet
-            case "push":
-                presentationHint = .push
+                surfaceHint = .sheet
+            case "fullscreen":
+                surfaceHint = .fullscreen
             default:
-                presentationHint = nil
+                surfaceHint = nil
             }
         } else {
-            presentationHint = nil
+            surfaceHint = nil
         }
 
         return RouteContext(
@@ -271,7 +248,7 @@ public final class RouteManager: ObservableObject, RouteRegistering {
             host: host,
             path: path,
             queryItems: queryItems,
-            presentationHint: presentationHint
+            surfaceHint: surfaceHint
         )
     }
 }
@@ -280,11 +257,11 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 public protocol RouteRegistering {
     func register(
         path: String,
-        defaultPresentation: RouteManager.RoutePresentation,
+        defaultSurface: RouteManager.RouteSurface,
         builder: @escaping (RouteManager.RouteContext) -> AnyView
     )
 }
 
-public typealias RoutePresentation = RouteManager.RoutePresentation
+public typealias RouteSurface = RouteManager.RouteSurface
 public typealias RouteContext = RouteManager.RouteContext
 public typealias RouteMatch = RouteManager.RouteMatch

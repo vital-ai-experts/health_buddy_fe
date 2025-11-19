@@ -15,11 +15,29 @@ public struct HealthKitBuilder: FeatureHealthKitBuildable {
     }
 
     public func makeHealthKitTabView() -> AnyView {
-        let coordinator: HealthKitCoordinator = HealthKitCoordinator(
-            authorizationService: ServiceManager.shared.resolve(AuthorizationService.self),
-            healthKitBuilder: ServiceManager.shared.resolve(FeatureHealthKitBuildable.self)
-        )
-        return AnyView(coordinator)
+        AnyView(HealthKitTabView())
+    }
+}
+
+/// HealthKit 的 Tab 包装器，带有独立的 NavigationStack
+private struct HealthKitTabView: View {
+    @EnvironmentObject var router: RouteManager
+
+    var body: some View {
+        NavigationStack(path: $router.healthPath) {
+            HealthKitCoordinator(
+                authorizationService: ServiceManager.shared.resolve(AuthorizationService.self),
+                healthKitBuilder: ServiceManager.shared.resolve(FeatureHealthKitBuildable.self)
+            )
+            .navigationDestination(for: RouteMatch.self) { match in
+                print("[HealthTab] navigationDestination: \(match.path)")
+                return router.buildView(for: match)
+            }
+        }
+        .onAppear {
+            // 更新当前 tab
+            router.currentTab = .health
+        }
     }
 }
 
