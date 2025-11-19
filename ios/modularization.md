@@ -92,6 +92,16 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 - 负责调用所有模块的注册函数
 - 不包含业务逻辑
 
+## 路由与导航基建
+
+- **核心理念**: 通过全局 `RouteManager` 统一接管 Tab 栈、Sheet、Fullscreen 等展示层级，让 App 层只负责注入路由器，具体页面的注册和展示交给 Feature。
+- **设计要点**: `RouteManager` 会持有各 Tab 的 `NavigationPath`，并暴露 `activeSheet`、`activeFullscreen` 等状态；任意 Feature 都能在注册阶段把自己的 URL 映射到对应 View Builder，默认展示层可以在注册时配置，也可以在打开时临时指定。
+- **使用方式**:
+  1. Feature Impl 提供 `Module+Routing` 扩展，在自身的 `Module.register()` 里调用 `registerRoutes(on:)` 并传入共享的 `RouteManager`。
+  2. 注册时实现 `builder(context:)` 闭包，根据 URL、Query、路由参数构建 SwiftUI View，需要回调登录/登出等事件时可直接调用 `RouteManager` 提供的辅助方法。
+  3. 业务侧通过 `router.buildURL("/path", queryItems:)` 组装目标，再用 `router.open(url:on:)` 或 `router.open(path:on:)` 触发导航；`RootView` 负责把外部深链交给路由器，并通过 `.sheet`、`.fullScreenCover` 等绑定展示状态。
+- **实践建议**: 保持 URL 命名与 Feature 一致，轻参数走 query，复杂状态交给共享数据模型；Sheet / Fullscreen 入口最好都能通过 `present` 参数覆盖，方便统一的深链调起；需要跨 Feature 触发导航时，优先复用路由 URL，而不是直接引用具体视图。
+
 ## 目录结构示意
 
 ```
