@@ -9,7 +9,6 @@ import Foundation
 import LibraryNetworking
 
 /// Implementation of CommonParamsProvider that provides device and locale information
-@MainActor
 public class CommonParamsProviderImpl: CommonParamsProvider {
     /// Shared singleton instance
     public static let shared = CommonParamsProviderImpl()
