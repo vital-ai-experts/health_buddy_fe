@@ -3,17 +3,17 @@ import SwiftUI
 
 /// 路由管理器，负责处理应用内路由跳转
 @MainActor
-public final class RouteManager: ObservableObject {
+public final class RouteManager: ObservableObject, RouteRegistering {
     public static let shared = RouteManager()
 
     /// 路由展示方式
-    public enum RoutePresentation {
+    public enum RoutePresentation: Hashable, Equatable {
         case push
         case sheet
     }
 
     /// 解析 URL 后的上下文
-    public struct RouteContext {
+    public struct RouteContext: Hashable, Equatable {
         public let url: URL
         public let scheme: String
         public let host: String?
@@ -288,4 +288,3 @@ public protocol RouteRegistering {
 public typealias RoutePresentation = RouteManager.RoutePresentation
 public typealias RouteContext = RouteManager.RouteContext
 public typealias RouteMatch = RouteManager.RouteMatch
-

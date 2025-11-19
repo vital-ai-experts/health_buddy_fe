@@ -10,15 +10,15 @@ extension AccountModule {
             return AnyView(LoginRouteView(accountFeature: accountFeature, isDismissable: isDismissable))
         }
 
-        router.register(path: "/settings") { _ in
+        router.register(path: "/settings", defaultPresentation: .push) { _ in
             AnyView(SettingsView())
         }
 
-        router.register(path: "/settings/account") { _ in
+        router.register(path: "/settings/account", defaultPresentation: .push) { _ in
             AnyView(AccountSettingsRouteView())
         }
 
-        router.register(path: "/settings/about") { _ in
+        router.register(path: "/settings/about", defaultPresentation: .push) { _ in
             AnyView(AboutView())
         }
     }
