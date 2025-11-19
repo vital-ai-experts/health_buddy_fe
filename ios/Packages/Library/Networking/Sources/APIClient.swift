@@ -1,5 +1,12 @@
 import Foundation
 
+/// Protocol for providing common query parameters that should be added to all API requests
+public protocol CommonParamsProvider {
+    /// Returns common query parameters to be appended to every API request
+    /// - Returns: Array of URLQueryItem containing common parameters like region, language, device_id, etc.
+    func getCommonQueryParams() -> [URLQueryItem]
+}
+
 /// API client for making HTTP requests
 public final class APIClient {
     public static let shared = APIClient()
@@ -23,6 +30,7 @@ public final class APIClient {
 
     private let session: URLSession
     private var authToken: String?
+    private var commonParamsProvider: CommonParamsProvider?
 
     public init() {
         let configuration = URLSessionConfiguration.default
@@ -44,6 +52,12 @@ public final class APIClient {
     /// Get current authentication token
     public func getAuthToken() -> String? {
         return authToken
+    }
+
+    /// Set common parameters provider
+    /// - Parameter provider: The provider that will supply common query parameters for all requests
+    public func setCommonParamsProvider(_ provider: CommonParamsProvider?) {
+        self.commonParamsProvider = provider
     }
 
     /// Health check - triggers network permission prompt
@@ -202,8 +216,20 @@ public final class APIClient {
         let url = baseURL.appendingPathComponent(endpoint.path)
 
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-        if !endpoint.queryItems.isEmpty {
-            components.queryItems = endpoint.queryItems
+
+        // Merge common parameters from provider with endpoint-specific parameters
+        var allQueryItems: [URLQueryItem] = []
+
+        // Add common parameters first (if provider is set)
+        if let provider = commonParamsProvider {
+            allQueryItems.append(contentsOf: provider.getCommonQueryParams())
+        }
+
+        // Add endpoint-specific parameters (these can override common params if needed)
+        allQueryItems.append(contentsOf: endpoint.queryItems)
+
+        if !allQueryItems.isEmpty {
+            components.queryItems = allQueryItems
         }
 
         guard let finalURL = components.url else {
