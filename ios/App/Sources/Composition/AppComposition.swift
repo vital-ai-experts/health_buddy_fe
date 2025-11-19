@@ -15,7 +15,7 @@ import FeatureDebugToolsImpl
 
 enum AppComposition {
     @MainActor
-    static func bootstrap() {
+    static func bootstrap(router: RouteRegistering) {
         // 1. 配置Domain层服务
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
@@ -24,13 +24,13 @@ enum AppComposition {
 
         // 2. 注册Features
         HealthKitModule.register()
-        AccountModule.register()
+        AccountModule.register(router: router)
         ChatModule.register()
         OnboardingModule.register()
         AgendaModule.register()
 
         #if DEBUG
-        DebugToolsFeatureModule.register()
+        DebugToolsFeatureModule.register(router: router)
         #endif
     }
 }

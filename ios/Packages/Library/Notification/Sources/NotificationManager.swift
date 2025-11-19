@@ -7,6 +7,7 @@
 
 import Foundation
 import UserNotifications
+import UIKit
 import LibraryBase
 import LibraryTrack
 import LibraryNetworking
@@ -152,9 +153,12 @@ public class NotificationManager: NSObject, ObservableObject {
         Log.i("📦 通知内容: \(userInfo)", category: "Notification")
 
         // 提取 deeplink
-        if let deeplinkString = userInfo["deeplink"] as? String {
+        if let deeplinkString = userInfo["deeplink"] as? String,
+           let url = URL(string: deeplinkString) {
             Log.i("🔗 提取到 deeplink: \(deeplinkString)", category: "Notification")
-            DeeplinkHandler.shared.handle(deeplinkString)
+            Task { @MainActor in
+                UIApplication.shared.open(url)
+            }
         } else {
             Log.w("⚠️ 通知中没有 deeplink", category: "Notification")
         }

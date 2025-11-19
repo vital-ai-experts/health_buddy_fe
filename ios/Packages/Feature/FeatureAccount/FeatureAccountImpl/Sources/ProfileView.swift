@@ -6,9 +6,11 @@ import LibraryServiceLoader
 import FeatureDebugToolsApi
 import FeatureAgendaApi
 import LibraryBase
+import LibraryServiceLoader
 
 /// Me页面，显示用户信息和设置选项
 public struct ProfileView: View {
+    @EnvironmentObject private var router: RouteManager
     @State private var user: DomainAuth.User?
     @State private var isLoading = true
 
@@ -24,85 +26,83 @@ public struct ProfileView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            List {
-                // 用户信息部分
-                Section {
-                    if isLoading {
+        List {
+            // 用户信息部分
+            Section {
+                if isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                } else if let user = user {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                    } else if let user = user {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.blue)
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.blue)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(user.fullName)
-                                        .font(.title2)
-                                        .fontWeight(.semibold)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(user.fullName)
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
 
-                                    Text(user.email.isEmpty ? "user@example.com" : user.email)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
+                                Text(user.email.isEmpty ? "user@example.com" : user.email)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                             }
-                            .padding(.vertical, 8)
+
+                            Spacer()
                         }
+                        .padding(.vertical, 8)
                     }
                 }
+            }
 
-                // 设置选项
-                Section {
-                    NavigationLink {
-                        AccountSettingsView(onLogout: onLogout)
-                    } label: {
-                        Label("账号", systemImage: "person.crop.circle")
-                    }
-
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Label("设置", systemImage: "gearshape")
-                    }
-
-                    NavigationLink {
-                        AboutView()
-                    } label: {
-                        Label("关于", systemImage: "info.circle")
-                    }
+            // 设置选项
+            Section {
+                Button {
+                    openRoute("/settings/account")
+                } label: {
+                    Label("账号", systemImage: "person.crop.circle")
                 }
 
-                // 开发者选项
-                #if DEBUG
-                Section("开发者选项") {
-                    if let debugToolsBuilder = ServiceManager.shared.resolveOptional(FeatureDebugToolsBuildable.self) {
-                        NavigationLink {
-                            debugToolsBuilder.makeDebugToolsView()
-                        } label: {
-                            Label("开发者工具", systemImage: "wrench.and.screwdriver")
-                        }
-                    }
+                Button {
+                    openRoute("/settings")
+                } label: {
+                    Label("设置", systemImage: "gearshape")
+                }
 
+                Button {
+                    openRoute("/settings/about")
+                } label: {
+                    Label("关于", systemImage: "info.circle")
+                }
+            }
+
+            // 开发者选项
+            #if DEBUG
+            Section("开发者选项") {
+                if ServiceManager.shared.resolveOptional(FeatureDebugToolsBuildable.self) != nil {
                     Button {
-                        OnboardingStateManager.shared.resetOnboardingState()
+                        openRoute("/debug_tools")
                     } label: {
-                        Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
-                            .foregroundColor(.orange)
+                        Label("开发者工具", systemImage: "wrench.and.screwdriver")
                     }
                 }
-                #endif
+
+                Button {
+                    OnboardingStateManager.shared.resetOnboardingState()
+                } label: {
+                    Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
+                        .foregroundColor(.orange)
+                }
             }
-            .navigationTitle("Me")
-            .task {
-                await loadUserInfo()
-            }
+            #endif
+        }
+        .navigationTitle("Me")
+        .task {
+            await loadUserInfo()
         }
     }
 
@@ -114,6 +114,13 @@ public struct ProfileView: View {
             Log.e("Failed to load user info: \(error)", category: "Profile")
         }
         isLoading = false
+    }
+
+    private func openRoute(_ path: String) {
+        let trimmedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        if let url = URL(string: "thrivebody://\(trimmedPath)") {
+            router.open(url: url)
+        }
     }
 }
 
