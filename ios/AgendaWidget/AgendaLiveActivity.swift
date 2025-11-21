@@ -1,4 +1,5 @@
 import ActivityKit
+import Foundation
 import SwiftUI
 import WidgetKit
 import LibraryNotification
@@ -102,7 +103,7 @@ struct TopStatusView: View {
 
             // Right Side - Buffs
             HStack(spacing: 8) {
-                ForEach(status.buffs, id: \.icon) { buff in
+                ForEach(Array(status.buffs.enumerated()), id: \.offset) { _, buff in
                     BuffIconView(buff: buff)
                 }
             }
