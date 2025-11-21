@@ -286,21 +286,19 @@ struct CountdownSectionView: View {
     }
 
     private func hexToColor(_ hex: String) -> Color {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let r, g, b: UInt64
-        switch hex.count {
-        case 6: // RGB (24-bit)
-            (r, g, b) = ((int >> 16) & 0xFF, (int >> 8) & 0xFF, int & 0xFF)
-        default:
-            (r, g, b) = (255, 215, 0) // Default gold color
+        var hexString = hex.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        if hexString.hasPrefix("#") {
+            hexString.removeFirst()
         }
-        return Color(
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255
-        )
+
+        var rgb: UInt64 = 0
+        Scanner(string: hexString).scanHexInt64(&rgb)
+
+        let red = Double((rgb >> 16) & 0xFF) / 255.0
+        let green = Double((rgb >> 8) & 0xFF) / 255.0
+        let blue = Double(rgb & 0xFF) / 255.0
+
+        return Color(red: red, green: green, blue: blue)
     }
 }
 
