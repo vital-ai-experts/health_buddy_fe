@@ -62,229 +62,62 @@ struct AgendaLiveActivityView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Top Status Section
-            TopStatusView(status: context.state.status)
-
-            // Middle Task Section
-            TaskSectionView(task: context.state.task)
-
-            // Bottom Countdown Section
-            CountdownSectionView(countdown: context.state.countdown)
-        }
-        .padding(16)
-    }
-}
-
-// MARK: - Top Status Section
-@available(iOS 16.1, *)
-struct TopStatusView: View {
-    let status: AgendaActivityAttributes.ContentState.StatusInfo
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Left Side - Energy Status
-            HStack(spacing: 8) {
-                Image(systemName: status.icon)
-                    .font(.system(size: 24))
-                    .foregroundStyle(energyColor)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(status.title)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(energyColor)
-
-                    Text("Energy")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            // Right Side - Buffs
-            HStack(spacing: 8) {
-                ForEach(Array(status.buffs.enumerated()), id: \.offset) { _, buff in
-                    BuffIconView(buff: buff)
-                }
-            }
-        }
-    }
-
-    private var energyColor: Color {
-        // Parse percentage from title (e.g., "30%")
-        if let percentString = status.title.replacingOccurrences(of: "%", with: ""),
-           let percent = Int(percentString) {
-            if percent > 60 {
-                return .green
-            } else if percent > 30 {
-                return .orange
-            } else {
-                return .red
-            }
-        }
-        return .green
-    }
-}
-
-@available(iOS 16.1, *)
-struct BuffIconView: View {
-    let buff: AgendaActivityAttributes.ContentState.BuffInfo
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: buff.icon)
-                .font(.system(size: 18))
-                .foregroundStyle(.blue)
-
-            Text(buff.label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.blue.opacity(0.15))
-        )
-    }
-}
-
-// MARK: - Middle Task Section
-@available(iOS 16.1, *)
-struct TaskSectionView: View {
-    let task: AgendaActivityAttributes.ContentState.TaskInfo
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Left Side - Task Text
-            VStack(alignment: .leading, spacing: 8) {
-                // Quest Label
-                Text("QUEST: 光合作用")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-
-                // Task Title
-                Text(task.title)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                // Task Description
-                Text(task.description)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-            }
-
-            Spacer(minLength: 8)
-
-            // Right Side - Complete Button
-            CompleteButtonView(button: task.button)
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground).opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                )
-        )
-    }
-}
-
-@available(iOS 16.1, *)
-struct CompleteButtonView: View {
-    let button: AgendaActivityAttributes.ContentState.ButtonInfo
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.yellow, Color.orange],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 52, height: 52)
-                    .shadow(color: Color.yellow.opacity(0.4), radius: 8, x: 0, y: 4)
-
-                Image(systemName: button.icon)
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-
-            Text(button.label)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-    }
-}
-
-// MARK: - Bottom Countdown Section
-@available(iOS 16.1, *)
-struct CountdownSectionView: View {
-    let countdown: AgendaActivityAttributes.ContentState.CountdownInfo
-
-    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Label and Time Range
+            // Top: Status
             HStack {
-                Text(countdown.label)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
+                Image(systemName: context.state.status.icon)
+                Text(context.state.status.title)
+                    .font(.title2.bold())
 
                 Spacer()
 
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 11))
-                    Text("最佳时间: \(countdown.timeRange)")
-                        .font(.system(size: 11))
-                }
-                .foregroundStyle(.secondary)
-            }
-
-            // Progress Bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // Background
-                    Capsule()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 8)
-
-                    // Progress Fill
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geometry.size.width * countdown.progress, height: 8)
-
-                    // Sun icon at start
-                    Image(systemName: "sun.max.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.yellow)
-                        .offset(x: 4)
-
-                    // Moon icon at end
-                    Image(systemName: "moon.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .offset(x: geometry.size.width - 18)
+                ForEach(context.state.status.buffs, id: \.icon) { buff in
+                    HStack(spacing: 2) {
+                        Image(systemName: buff.icon)
+                            .font(.caption)
+                        Text(buff.label)
+                            .font(.caption)
+                    }
                 }
             }
-            .frame(height: 8)
+
+            // Middle: Task
+            VStack(alignment: .leading, spacing: 4) {
+                Text(context.state.task.title)
+                    .font(.headline)
+                Text(context.state.task.description)
+                    .font(.caption)
+                    .lineLimit(2)
+            }
+
+            // Bottom: Countdown
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(context.state.countdown.label)
+                        .font(.caption2)
+                    Spacer()
+                    Text(context.state.countdown.timeRange)
+                        .font(.caption2)
+                }
+
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 4)
+
+                        Capsule()
+                            .fill(Color.yellow)
+                            .frame(width: geometry.size.width * context.state.countdown.progress, height: 4)
+                    }
+                }
+                .frame(height: 4)
+            }
         }
+        .padding()
     }
 }
+
 
 // MARK: - Preview
 
