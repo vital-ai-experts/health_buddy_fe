@@ -30,13 +30,14 @@ struct AgendaLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(context.state.title)
+                        Text(context.state.task.title)
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text(context.state.text)
+                        Text(context.state.task.description)
                             .font(.body)
                             .fontWeight(.semibold)
+                            .lineLimit(2)
                     }
                     .padding(.horizontal)
                 }
