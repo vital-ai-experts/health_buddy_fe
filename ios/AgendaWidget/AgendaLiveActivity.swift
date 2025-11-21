@@ -5,6 +5,25 @@ import WidgetKit
 import LibraryNotification
 import AppIntents
 
+// MARK: - Color Extension for Hex Support
+extension Color {
+    init(hex: String) {
+        var hexString = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hexString.hasPrefix("#") {
+            hexString.removeFirst()
+        }
+
+        var rgb: UInt64 = 0
+        Scanner(string: hexString).scanHexInt64(&rgb)
+
+        let red = Double((rgb >> 16) & 0xFF) / 255.0
+        let green = Double((rgb >> 8) & 0xFF) / 255.0
+        let blue = Double(rgb & 0xFF) / 255.0
+
+        self.init(red: red, green: green, blue: blue)
+    }
+}
+
 /// Live Activity Widget for Agenda
 @available(iOS 16.1, *)
 struct AgendaLiveActivity: Widget {
@@ -261,7 +280,7 @@ struct CountdownSectionView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [hexToColor(countdown.progressColor), hexToColor(countdown.progressColor).opacity(0.7)],
+                                colors: [Color(hex: countdown.progressColor), Color(hex: countdown.progressColor).opacity(0.7)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -271,7 +290,7 @@ struct CountdownSectionView: View {
                     // Sun icon at start
                     Image(systemName: "sun.max.fill")
                         .font(.system(size: 14))
-                        .foregroundStyle(hexToColor(countdown.progressColor))
+                        .foregroundStyle(Color(hex: countdown.progressColor))
                         .offset(x: 4)
 
                     // Moon icon at end
@@ -283,22 +302,6 @@ struct CountdownSectionView: View {
             }
             .frame(height: 8)
         }
-    }
-
-    private func hexToColor(_ hex: String) -> Color {
-        var hexString = hex.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-        if hexString.hasPrefix("#") {
-            hexString.removeFirst()
-        }
-
-        var rgb: UInt64 = 0
-        Scanner(string: hexString).scanHexInt64(&rgb)
-
-        let red = Double((rgb >> 16) & 0xFF) / 255.0
-        let green = Double((rgb >> 8) & 0xFF) / 255.0
-        let blue = Double(rgb & 0xFF) / 255.0
-
-        return Color(red: red, green: green, blue: blue)
     }
 }
 
