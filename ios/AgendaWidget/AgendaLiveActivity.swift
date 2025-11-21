@@ -261,7 +261,7 @@ struct CountdownSectionView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [ColorHex.color(from: countdown.progressColor), ColorHex.color(from: countdown.progressColor).opacity(0.7)],
+                                colors: [.yellow, .orange],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -271,7 +271,7 @@ struct CountdownSectionView: View {
                     // Sun icon at start
                     Image(systemName: "sun.max.fill")
                         .font(.system(size: 14))
-                        .foregroundStyle(ColorHex.color(from: countdown.progressColor))
+                        .foregroundStyle(.yellow)
                         .offset(x: 4)
 
                     // Moon icon at end
