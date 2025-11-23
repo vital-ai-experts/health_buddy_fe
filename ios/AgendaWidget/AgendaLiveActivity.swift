@@ -62,146 +62,172 @@ struct AgendaLiveActivityView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Top: Status with dynamic color
-            HStack(spacing: 8) {
-                Image(systemName: context.state.status.icon)
-                    .font(.system(size: 24))
-                    .foregroundStyle(energyColor)
-
-                Text(context.state.status.title)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(energyColor)
-
-                Spacer()
-
-                // Buffs with rounded background
-                HStack(spacing: 6) {
-                    ForEach(context.state.status.buffs, id: \.icon) { buff in
-                        HStack(spacing: 3) {
-                            Image(systemName: buff.icon)
-                                .font(.system(size: 14))
-                            Text(buff.label)
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue.opacity(0.15))
-                        )
-                    }
-                }
-            }
-
-            // Middle: Task card with frosted glass effect
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("QUEST: 光合作用")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-
-                    Text(context.state.task.title)
-                        .font(.system(size: 16, weight: .bold))
-                        .lineLimit(2)
-
-                    Text(context.state.task.description)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
-
-                Spacer(minLength: 8)
-
-                // Complete button - gold circle
-                VStack(spacing: 2) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(red: 1, green: 0.84, blue: 0), Color(red: 1, green: 0.65, blue: 0)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 50, height: 50)
-                            .shadow(color: Color.yellow.opacity(0.4), radius: 6, x: 0, y: 3)
-
-                        Image(systemName: context.state.task.button.icon)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-
-                    Text(context.state.task.button.label)
-                        .font(.system(size: 10, weight: .semibold))
-                }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(.systemBackground).opacity(0.5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                    )
+        ZStack {
+            // Background gradient for RPG atmosphere
+            LinearGradient(
+                colors: [
+                    Color(red: 0.1, green: 0.15, blue: 0.2),
+                    Color(red: 0.15, green: 0.2, blue: 0.25)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
+            .opacity(0.95)
 
-            // Bottom: Countdown with gradient progress bar
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(context.state.countdown.label)
-                        .font(.system(size: 12, weight: .medium))
+            VStack(alignment: .leading, spacing: 12) {
+                // Top: Status with dynamic color
+                HStack(spacing: 8) {
+                    Image(systemName: context.state.status.icon)
+                        .font(.system(size: 24))
+                        .foregroundStyle(energyColor)
+
+                    Text(context.state.status.title)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(energyColor)
 
                     Spacer()
 
-                    HStack(spacing: 3) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 10))
-                        Text("最佳时间: \(context.state.countdown.timeRange)")
-                            .font(.system(size: 10))
+                    // Buffs with rounded background
+                    HStack(spacing: 6) {
+                        ForEach(context.state.status.buffs, id: \.icon) { buff in
+                            HStack(spacing: 3) {
+                                Image(systemName: buff.icon)
+                                    .font(.system(size: 14))
+                                Text(buff.label)
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue.opacity(0.25))
+                            )
+                        }
                     }
-                    .foregroundStyle(.secondary)
                 }
 
-                GeometryReader { geometry in
+                // Middle: Task card with frosted glass effect
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("QUEST: 光合作用")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        Text(context.state.task.title)
+                            .font(.system(size: 16, weight: .bold))
+                            .lineLimit(2)
+
+                        Text(context.state.task.description)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    // Complete button - gold circle
+                    VStack(spacing: 2) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 1, green: 0.84, blue: 0), Color(red: 1, green: 0.65, blue: 0)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 50, height: 50)
+                                .shadow(color: Color.yellow.opacity(0.5), radius: 8, x: 0, y: 4)
+
+                            Image(systemName: context.state.task.button.icon)
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+
+                        Text(context.state.task.button.label)
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.black.opacity(0.3))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                )
+
+                // Bottom: Countdown with gradient progress bar
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(context.state.countdown.label)
+                            .font(.system(size: 12, weight: .medium))
+
+                        Spacer()
+
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 10))
+                            Text("最佳时间: \(context.state.countdown.timeRange)")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+
+                    // Progress bar with fixed height
                     ZStack(alignment: .leading) {
                         // Background track
                         Capsule()
-                            .fill(Color(.systemGray5))
-                            .frame(height: 8)
+                            .fill(Color(.systemGray6))
+                            .frame(height: 10)
 
                         // Progress fill with gradient
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 1, green: 0.84, blue: 0),
-                                        Color(red: 1, green: 0.65, blue: 0)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                        GeometryReader { geometry in
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 1, green: 0.84, blue: 0),
+                                            Color(red: 1, green: 0.65, blue: 0)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                            .frame(width: geometry.size.width * context.state.countdown.progress, height: 8)
+                                .frame(width: geometry.size.width * context.state.countdown.progress, height: 10)
+                        }
+                        .frame(height: 10)
 
                         // Sun icon at start
-                        Image(systemName: "sun.max.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color(red: 1, green: 0.84, blue: 0))
-                            .offset(x: 3)
+                        HStack {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color(red: 1, green: 0.84, blue: 0))
+                                .padding(.leading, 4)
 
-                        // Moon icon at end
-                        Image(systemName: "moon.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .offset(x: geometry.size.width - 16)
+                            Spacer()
+
+                            // Moon icon at end
+                            Image(systemName: "moon.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                                .padding(.trailing, 4)
+                        }
                     }
+                    .frame(height: 10)
                 }
-                .frame(height: 8)
             }
+            .padding(14)
         }
-        .padding(14)
     }
 
     private var energyColor: Color {
