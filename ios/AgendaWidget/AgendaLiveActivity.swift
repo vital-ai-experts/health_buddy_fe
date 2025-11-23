@@ -74,32 +74,32 @@ struct AgendaLiveActivityView: View {
             )
             .opacity(0.95)
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 // Top: Status with dynamic color
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: context.state.status.icon)
-                        .font(.system(size: 24))
+                        .font(.system(size: 20))
                         .foregroundStyle(energyColor)
 
                     Text(context.state.status.title)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(energyColor)
 
                     Spacer()
 
                     // Buffs with rounded background
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         ForEach(context.state.status.buffs, id: \.icon) { buff in
-                            HStack(spacing: 3) {
+                            HStack(spacing: 2) {
                                 Image(systemName: buff.icon)
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 12))
                                 Text(buff.label)
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.system(size: 10, weight: .medium))
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
                             .background(
-                                RoundedRectangle(cornerRadius: 10)
+                                RoundedRectangle(cornerRadius: 8)
                                     .fill(Color.blue.opacity(0.25))
                             )
                         }
@@ -107,27 +107,27 @@ struct AgendaLiveActivityView: View {
                 }
 
                 // Middle: Task card with frosted glass effect
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("QUEST: 光合作用")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
 
                         Text(context.state.task.title)
-                            .font(.system(size: 16, weight: .bold))
-                            .lineLimit(2)
+                            .font(.system(size: 14, weight: .bold))
+                            .lineLimit(1)
 
                         Text(context.state.task.description)
-                            .font(.system(size: 12))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
-                            .lineLimit(3)
+                            .lineLimit(2)
                     }
 
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 6)
 
-                    // Complete button - gold circle
-                    VStack(spacing: 2) {
+                    // Complete button - gold circle (smaller)
+                    VStack(spacing: 1) {
                         ZStack {
                             Circle()
                                 .fill(
@@ -137,24 +137,24 @@ struct AgendaLiveActivityView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 50, height: 50)
-                                .shadow(color: Color.yellow.opacity(0.5), radius: 8, x: 0, y: 4)
+                                .frame(width: 44, height: 44)
+                                .shadow(color: Color.yellow.opacity(0.5), radius: 6, x: 0, y: 3)
 
                             Image(systemName: context.state.task.button.icon)
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(.white)
                         }
 
                         Text(context.state.task.button.label)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 9, weight: .semibold))
                     }
                 }
-                .padding(12)
+                .padding(10)
                 .background(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(Color.black.opacity(0.3))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14)
+                            RoundedRectangle(cornerRadius: 12)
                                 .strokeBorder(
                                     LinearGradient(
                                         colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
@@ -167,18 +167,18 @@ struct AgendaLiveActivityView: View {
                 )
 
                 // Bottom: Countdown with gradient progress bar
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(context.state.countdown.label)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
 
                         Spacer()
 
-                        HStack(spacing: 3) {
+                        HStack(spacing: 2) {
                             Image(systemName: "clock")
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                             Text("最佳时间: \(context.state.countdown.timeRange)")
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                         }
                         .foregroundStyle(.secondary)
                     }
@@ -188,7 +188,7 @@ struct AgendaLiveActivityView: View {
                         // Background track
                         Capsule()
                             .fill(Color(.systemGray6))
-                            .frame(height: 10)
+                            .frame(height: 8)
 
                         // Progress fill with gradient
                         GeometryReader { geometry in
@@ -203,30 +203,31 @@ struct AgendaLiveActivityView: View {
                                         endPoint: .trailing
                                     )
                                 )
-                                .frame(width: geometry.size.width * context.state.countdown.progress, height: 10)
+                                .frame(width: geometry.size.width * context.state.countdown.progress, height: 8)
                         }
-                        .frame(height: 10)
+                        .frame(height: 8)
 
                         // Sun icon at start
                         HStack {
                             Image(systemName: "sun.max.fill")
-                                .font(.system(size: 14))
+                                .font(.system(size: 12))
                                 .foregroundStyle(Color(red: 1, green: 0.84, blue: 0))
-                                .padding(.leading, 4)
+                                .padding(.leading, 3)
 
                             Spacer()
 
                             // Moon icon at end
                             Image(systemName: "moon.fill")
-                                .font(.system(size: 14))
+                                .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
-                                .padding(.trailing, 4)
+                                .padding(.trailing, 3)
                         }
                     }
-                    .frame(height: 10)
+                    .frame(height: 8)
                 }
             }
-            .padding(14)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
     }
 
