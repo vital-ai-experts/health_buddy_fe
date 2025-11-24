@@ -20,21 +20,19 @@ public final class LiveActivityManager: ObservableObject {
 
     private init() {}
 
-    /// Start a new agenda live activity
+    /// Start a new agenda live activity with RPG-style mock data
     /// - Parameters:
     ///   - userId: User identifier
-    ///   - title: Title of the live activity (defaults to "Mission to thrive ✨")
-    ///   - text: Text content to display (defaults to "Take a deep breath 🌬️")
+    ///   - title: Title of the live activity (deprecated, uses mock data)
+    ///   - text: Text content to display (deprecated, uses mock data)
     /// - Throws: ActivityKit errors if activity cannot be started
     public func startAgendaActivity(
         userId: String,
         title: String = "Mission to thrive ✨",
         text: String = "Take a deep breath 🌬️"
     ) async throws {
-        Log.i("🚀 Starting Live Activity...", category: "Notification")
+        Log.i("🚀 Starting RPG-style Live Activity...", category: "Notification")
         Log.i("   - User ID: \(userId)", category: "Notification")
-        Log.i("   - Title: \(title)", category: "Notification")
-        Log.i("   - Text: \(text)", category: "Notification")
 
         // Check if activities are enabled
         let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
@@ -44,9 +42,29 @@ public final class LiveActivityManager: ObservableObject {
         await cleanupAllActivities()
 
         let attributes = AgendaActivityAttributes(userId: userId)
+
+        // Mock RPG-style content state
         let contentState = AgendaActivityAttributes.ContentState(
-            title: title,
-            text: text
+            status: .init(
+                type: "energy",
+                title: "30%",
+                icon: "battery.25",
+                buffs: [
+                    .init(icon: "moon.stars.fill", label: "褪黑素")
+                ]
+            ),
+            task: .init(
+                title: "去阳台进行光合作用",
+                description: "别让你的生物钟以为还在深夜。哪怕只把脸伸出去晒 5 分钟,今晚入睡都能快半小时。",
+                button: .init(label: "完成", icon: "checkmark")
+            ),
+            countdown: .init(
+                label: "日照充能窗口",
+                timeRange: "08:00 - 12:00",
+                progressColor: "#FFD700",
+                progress: 0.6,
+                remainingTimeSeconds: 1200
+            )
         )
 
         do {
@@ -56,7 +74,7 @@ public final class LiveActivityManager: ObservableObject {
                 pushType: .token
             )
             currentAgendaActivity = activity
-            Log.i("✅ Live Activity started successfully!", category: "Notification")
+            Log.i("✅ RPG-style Live Activity started successfully!", category: "Notification")
             Log.i("   - Activity ID: \(activity.id)", category: "Notification")
             Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
 
@@ -72,8 +90,8 @@ public final class LiveActivityManager: ObservableObject {
 
     /// Update the current agenda live activity
     /// - Parameters:
-    ///   - title: New title
-    ///   - text: New text content
+    ///   - title: New title (deprecated, kept for compatibility)
+    ///   - text: New text content (deprecated, kept for compatibility)
     /// - Throws: ActivityKit errors if update fails
     public func updateAgendaActivity(title: String, text: String) async throws {
         guard let activity = currentAgendaActivity else {
@@ -88,9 +106,28 @@ public final class LiveActivityManager: ObservableObject {
             throw LiveActivityError.noActiveActivity
         }
 
+        // Create updated state with mock data (can be replaced with server data later)
         let newState = AgendaActivityAttributes.ContentState(
-            title: title,
-            text: text
+            status: .init(
+                type: "energy",
+                title: "60%",
+                icon: "battery.75",
+                buffs: [
+                    .init(icon: "sun.max.fill", label: "活力")
+                ]
+            ),
+            task: .init(
+                title: title,
+                description: text,
+                button: .init(label: "完成", icon: "checkmark")
+            ),
+            countdown: .init(
+                label: "任务窗口",
+                timeRange: "10:00 - 14:00",
+                progressColor: "#FFD700",
+                progress: 0.5,
+                remainingTimeSeconds: 900
+            )
         )
 
         let alertConfiguration = AlertConfiguration(
@@ -135,8 +172,23 @@ public final class LiveActivityManager: ObservableObject {
         for activity in activities {
             Log.i("   - Ending activity: \(activity.id) (state: \(activity.activityState))", category: "Notification")
             let finalState = AgendaActivityAttributes.ContentState(
-                title: "Session ended",
-                text: "See you next time!"
+                status: .init(
+                    type: "energy",
+                    title: "100%",
+                    icon: "battery.100",
+                    buffs: []
+                ),
+                task: .init(
+                    title: "任务完成",
+                    description: "下次再见!",
+                    button: .init(label: "完成", icon: "checkmark")
+                ),
+                countdown: .init(
+                    label: "已结束",
+                    timeRange: "00:00 - 00:00",
+                    progressColor: "#4CAF50",
+                    progress: 1.0
+                )
             )
             await activity.end(
                 .init(state: finalState, staleDate: nil),

@@ -29,16 +29,27 @@ struct ToggleTaskIntent: LiveActivityIntent {
 
         // Simply update with a new message
         Log.i("🆕 Updating Live Activity content", category: "AgendaWidget")
-        let newText = generateNextMessage()
+        let newTaskTitle = generateNextMessage()
 
+        // Create updated state with new task
         let newState = AgendaActivityAttributes.ContentState(
-            title: currentState.title,
-            text: newText
+            status: .init(
+                type: currentState.status.type,
+                title: currentState.status.title,
+                icon: currentState.status.icon,
+                buffs: currentState.status.buffs
+            ),
+            task: .init(
+                title: newTaskTitle,
+                description: "完成这个任务以继续你的健康之旅!",
+                button: .init(label: "完成", icon: "checkmark")
+            ),
+            countdown: currentState.countdown
         )
 
         let alertConfig = AlertConfiguration(
-            title: .init(stringLiteral: currentState.title),
-            body: .init(stringLiteral: newText),
+            title: .init(stringLiteral: newTaskTitle),
+            body: .init(stringLiteral: "完成这个任务以继续你的健康之旅!"),
             sound: .default
         )
 
@@ -50,7 +61,7 @@ struct ToggleTaskIntent: LiveActivityIntent {
             alertConfiguration: alertConfig
         )
 
-        Log.i("✅ Content updated to: \(newText)", category: "AgendaWidget")
+        Log.i("✅ Content updated to: \(newTaskTitle)", category: "AgendaWidget")
         Log.i("💡 Server will push updated content via APNs when available", category: "AgendaWidget")
         return .result()
     }
