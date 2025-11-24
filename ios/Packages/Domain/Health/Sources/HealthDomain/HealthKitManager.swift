@@ -647,9 +647,7 @@ public extension HealthKitManager {
             // 获取身高（米）
             if let latestHeight = try? await getLatestQuantityValue(
                 identifier: .height,
-                unit: .meter(),
-                start: start,
-                end: end
+                unit: .meter()
             ) {
                 characteristics["height"] = latestHeight
             }
@@ -657,9 +655,7 @@ public extension HealthKitManager {
             // 获取体重（千克）
             if let latestBodyMass = try? await getLatestQuantityValue(
                 identifier: .bodyMass,
-                unit: .gramUnit(with: .kilo),
-                start: start,
-                end: end
+                unit: .gramUnit(with: .kilo)
             ) {
                 characteristics["weight"] = latestBodyMass
             }
@@ -711,14 +707,24 @@ public extension HealthKitManager {
     private func getLatestQuantityValue(
         identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
-        start: Date,
-        end: Date
+        start: Date? = nil,
+        end: Date? = nil
     ) async throws -> Double? {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else {
             return nil
         }
 
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let predicate: NSPredicate?
+        switch (start, end) {
+        case let (start?, end?):
+            predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        case let (start?, nil):
+            predicate = HKQuery.predicateForSamples(withStart: start, end: nil, options: .strictStartDate)
+        case let (nil, end?):
+            predicate = HKQuery.predicateForSamples(withStart: nil, end: end, options: .strictStartDate)
+        default:
+            predicate = nil
+        }
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
         let sample: HKQuantitySample? = try await withCheckedThrowingContinuation { continuation in
