@@ -31,8 +31,22 @@ public final class HealthKitManager {
         return formatter
     }()
 
-    private let readTypes: Set<HKObjectType> = {
+    private var characteristicReadTypes: Set<HKObjectType> {
         var set = Set<HKObjectType>()
+
+        // 基础个人信息
+        if let t = HKObjectType.characteristicType(forIdentifier: .dateOfBirth) { set.insert(t) }
+        if let t = HKObjectType.characteristicType(forIdentifier: .biologicalSex) { set.insert(t) }
+
+        // 身体测量（作为个人特征使用的基础字段）
+        if let t = HKObjectType.quantityType(forIdentifier: .height) { set.insert(t) }
+        if let t = HKObjectType.quantityType(forIdentifier: .bodyMass) { set.insert(t) }
+
+        return set
+    }
+
+    private var readTypes: Set<HKObjectType> {
+        var set = characteristicReadTypes
 
         // MARK: - 活动与健身数据
         if let t = HKObjectType.quantityType(forIdentifier: .stepCount) { set.insert(t) }
@@ -119,8 +133,6 @@ public final class HealthKitManager {
         if let t = HKObjectType.categoryType(forIdentifier: .intermenstrualBleeding) { set.insert(t) }
 
         // MARK: - 个人特征（年龄、性别）
-        if let t = HKObjectType.characteristicType(forIdentifier: .dateOfBirth) { set.insert(t) }
-        if let t = HKObjectType.characteristicType(forIdentifier: .biologicalSex) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .cervicalMucusQuality) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .ovulationTestResult) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .sexualActivity) { set.insert(t) }
@@ -180,7 +192,7 @@ public final class HealthKitManager {
         }
 
         return set
-    }()
+    }
 
     private let writeTypes = Set<HKSampleType>()
 
@@ -632,6 +644,26 @@ public extension HealthKitManager {
                 characteristics["biological_sex"] = biologicalSex
             }
 
+            // 获取身高（米）
+            if let latestHeight = try? await getLatestQuantityValue(
+                identifier: .height,
+                unit: .meter(),
+                start: start,
+                end: end
+            ) {
+                characteristics["height"] = latestHeight
+            }
+
+            // 获取体重（千克）
+            if let latestBodyMass = try? await getLatestQuantityValue(
+                identifier: .bodyMass,
+                unit: .gramUnit(with: .kilo),
+                start: start,
+                end: end
+            ) {
+                characteristics["weight"] = latestBodyMass
+            }
+
             if !characteristics.isEmpty {
                 result["characteristics"] = characteristics
             }
@@ -673,6 +705,43 @@ public extension HealthKitManager {
         @unknown default:
             return nil
         }
+    }
+
+    /// 获取指定数量类型的最近一次数值
+    private func getLatestQuantityValue(
+        identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        start: Date,
+        end: Date
+    ) async throws -> Double? {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else {
+            return nil
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+        let sample: HKQuantitySample? = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: (samples?.first as? HKQuantitySample))
+                }
+            }
+            healthStore.execute(query)
+        }
+
+        if let sample {
+            return sample.quantity.doubleValue(for: unit)
+        }
+
+        return nil
     }
 
     /// 获取数量类型的健康数据
