@@ -17,6 +17,9 @@ public enum Log {
 
     /// Default logger instance
     private static let logger = Logger(subsystem: subsystem, category: "App")
+    
+    /// Debug 控制台镜像开关（仅 DEBUG 生效）
+    private static let mirrorToConsole = true
 
     // MARK: - Public Logging Methods
 
@@ -34,9 +37,10 @@ public enum Log {
         function: String = #function,
         line: Int = #line
     ) {
-        let logger = Logger(subsystem: subsystem, category: category)
+        let logger = makeLogger(category: category)
         let fileName = (file as NSString).lastPathComponent
-        logger.debug("[\(fileName):\(line)] \(function) - \(message)")
+        logger.debug("[\(fileName):\(line)] \(function) - \(message, privacy: .public)")
+        mirror(message: message, level: "DEBUG", category: category)
     }
 
     /// Logs an informational message
@@ -53,9 +57,10 @@ public enum Log {
         function: String = #function,
         line: Int = #line
     ) {
-        let logger = Logger(subsystem: subsystem, category: category)
+        let logger = makeLogger(category: category)
         let fileName = (file as NSString).lastPathComponent
-        logger.info("[\(fileName):\(line)] \(function) - \(message)")
+        logger.info("[\(fileName):\(line)] \(function) - \(message, privacy: .public)")
+        mirror(message: message, level: "INFO", category: category)
     }
 
     /// Logs a warning message
@@ -74,12 +79,14 @@ public enum Log {
         function: String = #function,
         line: Int = #line
     ) {
-        let logger = Logger(subsystem: subsystem, category: category)
+        let logger = makeLogger(category: category)
         let fileName = (file as NSString).lastPathComponent
         if let error = error {
-            logger.warning("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
+            logger.warning("[\(fileName):\(line)] \(function) - \(message, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            mirror(message: "\(message): \(error.localizedDescription)", level: "WARN", category: category)
         } else {
-            logger.warning("[\(fileName):\(line)] \(function) - \(message)")
+            logger.warning("[\(fileName):\(line)] \(function) - \(message, privacy: .public)")
+            mirror(message: message, level: "WARN", category: category)
         }
     }
 
@@ -99,12 +106,27 @@ public enum Log {
         function: String = #function,
         line: Int = #line
     ) {
-        let logger = Logger(subsystem: subsystem, category: category)
+        let logger = makeLogger(category: category)
         let fileName = (file as NSString).lastPathComponent
         if let error = error {
-            logger.error("[\(fileName):\(line)] \(function) - \(message): \(error.localizedDescription)")
+            logger.error("[\(fileName):\(line)] \(function) - \(message, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            mirror(message: "\(message): \(error.localizedDescription)", level: "ERROR", category: category)
         } else {
-            logger.error("[\(fileName):\(line)] \(function) - \(message)")
+            logger.error("[\(fileName):\(line)] \(function) - \(message, privacy: .public)")
+            mirror(message: message, level: "ERROR", category: category)
         }
+    }
+    
+    // MARK: - Helpers
+    private static func makeLogger(category: String) -> Logger {
+        Logger(subsystem: subsystem, category: category)
+    }
+    
+    /// 镜像到 Xcode 控制台（DEBUG 环境下），防止 Console.app 过滤看不到
+    private static func mirror(message: String, level: String, category: String) {
+        #if DEBUG
+        guard mirrorToConsole else { return }
+        print("[\(level)][\(category)] \(message)")
+        #endif
     }
 }

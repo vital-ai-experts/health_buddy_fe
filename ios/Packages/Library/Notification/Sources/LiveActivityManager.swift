@@ -25,7 +25,6 @@ public final class LiveActivityManager: ObservableObject {
     /// Push token observation task
     private var pushTokenTask: Task<Void, Never>?
     
-    private let mockTasksKey = "com.thrivebody.liveactivity.mockTasks"
     private let mockTaskIndexKey = "com.thrivebody.liveactivity.mockTaskIndex"
 
     private init() {}
@@ -51,17 +50,14 @@ public final class LiveActivityManager: ObservableObject {
         Log.i("   - Activities enabled: \(areActivitiesEnabled)", category: "Notification")
 
         // Clean up ALL existing activities first
+        stopObservingPushToken()
         await cleanupAllActivities()
 
         let attributes = AgendaActivityAttributes(userId: userId)
 
         // 读取/生成 mock 任务列表
         loadMockTasksIfNeeded()
-        let tasks = mockTasks.isEmpty ? defaultMockTasks() : mockTasks
-        if mockTasks.isEmpty {
-            mockTasks = tasks
-            persistMockTasks(tasks)
-        }
+        let tasks = mockTasks
         currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
 
         // 当前要展示的内容
@@ -209,6 +205,9 @@ public final class LiveActivityManager: ObservableObject {
     /// Clean up all existing agenda activities
     /// This ensures we don't have duplicate activities
     private func cleanupAllActivities() async {
+        // 停止之前的推送 token 监听，避免残留任务
+        stopObservingPushToken()
+
         let activities = Activity<AgendaActivityAttributes>.activities
         let count = activities.count
 
@@ -299,23 +298,29 @@ public final class LiveActivityManager: ObservableObject {
     private func prepareState(_ state: AgendaActivityAttributes.ContentState) -> AgendaActivityAttributes.ContentState {
         var newState = state
         var countdown = newState.countdown
+        
+        // 确保有 startAt
+        if countdown.startAt == nil {
+            countdown.startAt = Date()
+        }
 
-        // 如果传入了总时长但没有剩余时间，则用 progress 推导初始剩余时间
-        if countdown.remainingTimeSeconds == nil,
-           let total = countdown.totalTimeSeconds {
+        // 如果没有 totalTimeSeconds，用 remaining 或 progress 推导
+        if countdown.totalTimeSeconds == nil {
+            if let remaining = countdown.remainingTimeSeconds {
+                countdown.totalTimeSeconds = remaining
+            } else {
+                let totalFromProgress = countdown.progress > 0 ? Int(Double(countdown.remainingTimeSeconds ?? 0) / (1 - countdown.progress)) : nil
+                countdown.totalTimeSeconds = totalFromProgress
+            }
+        }
+
+        // 如果有 total 且没有 remaining，用 progress 推一个初始剩余
+        if countdown.remainingTimeSeconds == nil, let total = countdown.totalTimeSeconds {
             let initialRemaining = max(0, Int(Double(total) * (1 - countdown.progress)))
             countdown.remainingTimeSeconds = initialRemaining
         }
 
-        if let remaining = countdown.remainingTimeSeconds {
-            if countdown.totalTimeSeconds == nil {
-                countdown.totalTimeSeconds = remaining
-            }
-            if countdown.startAt == nil {
-                countdown.startAt = Date()
-            }
-            newState.countdown = countdown
-        }
+        newState.countdown = countdown
         return newState
     }
     
@@ -323,24 +328,7 @@ public final class LiveActivityManager: ObservableObject {
     
     private func loadMockTasksIfNeeded() {
         if !mockTasks.isEmpty { return }
-        if let data = UserDefaults.standard.data(forKey: mockTasksKey),
-           let tasks = try? JSONDecoder().decode([AgendaActivityAttributes.ContentState].self, from: data),
-           !tasks.isEmpty {
-            mockTasks = tasks
-            currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
-            return
-        }
-        
-        let defaults = defaultMockTasks()
-        mockTasks = defaults
-        persistMockTasks(defaults)
-        currentMockTaskIndex = 0
-        persistCurrentMockIndex(0)
-    }
-    
-    private func persistMockTasks(_ tasks: [AgendaActivityAttributes.ContentState]) {
-        guard let data = try? JSONEncoder().encode(tasks) else { return }
-        UserDefaults.standard.set(data, forKey: mockTasksKey)
+        mockTasks = defaultMockTasks()
     }
     
     private func loadCurrentMockIndex(max count: Int) -> Int {
@@ -397,7 +385,7 @@ public final class LiveActivityManager: ObservableObject {
                 countdownLabel: "日照充能窗口",
                 timeRange: "08:00 - 12:00",
                 progress: 0.55,
-                remaining: 1200
+                remaining: 300,
             ),
             makeState(
                 type: "hydration",
@@ -409,7 +397,7 @@ public final class LiveActivityManager: ObservableObject {
                 countdownLabel: "水分补给窗口",
                 timeRange: "全天",
                 progress: 0.4,
-                remaining: 900
+                remaining: 1200
             ),
             makeState(
                 type: "focus",
@@ -421,7 +409,7 @@ public final class LiveActivityManager: ObservableObject {
                 countdownLabel: "心肺训练窗口",
                 timeRange: "18:00 - 21:00",
                 progress: 0.3,
-                remaining: 2400
+                remaining: 3600
             ),
             makeState(
                 type: "calm",
@@ -433,7 +421,7 @@ public final class LiveActivityManager: ObservableObject {
                 countdownLabel: "立即执行",
                 timeRange: "现在",
                 progress: 0.8,
-                remaining: 60
+                remaining: 120
             ),
             makeState(
                 type: "vision",

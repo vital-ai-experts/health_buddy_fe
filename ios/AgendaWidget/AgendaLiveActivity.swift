@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 import WidgetKit
 import LibraryNotification
+import LibraryBase
 import AppIntents
 
 /// Live Activity Widget for Agenda
@@ -60,6 +61,9 @@ struct AgendaLiveActivity: Widget {
 @available(iOS 16.1, *)
 struct AgendaLiveActivityView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
+    @State private var countdownStart: Date
+    @State private var initialRemaining: Double
+    @State private var totalSeconds: Double
 
     var body: some View {
         ZStack {
@@ -166,54 +170,82 @@ struct AgendaLiveActivityView: View {
                         )
                 )
 
-                // Bottom: Countdown with gradient progress bar (auto-updates by remainingTimeSeconds)
-                TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                    let progress = dynamicProgress(at: timeline.date)
+                // Bottom: Countdown with system-driven timer progress (auto-updates)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(context.state.countdown.label)
+                            .font(.system(size: 11, weight: .medium))
+                            .colorScheme(.dark)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(context.state.countdown.label)
-                                .font(.system(size: 11, weight: .medium))
+                        Spacer()
+
+                        HStack(spacing: 2) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 9))
+                            Text("最佳时间: \(context.state.countdown.timeRange)")
+                                .font(.system(size: 9))
                                 .colorScheme(.dark)
-
-                            Spacer()
-
-                            HStack(spacing: 2) {
-                                Image(systemName: "clock")
-                                    .font(.system(size: 9))
-                                Text("最佳时间: \(context.state.countdown.timeRange)")
-                                    .font(.system(size: 9))
-                                    .colorScheme(.dark)
-                            }
-                            .foregroundStyle(.secondary)
                         }
+                        .foregroundStyle(.secondary)
+                    }
 
-                        // Progress bar with fixed height
+                    if let interval = timerInterval() {
                         ZStack(alignment: .leading) {
-                            // Background track
                             Capsule()
                                 .fill(Color(.systemGray6))
                                 .opacity(0.4)
                                 .frame(height: 8)
 
-                            // Progress fill with gradient
+                            // 使用 ProgressView 的 timerInterval，叠加渐变遮罩
+                            ProgressView(timerInterval: interval, countsDown: true) {
+                                EmptyView()
+                            } currentValueLabel: {
+                                EmptyView()
+                            }
+                            .progressViewStyle(.linear)
+                            .tint(Color.clear)
+                            .frame(height: 8)
+                            .overlay {
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1, green: 0.84, blue: 0),
+                                        Color(red: 1, green: 0.65, blue: 0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                .mask(
+                                    ProgressView(timerInterval: interval, countsDown: true) {
+                                        EmptyView()
+                                    } currentValueLabel: {
+                                        EmptyView()
+                                    }
+                                    .progressViewStyle(.linear)
+                                    .tint(Color.white)
+                                )
+                            }
+                        }
+                    } else {
+                        let staticProgress = min(max(context.state.countdown.progress, 0), 1)
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color(.systemGray6))
+                                .opacity(0.4)
+                                .frame(height: 8)
+
                             GeometryReader { geometry in
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 1, green: 0.84, blue: 0),
-                                                Color(red: 1, green: 0.65, blue: 0)
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: geometry.size.width * progress, height: 8)
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1, green: 0.84, blue: 0),
+                                        Color(red: 1, green: 0.65, blue: 0)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                .frame(width: geometry.size.width * staticProgress, height: 8)
                             }
                             .frame(height: 8)
                         }
-                        .frame(height: 8)
                     }
                 }
             }
@@ -221,6 +253,27 @@ struct AgendaLiveActivityView: View {
             .padding(.vertical, 10)
         }
         .widgetURL(deepLinkURL)
+    }
+    
+    init(context: ActivityViewContext<AgendaActivityAttributes>) {
+        self.context = context
+        let countdown = context.state.countdown
+        let startAt = countdown.startAt ?? Date()
+        let remaining = Double(countdown.remainingTimeSeconds ?? 0)
+        let total = Double(countdown.totalTimeSeconds ?? 0)
+        let inferredRemaining: Double
+        if remaining > 0 {
+            inferredRemaining = remaining
+        } else if total > 0 {
+            inferredRemaining = max(0, total * (1 - countdown.progress))
+        } else {
+            inferredRemaining = 0
+        }
+
+        _countdownStart = State(initialValue: startAt)
+        _initialRemaining = State(initialValue: inferredRemaining)
+        _totalSeconds = State(initialValue: total > 0 ? total : (inferredRemaining > 0 ? inferredRemaining : 0))
+        
     }
 
     private var energyColor: Color {
@@ -252,29 +305,15 @@ struct AgendaLiveActivityView: View {
         return components.url
     }
 
-    private func dynamicProgress(at date: Date) -> Double {
+    private func timerInterval() -> ClosedRange<Date>? {
         let countdown = context.state.countdown
-        let total = max(Double(countdown.totalTimeSeconds ?? 0), 0)
-
-        // 如果有剩余时间，按倒计时计算；否则使用传入的 progress
-        if let remaining = countdown.remainingTimeSeconds {
-            let start = countdown.startAt ?? Date()
-            let elapsed = max(0, date.timeIntervalSince(start))
-
-            let initialLeft: Double
-            if total > 0 {
-                initialLeft = Double(remaining)
-            } else {
-                initialLeft = Double(remaining)
-            }
-
-            let left = max(0, initialLeft - elapsed)
-            let denom = total > 0 ? total : max(initialLeft, 1)
-            let ratio = left / denom
-            return min(max(ratio, 0), 1)
-        } else {
-            return min(max(countdown.progress, 0), 1)
+        let start = countdown.startAt ?? countdownStart
+        let total = totalSeconds > 0 ? totalSeconds : max(initialRemaining, 0)
+        guard total > 0 else {
+            return nil
         }
+        let end = start.addingTimeInterval(total)
+        return start...end
     }
 }
 
