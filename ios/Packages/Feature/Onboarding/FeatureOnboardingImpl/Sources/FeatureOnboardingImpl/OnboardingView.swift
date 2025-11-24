@@ -63,12 +63,6 @@ struct OnboardingView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                if shouldShowProgressAndButton {
-                    progressIndicator
-                        .padding(.top, 8)
-                        .transition(.opacity)
-                }
-                
                 Spacer(minLength: 0)
 
                 switch viewModel.step {
@@ -81,22 +75,32 @@ struct OnboardingView: View {
                 }
 
                 Spacer(minLength: 0)
-
-                if shouldShowProgressAndButton {
-                    primaryButton
-                        .padding(.bottom, 12)
-                        .transition(.opacity)
-                }
             }
             .padding(.horizontal, 24)
+            .padding(.top, 8)
             .padding(.bottom, 20)
-            .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
         }
         .overlay(alignment: .bottomTrailing) {
             if viewModel.step == .intro {
                 BreathingDotView()
                     .padding(.trailing, -12)
                     .padding(.bottom, 100)
+            }
+        }
+        .overlay(alignment: .top) {
+            if shouldShowProgressAndButton {
+                progressIndicator
+                    .padding(.top, 8)
+                    .padding(.horizontal, 24)
+                    .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if shouldShowProgressAndButton {
+                primaryButton
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
             }
         }
         .onChange(of: viewModel.step) { _, newValue in
@@ -112,6 +116,7 @@ struct OnboardingView: View {
                 introLine1Started = true
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
     }
 
     private var progressIndicator: some View {
@@ -171,28 +176,27 @@ struct OnboardingView: View {
     private var scanSection: some View {
         VStack(spacing: 18) {
             HStack(spacing: 10) {
-                Circle()
-                    .fill(Color.green.opacity(0.9))
-                    .frame(width: 10, height: 10)
-                Text("正在同步你的身体数据")
-                    .font(.callout.weight(.semibold))
-                    .foregroundColor(.white)
-                Spacer()
+                if viewModel.isScanCompleted {
+                    Circle()
+                        .fill(Color.green.opacity(0.9))
+                        .frame(width: 8, height: 8)
+                        .shadow(color: Color.green.opacity(0.6), radius: 8)
+                    Text("已生成初步诊断")
+                        .font(.callout.weight(.semibold))
+                        .foregroundColor(.white)
+                    Spacer()
+                } else {
+                    ProgressView()
+                        .tint(.green)
+                    Text("正在同步你的身体数据")
+                        .font(.callout.weight(.semibold))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
             }
 
             ScanTicker(lines: viewModel.visibleScanLines)
                 .frame(maxHeight: 360)
-
-            if !viewModel.isScanCompleted {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .tint(.green)
-                    Text("初步诊断生成中...")
-                        .foregroundColor(.white.opacity(0.9))
-                        .font(.subheadline)
-                }
-                .padding(.top, 4)
-            }
         }
     }
 
@@ -200,20 +204,17 @@ struct OnboardingView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("确认关键信息")
+                    Text("确认信息")
                         .font(.title2.weight(.bold))
                         .foregroundColor(.white)
-                    Text("AI 旁白：基于数据，我已经自动填好了大部分信息，请核对。")
-                        .font(.callout)
-                        .foregroundStyle(Color.white.opacity(0.75))
                 }
 
                 ProfileCard(snapshot: viewModel.profileSnapshot)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("关键问题（AI 基于数据生成）")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                    Label("关键问题", systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.green.opacity(0.9))
 
                     VStack(spacing: 12) {
                         ForEach(viewModel.issueOptions) { option in
@@ -349,9 +350,9 @@ private final class OnboardingViewModel: ObservableObject {
     var primaryButtonTitle: String {
         switch step {
         case .intro:
-            return "开始连接我的身体数据"
+            return "连接我的身体数据"
         case .scan:
-            return isScanCompleted ? "查看 AI 生成的关键信息" : "初步诊断生成中..."
+            return isScanCompleted ? "查看 AI 生成的信息" : "初步诊断生成中..."
         case .profile:
             return "确认并生成战术"
         }
@@ -476,29 +477,23 @@ private struct ProfileCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("自动抓取的基础信息", systemImage: "sparkles")
+                Label("基础信息", systemImage: "sparkles")
                     .foregroundColor(.green.opacity(0.9))
                     .font(.subheadline.weight(.semibold))
                 Spacer()
             }
 
-            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-                GridRow {
+            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+                GridRow(alignment: .top) {
                     infoTile(title: "性别", value: snapshot.gender)
                     infoTile(title: "年龄", value: "\(snapshot.age)")
                 }
-                GridRow {
+                GridRow(alignment: .top) {
                     infoTile(title: "身高", value: "\(snapshot.height) cm")
                     infoTile(title: "体重", value: "\(snapshot.weight) kg")
                 }
             }
         }
-        .padding()
-        .background(Color.white.opacity(0.05))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -540,7 +535,7 @@ private struct IssueRow: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(option.title)
-                        .font(.body.weight(.semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.leading)
                     Text(option.detail)
