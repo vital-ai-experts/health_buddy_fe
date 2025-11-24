@@ -38,6 +38,14 @@ private struct OnboardingProfileSnapshot {
 
 struct OnboardingView: View {
     @StateObject private var viewModel: OnboardingViewModel
+    @State private var introLine1Started = false
+    @State private var introLine2Started = false
+    @State private var introLine3Started = false
+    @State private var introTypingCompleted = false
+
+    private var shouldShowProgressAndButton: Bool {
+        viewModel.step != .intro || introTypingCompleted
+    }
 
     init(
         onComplete: @escaping () -> Void,
@@ -55,9 +63,12 @@ struct OnboardingView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                progressIndicator
-                    .padding(.top, 8)
-
+                if shouldShowProgressAndButton {
+                    progressIndicator
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
+                
                 Spacer(minLength: 0)
 
                 switch viewModel.step {
@@ -71,15 +82,34 @@ struct OnboardingView: View {
 
                 Spacer(minLength: 0)
 
-                primaryButton
-                    .padding(.bottom, 12)
+                if shouldShowProgressAndButton {
+                    primaryButton
+                        .padding(.bottom, 12)
+                        .transition(.opacity)
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
+            .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if viewModel.step == .intro {
+                BreathingDotView()
+                    .padding(.trailing, -12)
+                    .padding(.bottom, 100)
+            }
         }
         .onChange(of: viewModel.step) { _, newValue in
             if newValue == .scan {
                 viewModel.startScanIfNeeded()
+            }
+            if newValue == .intro && !introLine1Started {
+                introLine1Started = true
+            }
+        }
+        .onAppear {
+            if !introLine1Started {
+                introLine1Started = true
             }
         }
     }
@@ -97,28 +127,45 @@ struct OnboardingView: View {
     }
 
     private var introSection: some View {
-        VStack(spacing: 28) {
-            Spacer(minLength: 10)
-
-            BreathingDotView()
-                .frame(width: 120, height: 120)
-
-            VStack(alignment: .leading, spacing: 14) {
-                Text("你的身体每时每刻都在产生数据，但你从未真正读懂它。")
-                    .font(.title3.weight(.semibold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.leading)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("我们不提供通用的健康建议。")
-                    Text("我们读取你的生物数据，为你定制每天的行动战术。")
-                }
-                .foregroundStyle(Color.white.opacity(0.85))
-                .font(.body)
+        VStack(alignment: .leading, spacing: 12) {
+            TypingTextView(
+                text: "你的身体每时每刻都在产生数据，但你从未真正读懂它。",
+                font: .title3.weight(.semibold),
+                color: .white,
+                start: introLine1Started,
+                charactersPerSecond: 14,
+                initialDelay: 0.05
+            ) {
+                introLine2Started = true
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer(minLength: 10)
+            TypingTextView(
+                text: "我们不提供通用的健康建议。",
+                font: .body,
+                color: Color.white.opacity(0.85),
+                start: introLine2Started,
+                charactersPerSecond: 18,
+                initialDelay: 0.05
+            ) {
+                introLine3Started = true
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            TypingTextView(
+                text: "我们读取你的生物数据，为你定制每天的行动战术。",
+                font: .body,
+                color: Color.white.opacity(0.85),
+                start: introLine3Started,
+                charactersPerSecond: 18,
+                initialDelay: 0.05
+            ) {
+                introTypingCompleted = true
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, -160)
     }
 
     private var scanSection: some View {
@@ -218,37 +265,29 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private func background(for step: OnboardingStep) -> some View {
-        switch step {
-        case .intro:
-            RadialGradient(
-                colors: [
-                    Color.black,
-                    Color.black,
-                    Color.green.opacity(0.15)
-                ],
-                center: .center,
-                startRadius: 40,
-                endRadius: 400
-            )
-        case .scan:
-            LinearGradient(
-                colors: [
-                    Color.black,
-                    Color(red: 0.03, green: 0.18, blue: 0.10)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        case .profile:
-            LinearGradient(
-                colors: [
-                    Color.black,
-                    Color(red: 0.07, green: 0.09, blue: 0.12)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
+        return Color.black
+//        switch step {
+//        case .intro:
+//            Color.black
+//        case .scan:
+//            LinearGradient(
+//                colors: [
+//                    Color.black,
+//                    Color(red: 0.03, green: 0.18, blue: 0.10)
+//                ],
+//                startPoint: .top,
+//                endPoint: .bottom
+//            )
+//        case .profile:
+//            LinearGradient(
+//                colors: [
+//                    Color.black,
+//                    Color(red: 0.07, green: 0.09, blue: 0.12)
+//                ],
+//                startPoint: .top,
+//                endPoint: .bottom
+//            )
+//        }
     }
 }
 
@@ -521,7 +560,40 @@ private struct IssueRow: View {
     }
 }
 
+private final class PreviewOnboardingStateManager: OnboardingStateManaging {
+    var hasCompletedOnboarding = false
+    private var onboardingID: String?
+
+    func markOnboardingAsCompleted() {
+        hasCompletedOnboarding = true
+    }
+
+    func resetOnboardingState() {
+        hasCompletedOnboarding = false
+        onboardingID = nil
+    }
+
+    func shouldShowOnboarding(isAuthenticated: Bool) -> Bool {
+        !isAuthenticated && !hasCompletedOnboarding
+    }
+
+    func saveOnboardingID(_ id: String) {
+        onboardingID = id
+    }
+
+    func getOnboardingID() -> String? {
+        onboardingID
+    }
+
+    func clearOnboardingID() {
+        onboardingID = nil
+    }
+}
+
 #Preview {
-    OnboardingView(onComplete: {})
+    OnboardingView(
+        onComplete: {},
+        stateManager: PreviewOnboardingStateManager()
+    )
         .environment(\.colorScheme, .dark)
 }

@@ -10,7 +10,7 @@ import ThemeKit
 
 struct SplashView: View {
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             RadialGradient(
                 colors: [
                     Color.black,
@@ -22,7 +22,9 @@ struct SplashView: View {
             )
             .ignoresSafeArea()
 
-            BreathingDotView(configuration: .splash)
+            BreathingDotView()
+                .padding(.trailing, -12)
+                .padding(.bottom, 100)
         }
     }
 }

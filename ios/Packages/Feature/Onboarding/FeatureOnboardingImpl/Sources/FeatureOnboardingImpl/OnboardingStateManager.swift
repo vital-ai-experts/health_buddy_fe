@@ -22,7 +22,7 @@ final class OnboardingStateManager: OnboardingStateManaging {
     }
 
     func markOnboardingAsCompleted() {
-        hasCompletedOnboarding = true
+        // hasCompletedOnboarding = true
     }
 
     func resetOnboardingState() {

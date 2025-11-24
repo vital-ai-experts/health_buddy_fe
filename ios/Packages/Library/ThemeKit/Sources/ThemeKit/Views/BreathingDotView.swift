@@ -53,8 +53,6 @@ public struct BreathingDotConfiguration {
 }
 
 public extension BreathingDotConfiguration {
-    @MainActor static let onboarding = BreathingDotConfiguration()
-
     @MainActor static let splash = BreathingDotConfiguration(
         outerSize: 200,
         middleSize: 90,
@@ -89,7 +87,7 @@ public struct BreathingDotView: View {
         .init(angle: .pi * 1.86, radius: 84, size: 6.5, speed: 7.4, phase: 0.9, opacity: 0.41)
     ]
 
-    public init(configuration: BreathingDotConfiguration = .onboarding) {
+    public init(configuration: BreathingDotConfiguration = .splash) {
         self.configuration = configuration
     }
 
@@ -161,7 +159,7 @@ public struct BreathingDotView: View {
 
             Circle()
                 .strokeBorder(Color.green.opacity(0.5), lineWidth: 1.8)
-                .frame(width: configuration.innerSize * 1.4, height: configuration.innerSize * 1.4)
+                .frame(width: resolvedInnerSize * 1.4, height: resolvedInnerSize * 1.4)
                 .scaleEffect(scale(for: 0.94...1.08, isActive: secondaryDriver))
                 .blur(radius: 6)
         }
@@ -171,13 +169,17 @@ public struct BreathingDotView: View {
         Circle()
             .fill(
                 RadialGradient(
-                    colors: [Color.green, Color.green.opacity(0.8)],
+                    colors: [
+                        Color.white.opacity(0.9),
+                        Color.green.opacity(0.95),
+                        Color.green.opacity(0.35)
+                    ],
                     center: .center,
                     startRadius: 2,
-                    endRadius: configuration.innerSize
+                    endRadius: resolvedInnerSize * 1.2
                 )
             )
-            .frame(width: configuration.innerSize, height: configuration.innerSize)
+            .frame(width: resolvedInnerSize, height: resolvedInnerSize)
             .shadow(color: Color.green.opacity(configuration.innerShadowOpacity), radius: configuration.innerShadowRadius)
             .overlay(
                 Circle()
@@ -185,6 +187,7 @@ public struct BreathingDotView: View {
                     .blur(radius: 2)
                     .scaleEffect(scale(for: 0.9...1.1, isActive: primary))
             )
+            .scaleEffect(scale(for: coreScaleRange, isActive: primary))
     }
 
     private func floatingParticles(date: Date) -> some View {
@@ -223,12 +226,20 @@ public struct BreathingDotView: View {
         configuration.middleSize ?? configuration.innerSize * 2.6
     }
 
+    private var resolvedInnerSize: CGFloat {
+        configuration.innerSize * 0.5
+    }
+
     private var resolvedAccentSize: CGFloat {
         resolvedMiddleSize * 1.42
     }
 
     private var accentScaleRange: ClosedRange<CGFloat> {
         0.86...1.24
+    }
+
+    private var coreScaleRange: ClosedRange<CGFloat> {
+        0.84...1.16
     }
 
     private func scale(for range: ClosedRange<CGFloat>, isActive: Bool) -> CGFloat {
