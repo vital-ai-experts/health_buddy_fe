@@ -102,15 +102,15 @@ final class OnboardingViewModel: ObservableObject {
             guard let self else { return }
 
             for line in scanLines {
-                try? await Task.sleep(nanoseconds: 800_000_000)
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
                         visibleScanLines.append(line)
                     }
                 }
             }
 
-            try? await Task.sleep(nanoseconds: 800_000_000)
+            try? await Task.sleep(nanoseconds: 200_000_000)
 
             await MainActor.run {
                 withAnimation {

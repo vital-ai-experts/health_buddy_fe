@@ -27,14 +27,15 @@ struct ScanSectionView: View {
             }
 
             ScanTickerView(lines: lines)
-                .frame(height: 360)
-                .padding(.vertical, 6)
+                .frame(height: 240)
+                .padding(.vertical, 12)
         }
     }
 }
 
 private struct ScanTickerView: View {
     let lines: [OnboardingScanLine]
+    private let bottomSpacerID = "scan-bottom-spacer"
 
     var body: some View {
         ZStack {
@@ -71,25 +72,28 @@ private struct ScanTickerView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                             .id(line.id)
                         }
+
+                        Spacer()
+                            .frame(height: 28)
+                            .id(bottomSpacerID)
                     }
-                    .padding(18)
+                    .padding(20)
                 }
                 .mask(
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0.0),
-                            .init(color: .black, location: 0.1),
-                            .init(color: .black, location: 1.0)
+                            .init(color: .black, location: 0.2),
+                            .init(color: .black, location: 0.8),
+                            .init(color: .clear, location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
-                .onChange(of: lines) { _, newValue in
-                    if let last = newValue.last {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
-                        }
+                .onChange(of: lines) { _, _ in
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(bottomSpacerID, anchor: .bottom)
                     }
                 }
             }
