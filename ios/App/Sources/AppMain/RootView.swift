@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import FeatureHealthKitApi
 import FeatureAccountApi
 import FeatureChatApi
 import FeatureOnboardingApi
@@ -27,7 +26,6 @@ struct RootView: View {
     @State private var networkMonitor: NetworkMonitor?  // 延迟初始化，避免过早触发网络权限弹窗
     @ObservedObject private var notificationManager = NotificationManager.shared
 
-    private let healthKitFeature: FeatureHealthKitBuildable
     private let accountFeature: FeatureAccountBuildable
     private let chatFeature: FeatureChatBuildable
     private let onboardingFeature: FeatureOnboardingBuildable
@@ -43,13 +41,11 @@ struct RootView: View {
     }
 
     init(
-        healthKitFeature: FeatureHealthKitBuildable = ServiceManager.shared.resolve(FeatureHealthKitBuildable.self),
         accountFeature: FeatureAccountBuildable = ServiceManager.shared.resolve(FeatureAccountBuildable.self),
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self),
         onboardingFeature: FeatureOnboardingBuildable = ServiceManager.shared.resolve(FeatureOnboardingBuildable.self),
         authService: AuthenticationService = ServiceManager.shared.resolve(AuthenticationService.self)
     ) {
-        self.healthKitFeature = healthKitFeature
         self.accountFeature = accountFeature
         self.chatFeature = chatFeature
         self.onboardingFeature = onboardingFeature
@@ -76,7 +72,6 @@ struct RootView: View {
                     // ⚠️ 关键修改：不用 NavigationStack 包裹 TabView
                     // 每个 tab 会有自己的 NavigationStack（在 builder 中）
                     MainTabView(
-                        healthKitFeature: healthKitFeature,
                         chatFeature: chatFeature,
                         accountFeature: accountFeature,
                         onLogout: handleLogout
@@ -335,26 +330,11 @@ struct RootView: View {
 
 #Preview {
     RootView(
-        healthKitFeature: PreviewHealthKitFeature(),
         accountFeature: PreviewAccountFeature(),
         chatFeature: PreviewChatFeature(),
         onboardingFeature: PreviewOnboardingFeature(),
         authService: PreviewAuthService()
     )
-}
-
-private struct PreviewHealthKitFeature: FeatureHealthKitBuildable {
-    func makeAuthorizationView(onAuthorized: @escaping () -> Void) -> AnyView {
-        AnyView(Text("Authorization Preview"))
-    }
-
-    func makeDashboardView() -> AnyView {
-        AnyView(Text("Dashboard Preview"))
-    }
-
-    func makeHealthKitTabView() -> AnyView {
-        AnyView(Text("HealthKit Preview"))
-    }
 }
 
 private struct PreviewAccountFeature: FeatureAccountBuildable {
@@ -429,11 +409,10 @@ private class PreviewAuthService: AuthenticationService {
 
 // MARK: - MainTabView
 
-/// 主界面TabView，包含AI助手、健康数据和我的三个Tab
+/// 主界面TabView，包含AI助手、Agenda占位和我的三个Tab
 struct MainTabView: View {
     @State private var selectedTab: Tab = .chat
 
-    private let healthKitFeature: FeatureHealthKitBuildable
     private let chatFeature: FeatureChatBuildable
     private let accountFeature: FeatureAccountBuildable
     private let onLogout: () -> Void
@@ -441,17 +420,14 @@ struct MainTabView: View {
     enum Tab {
         case chat
         case agenda
-        case health
         case profile
     }
 
     init(
-        healthKitFeature: FeatureHealthKitBuildable,
         chatFeature: FeatureChatBuildable,
         accountFeature: FeatureAccountBuildable,
         onLogout: @escaping () -> Void
     ) {
-        self.healthKitFeature = healthKitFeature
         self.chatFeature = chatFeature
         self.accountFeature = accountFeature
         self.onLogout = onLogout
@@ -472,13 +448,6 @@ struct MainTabView: View {
                     Label("Agenda", systemImage: "checklist")
                 }
                 .tag(Tab.agenda)
-
-            // Report Tab
-            healthKitFeature.makeHealthKitTabView()
-                .tabItem {
-                    Label("Report", systemImage: "heart.fill")
-                }
-                .tag(Tab.health)
 
             // Me Tab
             accountFeature.makeProfileView(onLogout: onLogout)

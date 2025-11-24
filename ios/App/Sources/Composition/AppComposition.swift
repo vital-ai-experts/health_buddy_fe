@@ -1,4 +1,3 @@
-import FeatureHealthKitImpl
 import FeatureAccountImpl
 import FeatureChatImpl
 import FeatureOnboardingImpl
@@ -27,7 +26,6 @@ enum AppComposition {
         OnboardingDomainBootstrap.configure()
 
         // 3. 注册Features
-        HealthKitModule.register()
         AccountModule.register(router: router)
         ChatModule.register()
         OnboardingModule.register()

@@ -6,7 +6,7 @@ ThriveBody is an intelligent health management iOS app built with SwiftUI and Sw
 
 **Core Features**:
 - AI Health Assistant: LLM-based conversational health advice
-- HealthKit Integration: Health data tracking and visualization
+- HealthKit Integration: Health data tracking with HealthKit
 - Account System: User registration, login, and profile management
 
 **Requirements**:
@@ -88,7 +88,6 @@ enum AppComposition {
         ChatDomainBootstrap.configure()
 
         // 2. Register features (buildable + routes)
-        HealthKitModule.register(router: router)
         AccountModule.register(router: router)
         ChatModule.register(router: router)
     }
@@ -104,7 +103,7 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 
 1. Launch → `MainApp.init()` → `AppComposition.bootstrap(router:)`
 2. Splash screen (1.5s) while checking authentication
-3. If authenticated → MainTabView (AI Assistant, Health, Profile)
+3. If authenticated → MainTabView (AI Assistant, Agenda, Profile)
 4. If not authenticated → AccountLandingView
 5. Data persistence via SwiftData (models in Domain layer)
 
@@ -223,11 +222,13 @@ enum AppComposition {
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
         ChatDomainBootstrap.configure()
+        OnboardingDomainBootstrap.configure()
 
         // Features...
-        HealthKitModule.register(router: router)
         AccountModule.register(router: router)
         ChatModule.register(router: router)
+        OnboardingModule.register()
+        AgendaModule.register()
         YourFeatureModule.register(router: router)  // Add this
     }
 }
@@ -271,7 +272,7 @@ swift test --package-path Packages/Feature/<Module>/Api
 - **Usage Descriptions**: Defined in `project.yml`:
   - `NSHealthShareUsageDescription`
   - `NSHealthUpdateUsageDescription`
-- **Authorization Flow**: `FeatureHealthKit` → `DomainHealth` → HealthKit framework
+- **Authorization Flow**: `Onboarding|Settings` → `DomainHealth` → HealthKit framework
 - **Framework Linking**: HealthKit linked directly in `DomainHealth` module
 
 ## Common Pitfalls & Solutions

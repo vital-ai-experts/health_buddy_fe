@@ -38,10 +38,6 @@ packages:
     path: Packages/Domain/DomainChat
   DomainOnboarding:
     path: Packages/Domain/Onboarding
-  FeatureHealthKitApi:
-    path: Packages/Feature/HealthKit/FeatureHealthKitApi
-  FeatureHealthKitImpl:
-    path: Packages/Feature/HealthKit/FeatureHealthKitImpl
   FeatureAccountApi:
     path: Packages/Feature/FeatureAccount/FeatureAccountApi
   FeatureAccountImpl:
@@ -103,10 +99,6 @@ targets:
         product: DomainChat
       - package: DomainOnboarding
         product: DomainOnboarding
-      - package: FeatureHealthKitApi
-        product: FeatureHealthKitApi
-      - package: FeatureHealthKitImpl
-        product: FeatureHealthKitImpl
       - package: FeatureAccountApi
         product: FeatureAccountApi
       - package: FeatureAccountImpl

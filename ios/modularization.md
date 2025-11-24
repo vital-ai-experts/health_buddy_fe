@@ -63,7 +63,9 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 **当前功能**:
 - `FeatureAccount`: 用户账户管理 (登录、注册、欢迎页)
 - `FeatureChat`: AI 对话功能 (聊天界面、会话列表)
-- `FeatureHealthKit`: 健康数据功能 (授权、仪表盘、数据可视化)
+- `FeatureOnboarding`: 首次体验流程
+- `FeatureAgenda`: Agenda 占位
+- `FeatureDebugTools`: 调试工具集（仅 Debug 构建）
 
 **依赖规则**:
 - Feature 模块之间只能依赖对方的 Api 包，不能依赖 Impl 包
@@ -112,7 +114,7 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 │   │   └── Composition/                    # 依赖组装
 │   └── Resources/                          # 资源文件
 ├── Packages/
-│   ├── Feature/                            # 功能层 (3个: Account/Chat/HealthKit)
+│   ├── Feature/                            # 功能层
 │   │   └── FeatureAccount/                 # 示例：账户功能
 │   │       ├── FeatureAccountApi/          # API 协议
 │   │       └── FeatureAccountImpl/         # 具体实现
@@ -120,13 +122,13 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 │   │               ├── AccountModule.swift # 模块注册
 │   │               ├── AccountBuilder.swift # 构建器
 │   │               └── Views...            # 视图文件
-│   ├── Domain/                             # 领域层 (3个: Auth/Chat/Health)
+│   ├── Domain/                             # 领域层 (Auth/Chat/Health/Onboarding)
 │   │   └── DomainAuth/                     # 示例：认证领域
 │   │       └── Sources/DomainAuth/
 │   │           ├── AuthDomainBootstrap.swift
 │   │           ├── AuthenticationService.swift
 │   │           └── User.swift
-│   └── Library/                            # 工具层 (3个: ServiceLoader/Networking/ThemeKit)
+│   └── Library/                            # 工具层 (ServiceLoader/Networking/ThemeKit/Track/Notification/ChatUI)
 │       └── ServiceLoader/                  # 示例：服务定位器
 ├── project.yml                              # XcodeGen 配置
 └── scripts/                                 # 自动化脚本
@@ -207,9 +209,10 @@ enum AppComposition {
         ChatDomainBootstrap.configure()
 
         // 2. 注册 Feature（注册构建器 + 路由）
-        HealthKitModule.register(router: router)
         AccountModule.register(router: router)
         ChatModule.register(router: router)
+        OnboardingModule.register()
+        AgendaModule.register()
     }
 }
 ```

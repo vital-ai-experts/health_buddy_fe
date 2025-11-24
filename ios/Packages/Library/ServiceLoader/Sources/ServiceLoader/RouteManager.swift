@@ -67,7 +67,6 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 
     // 为每个 tab 维护独立的导航路径
     @Published public var chatPath = NavigationPath()
-    @Published public var healthPath = NavigationPath()
     @Published public var profilePath = NavigationPath()
     @Published public var currentTab: Tab = .chat {
         didSet {
@@ -87,7 +86,6 @@ public final class RouteManager: ObservableObject, RouteRegistering {
     public enum Tab {
         case chat
         case agenda
-        case health
         case profile
     }
 
@@ -189,9 +187,6 @@ public final class RouteManager: ObservableObject, RouteRegistering {
             case .agenda:
                 print("[RouteManager] 🚀 open: \(context.path) on Agenda tab")
                 // Agenda tab 暂时不支持导航
-            case .health:
-                print("[RouteManager] 🚀 open: \(context.path) on Health tab, current path.count = \(healthPath.count)")
-                healthPath.append(match)
             case .profile:
                 print("[RouteManager] 🚀 open: \(context.path) on Profile tab, current path.count = \(profilePath.count)")
                 profilePath.append(match)
