@@ -12,4 +12,8 @@ public final class AgendaBuilder: FeatureAgendaBuildable {
     public func makeAgendaSettingsView() -> AnyView {
         AnyView(AgendaSettingsView())
     }
+
+    public func makeDungeonDetailView() -> AnyView {
+        AnyView(DungeonDetailView())
+    }
 }
