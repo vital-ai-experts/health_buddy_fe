@@ -158,14 +158,14 @@ private extension OnboardingViewModel {
         callTask = Task { [weak self] in
             guard let self else { return }
 
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.35)) {
                     callState = .inCall
                 }
             }
 
-            try? await Task.sleep(nanoseconds: 20_000_000_000)
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.35)) {
                     callState = .completed
