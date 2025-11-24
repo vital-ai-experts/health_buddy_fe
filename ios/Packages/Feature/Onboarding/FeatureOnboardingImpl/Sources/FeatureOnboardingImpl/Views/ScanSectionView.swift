@@ -27,7 +27,8 @@ struct ScanSectionView: View {
             }
 
             ScanTickerView(lines: lines)
-                .frame(maxHeight: 360)
+                .frame(height: 360)
+                .padding(.vertical, 6)
         }
     }
 }
@@ -53,22 +54,45 @@ private struct ScanTickerView: View {
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
 
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(lines) { line in
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(Color.green.opacity(0.9))
-                            .frame(width: 8, height: 8)
-                            .shadow(color: Color.green.opacity(0.6), radius: 8)
-                        Text(line.text)
-                            .foregroundColor(.white)
-                            .font(.callout)
-                        Spacer()
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(lines) { line in
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(Color.green.opacity(0.9))
+                                    .frame(width: 8, height: 8)
+                                    .shadow(color: Color.green.opacity(0.6), radius: 8)
+                                Text(line.text)
+                                    .foregroundColor(.white)
+                                    .font(.callout)
+                                Spacer()
+                            }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .id(line.id)
+                        }
                     }
-                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .padding(18)
+                }
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .black, location: 0.1),
+                            .init(color: .black, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .onChange(of: lines) { _, newValue in
+                    if let last = newValue.last {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
                 }
             }
-            .padding(18)
         }
     }
 }

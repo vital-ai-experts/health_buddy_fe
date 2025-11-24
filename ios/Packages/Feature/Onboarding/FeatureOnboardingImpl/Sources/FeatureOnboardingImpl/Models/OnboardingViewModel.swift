@@ -104,7 +104,7 @@ final class OnboardingViewModel: ObservableObject {
             for line in scanLines {
                 try? await Task.sleep(nanoseconds: 800_000_000)
                 await MainActor.run {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
                         visibleScanLines.append(line)
                     }
                 }
