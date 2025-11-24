@@ -9,6 +9,10 @@ public protocol FeatureAgendaBuildable {
     /// Build the agenda settings view where users can start/stop the live activity
     /// - Returns: The agenda settings view
     func makeAgendaSettingsView() -> AnyView
+
+    /// Build the dungeon detail (quest) view with RPG-style presentation
+    /// - Returns: The dungeon detail view
+    func makeDungeonDetailView() -> AnyView
 }
 
 /// Service protocol for managing Agenda Live Activity

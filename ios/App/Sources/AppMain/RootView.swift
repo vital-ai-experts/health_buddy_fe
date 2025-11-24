@@ -379,6 +379,10 @@ private struct PreviewAgendaFeature: FeatureAgendaBuildable {
     func makeAgendaSettingsView() -> AnyView {
         AnyView(Text("Agenda Settings Preview"))
     }
+
+    func makeDungeonDetailView() -> AnyView {
+        AnyView(Text("Dungeon Detail Preview"))
+    }
 }
 
 private struct PreviewOnboardingFeature: FeatureOnboardingBuildable {
