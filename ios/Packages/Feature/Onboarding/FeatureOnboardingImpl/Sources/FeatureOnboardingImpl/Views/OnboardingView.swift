@@ -1,14 +1,19 @@
 import SwiftUI
 import FeatureOnboardingApi
+import FeatureAgendaApi
 import LibraryServiceLoader
 import ThemeKit
 
 struct OnboardingView: View {
+    @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: OnboardingViewModel
     @State private var introLine1Started = false
     @State private var introLine2Started = false
     @State private var introLine3Started = false
     @State private var introTypingCompleted = false
+    @State private var showDungeonDetail = false
+
+    private let agendaFeature: FeatureAgendaBuildable
 
     private var shouldShowProgressAndButton: Bool {
         viewModel.step != .intro || introTypingCompleted
@@ -16,12 +21,14 @@ struct OnboardingView: View {
 
     init(
         onComplete: @escaping () -> Void,
-        stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self)
+        stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self),
+        agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolve(FeatureAgendaBuildable.self)
     ) {
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             stateManager: stateManager,
             onComplete: onComplete
         ))
+        self.agendaFeature = agendaFeature
     }
 
     var body: some View {
@@ -94,7 +101,11 @@ struct OnboardingView: View {
                     isDisabled: viewModel.isPrimaryButtonDisabled,
                     isLoading: viewModel.isPrimaryButtonLoading,
                     action: {
-                        viewModel.handlePrimaryAction()
+                        if viewModel.step == .call && viewModel.callState == .completed {
+                            showDungeonDetail = true
+                        } else {
+                            viewModel.handlePrimaryAction()
+                        }
                     }
                 )
                 .padding(.horizontal, 24)
@@ -116,6 +127,11 @@ struct OnboardingView: View {
             }
         }
         .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
+        .sheet(isPresented: $showDungeonDetail) {
+            agendaFeature.makeDungeonDetailView {
+                startDungeonAndFinish()
+            }
+        }
     }
 
     private func binding<Value>(_ keyPath: ReferenceWritableKeyPath<OnboardingViewModel, Value>) -> Binding<Value> {
@@ -128,6 +144,12 @@ struct OnboardingView: View {
     @ViewBuilder
     private func background(for step: OnboardingStep) -> some View {
         Color.black
+    }
+
+    private func startDungeonAndFinish() {
+        showDungeonDetail = false
+        router.currentTab = .chat
+        viewModel.completeAfterDungeonStart()
     }
 }
 
@@ -167,4 +189,5 @@ private final class PreviewOnboardingStateManager: OnboardingStateManaging {
         stateManager: PreviewOnboardingStateManager()
     )
         .environment(\.colorScheme, .dark)
+        .environmentObject(RouteManager.shared)
 }

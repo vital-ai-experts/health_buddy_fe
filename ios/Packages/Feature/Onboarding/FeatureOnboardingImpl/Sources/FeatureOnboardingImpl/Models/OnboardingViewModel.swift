@@ -127,6 +127,10 @@ final class OnboardingViewModel: ObservableObject {
         onComplete()
     }
 
+    func completeAfterDungeonStart() {
+        finishOnboarding()
+    }
+
     deinit {
         scanTask?.cancel()
         callTask?.cancel()
@@ -145,7 +149,7 @@ private extension OnboardingViewModel {
         case .idle:
             startCallFlow()
         case .completed:
-            finishOnboarding()
+            break
         case .waiting, .inCall:
             break
         }

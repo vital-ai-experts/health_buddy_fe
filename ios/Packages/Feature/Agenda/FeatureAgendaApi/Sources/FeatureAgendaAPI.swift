@@ -13,6 +13,16 @@ public protocol FeatureAgendaBuildable {
     /// Build the dungeon detail (quest) view with RPG-style presentation
     /// - Returns: The dungeon detail view
     func makeDungeonDetailView() -> AnyView
+
+    /// Build the dungeon detail view with a start callback
+    /// - Parameter onStart: Action when user taps start
+    func makeDungeonDetailView(onStart: @escaping () -> Void) -> AnyView
+}
+
+public extension FeatureAgendaBuildable {
+    func makeDungeonDetailView(onStart: @escaping () -> Void) -> AnyView {
+        makeDungeonDetailView()
+    }
 }
 
 /// Service protocol for managing Agenda Live Activity

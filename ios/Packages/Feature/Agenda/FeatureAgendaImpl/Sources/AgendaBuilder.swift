@@ -16,4 +16,8 @@ public final class AgendaBuilder: FeatureAgendaBuildable {
     public func makeDungeonDetailView() -> AnyView {
         AnyView(DungeonDetailView())
     }
+
+    public func makeDungeonDetailView(onStart: @escaping () -> Void) -> AnyView {
+        AnyView(DungeonDetailView(onStart: onStart))
+    }
 }

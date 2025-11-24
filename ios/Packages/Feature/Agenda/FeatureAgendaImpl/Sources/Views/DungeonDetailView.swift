@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 副本详情页，展示 RPG 风格的挑战信息
 struct DungeonDetailView: View {
+    var onStart: () -> Void = {}
     private let gradientColors = [
         Color(red: 10/255, green: 14/255, blue: 26/255),
         Color(red: 16/255, green: 31/255, blue: 69/255),
@@ -48,7 +49,7 @@ struct DungeonDetailView: View {
                 )
                 .ignoresSafeArea()
             )
-            .navigationTitle("副本详情")
+            .navigationTitle("我的副本")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
                 startButton
@@ -65,10 +66,9 @@ struct DungeonDetailView: View {
             endPoint: .bottomTrailing
         )) {
             VStack(alignment: .leading, spacing: 10) {
-                label(title: "场景 3：副本交付 (The Reveal)", icon: "map.fill", tint: .yellow)
+                label(title: "21天深度睡眠修护", icon: "map.fill", tint: .yellow)
 
                 VStack(alignment: .leading, spacing: 12) {
-                    headerRow(title: "挑战名称", value: "21天深度睡眠修护 (Deep Sleep Repair)")
                     headerRow(title: "当前等级", value: "Lv.1 睡眠新手 ➔ 目标：Lv.10 满电玩家")
                     headerRow(title: "挑战周期", value: "3 周 (21 天)")
                 }
@@ -86,7 +86,7 @@ struct DungeonDetailView: View {
             endPoint: .bottom
         )) {
             VStack(alignment: .leading, spacing: 14) {
-                label(title: "核心目标：北极星指标 (The North Star)", icon: "star.fill", tint: .orange)
+                label(title: "北极星指标", icon: "star.fill", tint: .orange)
 
                 Text("用最直观的对比图表展示，一眼看懂差距。")
                     .font(.footnote)
@@ -100,7 +100,7 @@ struct DungeonDetailView: View {
                 .background(Color.white.opacity(0.04))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                Text("只要达成这个指标，你每天醒来时的体感将年轻 5 岁。")
+                Text("达成这个指标，你每天醒来时将感觉年轻 5 岁。")
                     .font(.callout.weight(.semibold))
                     .foregroundColor(.green.opacity(0.9))
             }
@@ -187,7 +187,9 @@ struct DungeonDetailView: View {
     }
 
     private var startButton: some View {
-        Button(action: {}) {
+        Button(action: {
+            onStart()
+        }) {
             HStack(spacing: 10) {
                 Image(systemName: "flame.fill")
                     .foregroundColor(.yellow)
