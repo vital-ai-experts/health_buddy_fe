@@ -2,6 +2,7 @@ import SwiftUI
 import FeatureOnboardingApi
 import LibraryBase
 import LibraryServiceLoader
+import ThemeKit
 
 private enum OnboardingStep: Int, CaseIterable {
     case intro
@@ -99,7 +100,7 @@ struct OnboardingView: View {
         VStack(spacing: 28) {
             Spacer(minLength: 10)
 
-            BreathingDot()
+            BreathingDotView()
                 .frame(width: 120, height: 120)
 
             VStack(alignment: .leading, spacing: 14) {
@@ -388,36 +389,6 @@ private final class OnboardingViewModel: ObservableObject {
 }
 
 // MARK: - Components
-
-private struct BreathingDot: View {
-    @State private var animate = false
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.green.opacity(0.18))
-                .scaleEffect(animate ? 2.2 : 1.2)
-                .blur(radius: 28)
-
-            Circle()
-                .fill(Color.green.opacity(0.45))
-                .scaleEffect(animate ? 1.6 : 1.0)
-                .blur(radius: 12)
-
-            Circle()
-                .fill(Color.green)
-                .frame(width: 36, height: 36)
-                .shadow(color: Color.green.opacity(0.6), radius: 18)
-        }
-        .scaleEffect(animate ? 1.04 : 0.92)
-        .animation(
-            .easeInOut(duration: 2.2)
-                .repeatForever(autoreverses: true),
-            value: animate
-        )
-        .onAppear { animate = true }
-    }
-}
 
 private struct ScanTicker: View {
     let lines: [ScanLine]

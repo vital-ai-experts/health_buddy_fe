@@ -8,7 +8,8 @@ let package = Package(
     dependencies: [
         .package(name: "FeatureOnboardingApi", path: "../FeatureOnboardingApi"),
         .package(name: "LibraryBase", path: "../../../Library/Base"),
-        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader")
+        .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
+        .package(name: "LibraryThemeKit", path: "../../../Library/ThemeKit")
     ],
     targets: [
         .target(
@@ -16,7 +17,8 @@ let package = Package(
             dependencies: [
                 .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "LibraryBase", package: "LibraryBase"),
-                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader")
+                .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
+                .product(name: "ThemeKit", package: "LibraryThemeKit")
             ],
             path: "Sources"
         )
