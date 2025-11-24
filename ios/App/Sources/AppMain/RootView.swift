@@ -453,21 +453,21 @@ struct MainTabView: View {
             // Talk Tab
             chatFeature.makeChatTabView()
                 .tabItem {
-                    Label("Talk", systemImage: "message.fill")
+                    Label("对话", systemImage: "message.fill")
                 }
                 .tag(Tab.chat)
 
             // Agenda Tab (Placeholder)
             agendaFeature.makeAgendaTabView()
                 .tabItem {
-                    Label("Agenda", systemImage: "checklist")
+                    Label("任务", systemImage: "checklist")
                 }
                 .tag(Tab.agenda)
 
             // Me Tab
             accountFeature.makeProfileView(onLogout: onLogout)
                 .tabItem {
-                    Label("Me", systemImage: "person.fill")
+                    Label("我", systemImage: "person.fill")
                 }
                 .tag(Tab.profile)
         }

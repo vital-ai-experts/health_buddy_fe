@@ -35,7 +35,7 @@ struct PersistentChatView: View {
                 }
             }
         )
-        .navigationTitle("AI助手")
+        .navigationTitle("对话")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
