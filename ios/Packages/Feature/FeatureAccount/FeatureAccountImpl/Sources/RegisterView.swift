@@ -1,6 +1,6 @@
 import SwiftUI
 import DomainAuth
-import DomainOnboarding
+import FeatureOnboardingApi
 import LibraryServiceLoader
 
 struct RegisterView: View {
@@ -9,7 +9,11 @@ struct RegisterView: View {
 
     init(onRegisterSuccess: @escaping () -> Void) {
         let authService = ServiceManager.shared.resolve(AuthenticationService.self)
-        _viewModel = StateObject(wrappedValue: RegisterViewModel(authService: authService))
+        let onboardingManager = ServiceManager.shared.resolve(OnboardingStateManaging.self)
+        _viewModel = StateObject(wrappedValue: RegisterViewModel(
+            authService: authService,
+            onboardingManager: onboardingManager
+        ))
         self.onRegisterSuccess = onRegisterSuccess
     }
 
@@ -151,6 +155,7 @@ final class RegisterViewModel: ObservableObject {
     @Published var isRegisterSuccessful = false
 
     private let authService: AuthenticationService
+    private let onboardingManager: OnboardingStateManaging
 
     var isFormValid: Bool {
         !fullName.isEmpty &&
@@ -160,8 +165,9 @@ final class RegisterViewModel: ObservableObject {
         password == confirmPassword
     }
 
-    init(authService: AuthenticationService) {
+    init(authService: AuthenticationService, onboardingManager: OnboardingStateManaging) {
         self.authService = authService
+        self.onboardingManager = onboardingManager
     }
 
     func register() async {
@@ -171,7 +177,7 @@ final class RegisterViewModel: ObservableObject {
         }
 
         // 获取 onboarding_id
-        guard let onboardingId = OnboardingStateManager.shared.getOnboardingID() else {
+        guard let onboardingId = onboardingManager.getOnboardingID() else {
             errorMessage = "Onboarding ID not found. Please restart the onboarding process."
             return
         }
@@ -183,7 +189,7 @@ final class RegisterViewModel: ObservableObject {
             _ = try await authService.register(email: email, password: password, fullName: fullName, onboardingId: onboardingId)
             isRegisterSuccessful = true
             // 注册成功后清除 onboarding_id
-            OnboardingStateManager.shared.clearOnboardingID()
+            onboardingManager.clearOnboardingID()
         } catch {
             errorMessage = error.localizedDescription
             isRegisterSuccessful = false

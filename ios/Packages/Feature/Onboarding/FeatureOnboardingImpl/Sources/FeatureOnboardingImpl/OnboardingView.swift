@@ -1,830 +1,556 @@
 import SwiftUI
-import LibraryServiceLoader
-import DomainOnboarding
-import LibraryChatUI
-import DomainHealth
-import DomainChat
+import FeatureOnboardingApi
 import LibraryBase
+import LibraryServiceLoader
 
-/// Onboarding view with conversational Q&A flow
+private enum OnboardingStep: Int, CaseIterable {
+    case intro
+    case scan
+    case profile
+
+    var title: String {
+        switch self {
+        case .intro: return "极简启动"
+        case .scan: return "数据扫描"
+        case .profile: return "确认信息"
+        }
+    }
+}
+
+private struct ScanLine: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+}
+
+private struct OnboardingIssueOption: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let detail: String
+}
+
+private struct OnboardingProfileSnapshot {
+    let gender: String
+    let age: Int
+    let height: Int
+    let weight: Int
+}
+
 struct OnboardingView: View {
-    let onComplete: () -> Void
-
     @StateObject private var viewModel: OnboardingViewModel
-    @Environment(\.scenePhase) private var scenePhase
 
     init(
         onComplete: @escaping () -> Void,
-        onboardingService: OnboardingService = ServiceManager.shared.resolve(OnboardingService.self),
-        authorizationService: AuthorizationService = ServiceManager.shared.resolve(AuthorizationService.self),
-        healthDataService: HealthDataService = ServiceManager.shared.resolve(HealthDataService.self)
+        stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self)
     ) {
-        self.onComplete = onComplete
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
-            onboardingService: onboardingService,
-            authorizationService: authorizationService,
-            healthDataService: healthDataService,
+            stateManager: stateManager,
             onComplete: onComplete
         ))
     }
 
     var body: some View {
         ZStack {
-            // 如果初始化失败，显示错误UI
-            if viewModel.initializationFailed {
-                VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.orange)
+            background(for: viewModel.step)
+                .ignoresSafeArea()
 
-                    Text("网络连接失败")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+            VStack(spacing: 24) {
+                progressIndicator
+                    .padding(.top, 8)
 
-                    Text("请检查网络连接后重试")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                Spacer(minLength: 0)
 
-                    Button(action: {
-                        Task {
-                            await viewModel.retryInitialization()
-                        }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.clockwise")
-                            Text("重试")
-                        }
+                switch viewModel.step {
+                case .intro:
+                    introSection
+                case .scan:
+                    scanSection
+                case .profile:
+                    profileSection
+                }
+
+                Spacer(minLength: 0)
+
+                primaryButton
+                    .padding(.bottom, 12)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
+        }
+        .onChange(of: viewModel.step) { _, newValue in
+            if newValue == .scan {
+                viewModel.startScanIfNeeded()
+            }
+        }
+    }
+
+    private var progressIndicator: some View {
+        HStack(spacing: 10) {
+            ForEach(OnboardingStep.allCases, id: \.self) { step in
+                Capsule()
+                    .fill(step.rawValue <= viewModel.step.rawValue ? Color.green.opacity(0.9) : Color.white.opacity(0.25))
+                    .frame(height: 4)
+            }
+        }
+        .padding(.vertical, 8)
+        .accessibilityHidden(true)
+    }
+
+    private var introSection: some View {
+        VStack(spacing: 28) {
+            Spacer(minLength: 10)
+
+            BreathingDot()
+                .frame(width: 120, height: 120)
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("你的身体每时每刻都在产生数据，但你从未真正读懂它。")
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.leading)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("我们不提供通用的健康建议。")
+                    Text("我们读取你的生物数据，为你定制每天的行动战术。")
+                }
+                .foregroundStyle(Color.white.opacity(0.85))
+                .font(.body)
+            }
+
+            Spacer(minLength: 10)
+        }
+    }
+
+    private var scanSection: some View {
+        VStack(spacing: 18) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(Color.green.opacity(0.9))
+                    .frame(width: 10, height: 10)
+                Text("正在同步你的身体数据")
+                    .font(.callout.weight(.semibold))
+                    .foregroundColor(.white)
+                Spacer()
+            }
+
+            ScanTicker(lines: viewModel.visibleScanLines)
+                .frame(maxHeight: 360)
+
+            if !viewModel.isScanCompleted {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .tint(.green)
+                    Text("初步诊断生成中...")
+                        .foregroundColor(.white.opacity(0.9))
+                        .font(.subheadline)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private var profileSection: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("确认关键信息")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(.white)
+                    Text("AI 旁白：基于数据，我已经自动填好了大部分信息，请核对。")
+                        .font(.callout)
+                        .foregroundStyle(Color.white.opacity(0.75))
+                }
+
+                ProfileCard(snapshot: viewModel.profileSnapshot)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("关键问题（AI 基于数据生成）")
                         .font(.headline)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 12)
-                        .background(Color.blue)
-                        .cornerRadius(12)
-                    }
-                }
-                .padding()
-            } else {
-                // 正常的聊天界面
-                SimpleChatView(
-                    messages: $viewModel.displayMessages,
-                    inputText: $viewModel.inputText,
-                    isLoading: viewModel.isLoading,
-                    configuration: ChatConfiguration(
-                        showTimestamp: false,  // Onboarding 过程中不显示时间戳
-                        autoFocusAfterBotMessage: false,
-                        dismissKeyboardAfterSend: true
-                    ),
-                    bottomPadding: 200,  // Onboarding 需要底部空间让消息滚动到舒适位置
-                    onSendMessage: { text in
-                        viewModel.sendMessage(text)
-                    },
-                    onSpecialMessageAction: { messageId, action in
-                        viewModel.handleSpecialMessageAction(messageId: messageId, action: action)
-                    },
-                    onRetry: { messageId in
-                        Task {
-                            await viewModel.retryMessage(messageId)
-                        }
-                    }
-                )
 
-                // 顶部渐变遮罩 - 使用固定高度避免布局循环
-//                VStack(spacing: 0) {
-//                    LinearGradient(
-//                        stops: [
-//                            .init(color: Color(uiColor: .systemBackground), location: 0.0),   // 顶部完全不透明
-//                            .init(color: Color(uiColor: .systemBackground), location: 0.6),   // 保持不透明到60%
-//                            .init(color: Color(uiColor: .systemBackground).opacity(0.5), location: 0.8),  // 快速渐变
-//                            .init(color: Color(uiColor: .systemBackground).opacity(0), location: 1.0)     // 底部完全透明
-//                        ],
-//                        startPoint: .top,
-//                        endPoint: .bottom
-//                    )
-//                    .frame(height: 70)  // 使用固定高度（状态栏 ~47pt + 渐变区域 23pt）
-//                    .allowsHitTesting(false)
-//                    .ignoresSafeArea(edges: .top) // 延伸到状态栏区域
-//
-//                    Spacer()
-//                }
-
-                // Action button overlay (when needed)
-                VStack {
-                    Spacer()
-
-                    if viewModel.showActionButton {
-                        VStack(spacing: 0) {
-                            // 渐变背景
-                            LinearGradient(
-                                colors: [
-                                    Color(uiColor: .systemBackground).opacity(0),
-                                    Color(uiColor: .systemBackground)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 40)
-
-                            // 按钮区域
-                            Button(action: {
-                                viewModel.handleActionButton()
-                            }) {
-                                Text(viewModel.actionButtonText)
-                                    .fontWeight(.semibold)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
+                    VStack(spacing: 12) {
+                        ForEach(viewModel.issueOptions) { option in
+                            IssueRow(
+                                option: option,
+                                isSelected: viewModel.selectedIssueID == option.id
+                            ) {
+                                viewModel.selectIssue(option.id)
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 16)
-                            .background(Color(uiColor: .systemBackground))
                         }
                     }
                 }
-            }
-        }
-        .background(Color(uiColor: .systemBackground))
-        .task {
-            await viewModel.initializeOnboarding()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            // 当 Scene 从非激活状态变为激活状态时
-            if oldPhase != .active && newPhase == .active {
-                Log.i("ℹ️ [OnboardingView] Scene became active", category: "Onboarding")
-                // 如果初始化失败，自动重试
-                if viewModel.initializationFailed {
-                    Log.i("♻️ [OnboardingView] Auto-retrying initialization", category: "Onboarding")
-                    Task {
-                        await viewModel.retryInitialization()
+
+                if let selected = viewModel.selectedIssue {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("已选策略")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.green.opacity(0.9))
+                        Text(selected.title)
+                            .foregroundColor(.white)
+                            .font(.body)
                     }
+                    .padding(.top, 4)
                 }
             }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private var primaryButton: some View {
+        Button(action: {
+            viewModel.handlePrimaryAction()
+        }) {
+            HStack {
+                Text(viewModel.primaryButtonTitle)
+                    .fontWeight(.semibold)
+                Spacer()
+                Image(systemName: "arrow.right")
+                    .font(.headline.weight(.bold))
+            }
+            .foregroundColor(.black)
+            .padding()
+            .background(viewModel.isPrimaryButtonDisabled ? Color.white.opacity(0.35) : Color.green.opacity(0.95))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: Color.green.opacity(0.35), radius: 12, y: 6)
+        }
+        .disabled(viewModel.isPrimaryButtonDisabled)
+    }
+
+    @ViewBuilder
+    private func background(for step: OnboardingStep) -> some View {
+        switch step {
+        case .intro:
+            RadialGradient(
+                colors: [
+                    Color.black,
+                    Color.black,
+                    Color.green.opacity(0.15)
+                ],
+                center: .center,
+                startRadius: 40,
+                endRadius: 400
+            )
+        case .scan:
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color(red: 0.03, green: 0.18, blue: 0.10)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        case .profile:
+            LinearGradient(
+                colors: [
+                    Color.black,
+                    Color(red: 0.07, green: 0.09, blue: 0.12)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 }
 
 @MainActor
-final class OnboardingViewModel: ObservableObject {
-    @Published var displayMessages: [ChatMessage] = []
-    @Published var inputText = ""
-    @Published var isLoading = false
-    @Published var showActionButton = false
-    @Published var actionButtonText = ""
-    @Published var initializationFailed = false
+private final class OnboardingViewModel: ObservableObject {
+    @Published var step: OnboardingStep = .intro
+    @Published var visibleScanLines: [ScanLine] = []
+    @Published var isScanCompleted = false
+    @Published var selectedIssueID: String
 
-    private var onboardingId: String?
-    private var lastDataId: String?  // 记录最新的data id，用于断线重连
-    private var actionButtonAction: BotMessageAction?
-    private let onboardingService: OnboardingService
-    private let authorizationService: AuthorizationService
-    private let healthDataService: HealthDataService
+    let issueOptions: [OnboardingIssueOption]
+    let profileSnapshot = OnboardingProfileSnapshot(
+        gender: "男",
+        age: 30,
+        height: 178,
+        weight: 75
+    )
+
+    private let scanLines: [ScanLine] = [
+        ScanLine(text: "正在读取过去 30 天睡眠记录..."),
+        ScanLine(text: "发现异常静息心率波动..."),
+        ScanLine(text: "识别到深夜屏幕使用模式"),
+        ScanLine(text: "···"),
+        ScanLine(text: "初步诊断生成中...")
+    ]
+
+    private let stateManager: OnboardingStateManaging
     private let onComplete: () -> Void
-    private var lastUserMessage: String?  // 保存最后发送的消息用于重试
-
-    // 消息ID到ChatMessage的映射，用于处理流式更新
-    private var messageMap: [String: Int] = [:]  // msgId -> displayMessages index
-
-    // 需要用户交互的工具名称集合
-    private let interactiveToolNames: Set<String> = ["authorize_health_data", "noti_permit", "finish_onboarding"]
+    private var scanTask: Task<Void, Never>?
 
     init(
-        onboardingService: OnboardingService,
-        authorizationService: AuthorizationService,
-        healthDataService: HealthDataService,
+        stateManager: OnboardingStateManaging,
         onComplete: @escaping () -> Void
     ) {
-        self.onboardingService = onboardingService
-        self.authorizationService = authorizationService
-        self.healthDataService = healthDataService
+        self.stateManager = stateManager
         self.onComplete = onComplete
+
+        self.issueOptions = [
+            OnboardingIssueOption(
+                id: "fatigue",
+                title: "虽然睡够了 7 小时，但醒来依然像没睡一样累",
+                detail: "AI 检测到深睡占比 < 10%"
+            ),
+            OnboardingIssueOption(
+                id: "focus",
+                title: "下午 3 点后注意力很难集中，必须靠咖啡续命",
+                detail: "AI 检测到日间久坐 + 心率变异性低"
+            ),
+            OnboardingIssueOption(
+                id: "bloat",
+                title: "体重正常，但经常感觉身体“沉重”或水肿",
+                detail: "AI 检测到步数与卡路里消耗不匹配"
+            )
+        ]
+
+        selectedIssueID = issueOptions.first?.id ?? "fatigue"
     }
 
-    func initializeOnboarding() async {
-        Log.i("🎬 [OnboardingViewModel] initializeOnboarding started", category: "Onboarding")
-        initializationFailed = false
-        isLoading = true
-
-        do {
-            try await onboardingService.startOnboarding(
-                eventHandler: { [weak self] event in
-                    self?.handleStreamEvent(event)
-                }
-            )
-
-            isLoading = false
-            Log.i("✅ [OnboardingViewModel] initializeOnboarding completed", category: "Onboarding")
-        } catch {
-            Log.e("❌ [OnboardingViewModel] 初始化失败: \(error)", category: "Onboarding")
-            isLoading = false
-            initializationFailed = true
+    var primaryButtonTitle: String {
+        switch step {
+        case .intro:
+            return "开始连接我的身体数据"
+        case .scan:
+            return isScanCompleted ? "查看 AI 生成的关键信息" : "初步诊断生成中..."
+        case .profile:
+            return "确认并生成战术"
         }
     }
 
-    func retryInitialization() async {
-        Log.i("♻️ [OnboardingViewModel] Retrying initialization", category: "Onboarding")
-        await initializeOnboarding()
+    var isPrimaryButtonDisabled: Bool {
+        step == .scan && !isScanCompleted
     }
 
-    func sendMessage(_ text: String) {
-        Log.i("💬 [OnboardingViewModel] sendMessage called: \(text.prefix(50))...", category: "Onboarding")
+    var selectedIssue: OnboardingIssueOption? {
+        issueOptions.first { $0.id == selectedIssueID }
+    }
 
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            Log.w("⚠️ [OnboardingViewModel] Empty message, skipping", category: "Onboarding")
-            return
+    func handlePrimaryAction() {
+        switch step {
+        case .intro:
+            withAnimation(.easeInOut(duration: 0.4)) {
+                step = .scan
+            }
+            startScanIfNeeded()
+
+        case .scan:
+            guard isScanCompleted else { return }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.9)) {
+                step = .profile
+            }
+
+        case .profile:
+            finishOnboarding()
         }
+    }
 
-        // 特殊逻辑：检测 "skip" 命令，直接跳过 onboarding
-        if text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == "skip" {
-            Log.i("⏭️ [OnboardingViewModel] 检测到 skip 命令，跳过 onboarding", category: "Onboarding")
+    func selectIssue(_ id: String) {
+        selectedIssueID = id
+    }
 
-            // 添加用户消息到UI
-            let userMsg = ChatMessage(
-                id: UUID().uuidString,
-                text: text,
-                isFromUser: true,
-                timestamp: Date(),
-                isStreaming: false
-            )
-            displayMessages.append(userMsg)
+    func startScanIfNeeded() {
+        guard scanTask == nil else { return }
+        visibleScanLines = []
+        isScanCompleted = false
 
-            // 清空输入框
-            inputText = ""
+        scanTask = Task { [weak self] in
+            guard let self else { return }
 
-            // 添加系统提示消息
-            let systemMsg = ChatMessage(
-                id: UUID().uuidString,
-                text: "已跳过引导流程",
-                isFromUser: false,
-                timestamp: Date(),
-                isStreaming: false
-            )
-            displayMessages.append(systemMsg)
-
-            // 延迟后完成 onboarding
-            Task {
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+            for line in scanLines {
+                try? await Task.sleep(nanoseconds: 800_000_000)
                 await MainActor.run {
-                    onComplete()
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        visibleScanLines.append(line)
+                    }
                 }
             }
 
-            return
+            try? await Task.sleep(nanoseconds: 800_000_000)
+
+            await MainActor.run {
+                withAnimation {
+                    isScanCompleted = true
+                }
+            }
         }
+    }
 
-        guard let onboardingId = onboardingId else {
-            Log.e("❌ [OnboardingViewModel] onboardingId 为空，无法发送消息", category: "Onboarding")
-            return
+    private func finishOnboarding() {
+        stateManager.saveOnboardingID(OnboardingStateManager.mockOnboardingID)
+        stateManager.markOnboardingAsCompleted()
+        Log.i("✅ Onboarding 完成，使用 mock ID: \(OnboardingStateManager.mockOnboardingID)", category: "Onboarding")
+        onComplete()
+    }
+
+    deinit {
+        scanTask?.cancel()
+    }
+}
+
+// MARK: - Components
+
+private struct BreathingDot: View {
+    @State private var animate = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.green.opacity(0.18))
+                .scaleEffect(animate ? 2.2 : 1.2)
+                .blur(radius: 28)
+
+            Circle()
+                .fill(Color.green.opacity(0.45))
+                .scaleEffect(animate ? 1.6 : 1.0)
+                .blur(radius: 12)
+
+            Circle()
+                .fill(Color.green)
+                .frame(width: 36, height: 36)
+                .shadow(color: Color.green.opacity(0.6), radius: 18)
         }
-
-        // 保存用户消息用于重试
-        lastUserMessage = text
-
-        // 1. 立即添加用户消息到 UI
-        let userMsg = ChatMessage(
-            id: UUID().uuidString,
-            text: text,
-            isFromUser: true,
-            timestamp: Date(),
-            isStreaming: false
+        .scaleEffect(animate ? 1.04 : 0.92)
+        .animation(
+            .easeInOut(duration: 2.2)
+                .repeatForever(autoreverses: true),
+            value: animate
         )
-        displayMessages.append(userMsg)
-        Log.i("✅ [OnboardingViewModel] User message added to UI", category: "Onboarding")
+        .onAppear { animate = true }
+    }
+}
 
-        // 2. 清空输入框
-        inputText = ""
+private struct ScanTicker: View {
+    let lines: [ScanLine]
 
-        // 3. 延迟显示 loading，让用户消息先渲染
-        Task {
-            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
-            self.isLoading = true
-
-            do {
-                Log.i("📤 [OnboardingViewModel] Calling continueOnboarding...", category: "Onboarding")
-                try await onboardingService.continueOnboarding(
-                    onboardingId: onboardingId,
-                    userInput: text,
-                    healthData: nil,
-                    eventHandler: { [weak self] event in
-                        self?.handleStreamEvent(event)
-                    }
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.06),
+                            Color.white.opacity(0.04)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
 
-                self.isLoading = false
-                Log.i("✅ [OnboardingViewModel] continueOnboarding completed", category: "Onboarding")
-            } catch {
-                Log.e("❌ [OnboardingViewModel] 发送消息失败: \(error)", category: "Onboarding")
-                self.isLoading = false
-                self.handleError(error: error)
-            }
-        }
-    }
-
-    func retryMessage(_ failedMessageId: String) async {
-        // 移除错误消息
-        displayMessages.removeAll { message in
-            message.id == failedMessageId || message.hasError
-        }
-
-        // 重新发送最后的用户消息
-        if let lastMessage = lastUserMessage {
-            sendMessage(lastMessage)
-        }
-    }
-
-    private func handleError(error: Error) {
-        // 如果有流式消息正在进行，标记为失败
-        if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
-            let failedMessage = displayMessages[index]
-            displayMessages[index] = ChatMessage(
-                id: failedMessage.id,
-                text: failedMessage.text,
-                isFromUser: false,
-                timestamp: failedMessage.timestamp,
-                isStreaming: false,
-                thinkingContent: failedMessage.thinkingContent,
-                toolCalls: failedMessage.toolCalls,
-                specialMessageType: failedMessage.specialMessageType,
-                specialMessageData: failedMessage.specialMessageData,
-                hasError: true,
-                errorMessage: error.localizedDescription
-            )
-        } else {
-            // 如果没有流式消息，创建一个新的错误消息
-            let errorMsg = ChatMessage(
-                id: UUID().uuidString,
-                text: "",
-                isFromUser: false,
-                timestamp: Date(),
-                isStreaming: false,
-                hasError: true,
-                errorMessage: error.localizedDescription
-            )
-            displayMessages.append(errorMsg)
-        }
-    }
-
-    private func handleStreamEvent(_ event: OnboardingStreamEvent) {
-        Task { @MainActor in
-            switch event {
-            case .streamMessage(let streamMessage):
-                Log.i("📩 [OnboardingViewModel] Received stream message", category: "Onboarding")
-                Log.i("  id: \(streamMessage.id)", category: "Onboarding")
-                Log.i("  dataType: \(streamMessage.data.dataType)", category: "Onboarding")
-                
-                // 记录最新的data id
-                lastDataId = streamMessage.id
-                
-                let data = streamMessage.data
-                
-                // 保存onboardingId
-                if let oid = data.onboardingId {
-                    if onboardingId == nil {
-                        Log.i("✅ [OnboardingViewModel] Got onboardingId: \(oid)", category: "Onboarding")
-                        // 保存到 OnboardingStateManager
-                        OnboardingStateManager.shared.saveOnboardingID(oid)
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(lines) { line in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(Color.green.opacity(0.9))
+                            .frame(width: 8, height: 8)
+                            .shadow(color: Color.green.opacity(0.6), radius: 8)
+                        Text(line.text)
+                            .foregroundColor(.white)
+                            .font(.callout)
+                        Spacer()
                     }
-                    onboardingId = oid
-                }
-                
-                switch data.dataType {
-                case .agentStatus:
-                    Log.i("  → Processing agentStatus", category: "Onboarding")
-                    // 处理Agent状态
-                    handleAgentStatus(data.agentStatus)
-                    
-                case .agentMessage:
-                    Log.i("  → Processing agentMessage", category: "Onboarding")
-                    Log.i("    msgId: \(data.msgId)", category: "Onboarding")
-                    Log.i("    messageType: \(String(describing: data.messageType))", category: "Onboarding")
-                    Log.i("    content length: \(data.content?.count ?? 0)", category: "Onboarding")
-                    // 处理Agent消息（chunk或whole）
-                    handleAgentMessage(data)
-                    
-                case .agentToolCall:
-                    Log.i("  → Processing agentToolCall", category: "Onboarding")
-                    // 处理工具调用
-                    handleToolCall(data)
-                }
-
-            case .error(let message):
-                Log.e("❌ [OnboardingViewModel] Stream error: \(message)", category: "Onboarding")
-                isLoading = false
-
-                // 显示错误消息
-                if let index = displayMessages.firstIndex(where: { $0.isStreaming }) {
-                    let failedMessage = displayMessages[index]
-                    displayMessages[index] = ChatMessage(
-                        id: failedMessage.id,
-                        text: failedMessage.text,
-                        isFromUser: false,
-                        timestamp: failedMessage.timestamp,
-                        isStreaming: false,
-                        thinkingContent: failedMessage.thinkingContent,
-                        toolCalls: failedMessage.toolCalls,
-                        specialMessageType: failedMessage.specialMessageType,
-                        specialMessageData: failedMessage.specialMessageData,
-                        hasError: true,
-                        errorMessage: message
-                    )
-                } else {
-                    let errorMsg = ChatMessage(
-                        id: UUID().uuidString,
-                        text: "",
-                        isFromUser: false,
-                        timestamp: Date(),
-                        isStreaming: false,
-                        hasError: true,
-                        errorMessage: message
-                    )
-                    displayMessages.append(errorMsg)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
+            .padding(18)
         }
     }
-    
-    private func handleAgentStatus(_ status: AgentStatus?) {
-        guard let status = status else { return }
-        
-        switch status {
-        case .generating:
-            Log.i("🤖 Agent 生成中...", category: "Onboarding")
-            
-        case .finished:
-            Log.i("✅ Agent 完成", category: "Onboarding")
-            // 将所有仍在 streaming 状态的消息更新为非 streaming
-            for (index, message) in displayMessages.enumerated() {
-                if message.isStreaming {
-                    var updatedMessage = message
-                    updatedMessage = ChatMessage(
-                        id: updatedMessage.id,
-                        text: updatedMessage.text,
-                        isFromUser: updatedMessage.isFromUser,
-                        timestamp: updatedMessage.timestamp,
-                        isStreaming: false,
-                        thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls,
-                        specialMessageType: updatedMessage.specialMessageType,
-                        specialMessageData: updatedMessage.specialMessageData
-                    )
-                    displayMessages[index] = updatedMessage
-                    Log.i("  → Message at index \(index) set to non-streaming", category: "Onboarding")
+}
+
+private struct ProfileCard: View {
+    let snapshot: OnboardingProfileSnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("自动抓取的基础信息", systemImage: "sparkles")
+                    .foregroundColor(.green.opacity(0.9))
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+            }
+
+            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                GridRow {
+                    infoTile(title: "性别", value: snapshot.gender)
+                    infoTile(title: "年龄", value: "\(snapshot.age)")
                 }
-            }
-            isLoading = false
-            
-        case .error:
-            Log.e("❌ Agent 错误", category: "Onboarding")
-            // 错误时将所有流式消息标记为失败
-            for (index, message) in displayMessages.enumerated() {
-                if message.isStreaming {
-                    var updatedMessage = message
-                    updatedMessage = ChatMessage(
-                        id: updatedMessage.id,
-                        text: updatedMessage.text,
-                        isFromUser: updatedMessage.isFromUser,
-                        timestamp: updatedMessage.timestamp,
-                        isStreaming: false,
-                        thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls,
-                        specialMessageType: updatedMessage.specialMessageType,
-                        specialMessageData: updatedMessage.specialMessageData,
-                        hasError: true,
-                        errorMessage: "Agent processing failed"
-                    )
-                    displayMessages[index] = updatedMessage
-                }
-            }
-            isLoading = false
-
-        case .stopped:
-            Log.i("⏸️ Agent 停止", category: "Onboarding")
-            // 停止时也将所有消息设为非 streaming
-            for (index, message) in displayMessages.enumerated() {
-                if message.isStreaming {
-                    var updatedMessage = message
-                    updatedMessage = ChatMessage(
-                        id: updatedMessage.id,
-                        text: updatedMessage.text,
-                        isFromUser: updatedMessage.isFromUser,
-                        timestamp: updatedMessage.timestamp,
-                        isStreaming: false,
-                        thinkingContent: updatedMessage.thinkingContent,
-                        toolCalls: updatedMessage.toolCalls,
-                        specialMessageType: updatedMessage.specialMessageType,
-                        specialMessageData: updatedMessage.specialMessageData
-                    )
-                    displayMessages[index] = updatedMessage
-                }
-            }
-            isLoading = false
-        }
-    }
-    
-    private func handleAgentMessage(_ data: StreamMessageData) {
-        let msgId = data.msgId
-        
-        Log.i("💭 [OnboardingViewModel] handleAgentMessage", category: "Onboarding")
-        Log.i("  msgId: \(msgId)", category: "Onboarding")
-        Log.i("  content: \(data.content ?? "nil")", category: "Onboarding")
-        Log.i("  thinking_content: \(data.thinkingContent ?? "nil")", category: "Onboarding")
-        Log.i("  messageType: \(String(describing: data.messageType))", category: "Onboarding")
-        Log.i("  toolCalls count: \(data.toolCalls?.count ?? 0)", category: "Onboarding")
-        
-        // 检查是否有任何内容需要显示
-        let hasContent = data.content != nil && !data.content!.isEmpty
-        let hasThinking = data.thinkingContent != nil && !data.thinkingContent!.isEmpty
-        let hasToolCalls = data.toolCalls != nil && !data.toolCalls!.isEmpty
-        
-        // 如果content、thinking和toolCalls都为空，才跳过
-        guard hasContent || hasThinking || hasToolCalls else {
-            Log.i("  → No content, thinking or tool calls, skipping UI update", category: "Onboarding")
-            return
-        }
-        
-        // 使用content，如果为空则使用空字符串（但仍然可以显示thinking和toolCalls）
-        let content = data.content ?? ""
-        
-        // 检查是否有 generate_user_health_profile 工具调用
-        let hasHealthProfileTool = data.toolCalls?.contains { $0.toolCallName == "generate_user_health_profile" } ?? false
-        var specialMessageType: SpecialMessageType? = nil
-        var specialMessageData: String? = nil
-
-        if hasHealthProfileTool, let toolCall = data.toolCalls?.first(where: { $0.toolCallName == "generate_user_health_profile" }) {
-            specialMessageType = .userHealthProfile
-            // 从 toolCall.toolCallArgs 中提取 user_health_profile 参数
-            if let argsJSON = toolCall.toolCallArgs,
-               let argsData = argsJSON.data(using: .utf8),
-               let argsDict = try? JSONSerialization.jsonObject(with: argsData) as? [String: Any],
-               let profile = argsDict["user_health_profile"] as? String {
-                specialMessageData = profile
-            }
-        }
-
-        // 将需要用户交互的工具调用过滤掉（不在消息中显示，通过actionButton显示）
-        // 不需要用户交互的工具调用仍然在消息中显示
-        let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.compactMap { toolCall in
-            // 如果是需要用户交互的工具，返回 nil（过滤掉）
-            guard !interactiveToolNames.contains(toolCall.toolCallName) else {
-                return nil
-            }
-            // 如果是 generate_user_health_profile，也过滤掉（会作为特殊消息显示）
-            guard toolCall.toolCallName != "generate_user_health_profile" else {
-                return nil
-            }
-            // 否则返回 ToolCallInfo（显示在消息中）
-            return ToolCallInfo(
-                id: toolCall.toolCallId,
-                name: toolCall.toolCallName,
-                args: toolCall.toolCallArgs,
-                status: toolCall.toolCallStatus?.description,
-                result: toolCall.toolCallResult
-            )
-        }
-        
-        // 查找或创建消息
-        if let index = messageMap[msgId] {
-            Log.i("  → Updating existing message at index \(index)", category: "Onboarding")
-            // 更新现有消息（每次收到的content都是完整的，不是delta）
-            let existingMessage = displayMessages[index]
-
-            // 保留已有的 specialMessageType 和 specialMessageData（如果新数据为 nil）
-            let finalSpecialType = specialMessageType ?? existingMessage.specialMessageType
-            let finalSpecialData = specialMessageData ?? existingMessage.specialMessageData
-
-            let message = ChatMessage(
-                id: existingMessage.id,
-                text: content,
-                isFromUser: existingMessage.isFromUser,
-                timestamp: existingMessage.timestamp,
-                isStreaming: true,  // 当前正在处理的消息保持 streaming 状态
-                thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos,
-                specialMessageType: finalSpecialType,
-                specialMessageData: finalSpecialData
-            )
-            displayMessages[index] = message
-
-        } else {
-            Log.i("  → Creating new message", category: "Onboarding")
-
-            // 新消息到来时，将之前所有的消息设置为非 streaming 状态
-            for (idx, msg) in displayMessages.enumerated() {
-                if msg.isStreaming {
-                    var updatedMsg = msg
-                    updatedMsg = ChatMessage(
-                        id: updatedMsg.id,
-                        text: updatedMsg.text,
-                        isFromUser: updatedMsg.isFromUser,
-                        timestamp: updatedMsg.timestamp,
-                        isStreaming: false,
-                        thinkingContent: updatedMsg.thinkingContent,
-                        toolCalls: updatedMsg.toolCalls,
-                        specialMessageType: updatedMsg.specialMessageType,
-                        specialMessageData: updatedMsg.specialMessageData
-                    )
-                    displayMessages[idx] = updatedMsg
-                    Log.i("  ✅ Previous message at index \(idx) set to non-streaming", category: "Onboarding")
-                }
-            }
-
-            // 创建新消息，保持 streaming 状态
-            let newMessage = ChatMessage(
-                id: msgId,
-                text: content,
-                isFromUser: false,
-                timestamp: Date(),
-                isStreaming: true,  // 新消息以 streaming 状态创建
-                thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos,
-                specialMessageType: specialMessageType,
-                specialMessageData: specialMessageData
-            )
-            displayMessages.append(newMessage)
-            messageMap[msgId] = displayMessages.count - 1
-            Log.i("  ✅ Message added at index \(displayMessages.count - 1)", category: "Onboarding")
-        }
-        
-        // 如果是完整消息，检查是否有工具调用需要处理
-        if data.messageType == .whole {
-            Log.i("  → Message is complete (WHOLE)", category: "Onboarding")
-            
-            // 根据 toolCalls 决定是否需要显示action button
-            if let toolCalls = data.toolCalls, !toolCalls.isEmpty {
-                Log.i("  → Has \(toolCalls.count) tool calls", category: "Onboarding")
-                for toolCall in toolCalls {
-                    handleToolCallForUI(toolCall)
+                GridRow {
+                    infoTile(title: "身高", value: "\(snapshot.height) cm")
+                    infoTile(title: "体重", value: "\(snapshot.weight) kg")
                 }
             }
         }
-    }
-    
-    private func handleToolCall(_ data: StreamMessageData) {
-        // 处理工具调用状态
-        guard let toolCalls = data.toolCalls else { return }
-        
-        for toolCall in toolCalls {
-            Log.i("🔧 Tool call: \(toolCall.toolCallName), status: \(String(describing: toolCall.toolCallStatus))", category: "Onboarding")
-            
-            // 根据工具调用状态更新UI
-            if let status = toolCall.toolCallStatus {
-                switch status {
-                case .started:
-                    Log.i("  ▶️ 开始执行", category: "Onboarding")
-                case .success:
-                    Log.i("  ✅ 执行成功", category: "Onboarding")
-                case .failed:
-                    Log.e("  ❌ 执行失败", category: "Onboarding")
-                }
-            }
-        }
-    }
-    
-    private func handleToolCallForUI(_ toolCall: ToolCall) {
-        // 根据工具调用类型显示相应的UI操作
-        switch toolCall.toolCallName {
-        case "authorize_health_data":
-            // 显示健康数据授权按钮
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation {
-                    self.showActionButton = true
-                    self.actionButtonText = "授权健康数据"
-                    self.actionButtonAction = .healthPermit
-                }
-            }
-            
-        case "noti_permit":
-            // 显示通知权限授权按钮
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation {
-                    self.showActionButton = true
-                    self.actionButtonText = "开启通知"
-                    self.actionButtonAction = .notiPermit
-                }
-            }
-            
-        case "finish_onboarding":
-            // 显示完成引导按钮
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation {
-                    self.showActionButton = true
-                    self.actionButtonText = "开始使用"
-                    self.actionButtonAction = .finishOnboarding
-                }
-            }
-            
-        default:
-            break
-        }
+        .padding()
+        .background(Color.white.opacity(0.05))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    func handleActionButton() {
-        guard let action = actionButtonAction else { return }
+    private func infoTile(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(Color.white.opacity(0.6))
+            Text(value)
+                .font(.headline.weight(.semibold))
+                .foregroundColor(.white)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
 
-        switch action {
-        case .finishOnboarding:
-            onComplete()
-            
-        case .notiPermit:
-            // TODO: 请求通知权限
-            Log.i("处理通知权限", category: "Onboarding")
-            showActionButton = false
-            
-        case .healthPermit:
-            Log.i("🏥 [OnboardingViewModel] 处理健康数据权限", category: "Onboarding")
-            showActionButton = false
+private struct IssueRow: View {
+    let option: OnboardingIssueOption
+    let isSelected: Bool
+    let onSelect: () -> Void
 
-            Task {
-                guard let onboardingId = onboardingId else {
-                    Log.e("❌ [OnboardingViewModel] onboardingId为空", category: "Onboarding")
-                    return
-                }
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                        .frame(width: 22, height: 22)
 
-                isLoading = true
-
-                do {
-                    // 1. 请求HealthKit授权
-                    Log.i("📋 [OnboardingViewModel] 请求HealthKit授权...", category: "Onboarding")
-                    let authStatus = try await authorizationService.requestAuthorization()
-                    Log.i("✅ [OnboardingViewModel] HealthKit授权状态: \(authStatus)", category: "Onboarding")
-
-                    // 2. 获取24小时健康数据并聚合为JSON
-                    let healthDataJSON: String
-                    if authStatus == .authorized {
-                        Log.i("📊 [OnboardingViewModel] 获取健康数据...", category: "Onboarding")
-                        do {
-                            healthDataJSON = try await healthDataService.fetchRecentDataAsJSON()
-                            Log.i("✅ [OnboardingViewModel] 健康数据获取成功，JSON长度: \(healthDataJSON.count)", category: "Onboarding")
-                        } catch {
-                            Log.w("⚠️ [OnboardingViewModel] 获取健康数据失败: \(error)", category: "Onboarding")
-                            // 如果获取数据失败，发送授权状态信息
-                            healthDataJSON = "{\"authorized\": true, \"dataFetchError\": \"\(error.localizedDescription)\"}"
-                        }
-                    } else {
-                        Log.w("⚠️ [OnboardingViewModel] 用户未授权或授权失败", category: "Onboarding")
-                        healthDataJSON = "{\"authorized\": false, \"status\": \"\(authStatus)\"}"
-                    }
-
-                    // 3. 添加用户消息 "Done" 到 UI
-                    Log.i("💬 [OnboardingViewModel] 添加用户消息: Done", category: "Onboarding")
-                    let userMessage = ChatMessage(
-                        id: UUID().uuidString,
-                        text: "Done",
-                        isFromUser: true,
-                        timestamp: Date(),
-                        isStreaming: false
-                    )
-                    displayMessages.append(userMessage)
-
-                    // 4. 延迟显示 loading，让用户消息先渲染
-                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3秒
-
-                    // 5. 调用continueOnboarding，同时传入 userInput="Done" 和 healthData
-                    Log.i("📤 [OnboardingViewModel] 发送 'Done' 和健康数据到服务器...", category: "Onboarding")
-                    try await onboardingService.continueOnboarding(
-                        onboardingId: onboardingId,
-                        userInput: "Done",
-                        healthData: healthDataJSON,
-                        eventHandler: { [weak self] event in
-                            self?.handleStreamEvent(event)
-                        }
-                    )
-
-                    isLoading = false
-                    Log.i("✅ [OnboardingViewModel] 'Done' 和健康数据已发送", category: "Onboarding")
-                } catch {
-                    Log.e("❌ [OnboardingViewModel] 健康数据授权流程失败: \(error)", category: "Onboarding")
-                    isLoading = false
-
-                    // 发送错误信息到服务器
-                    do {
-                        let errorJSON = "{\"authorized\": false, \"error\": \"\(error.localizedDescription)\"}"
-                        try await onboardingService.continueOnboarding(
-                            onboardingId: onboardingId,
-                            userInput: nil,
-                            healthData: errorJSON,
-                            eventHandler: { [weak self] event in
-                                self?.handleStreamEvent(event)
-                            }
-                        )
-                    } catch {
-                        Log.e("❌ [OnboardingViewModel] 发送错误信息失败: \(error)", category: "Onboarding")
+                    if isSelected {
+                        Circle()
+                            .fill(Color.green.opacity(0.95))
+                            .frame(width: 12, height: 12)
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(option.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                    Text(option.detail)
+                        .font(.footnote)
+                        .foregroundStyle(Color.white.opacity(0.7))
+                }
+                Spacer()
             }
+            .padding()
+            .background(isSelected ? Color.green.opacity(0.12) : Color.white.opacity(0.04))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.green.opacity(0.6) : Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-    }
-
-    /// 处理特殊消息的按钮操作（如健康档案确认）
-    func handleSpecialMessageAction(messageId: String, action: String) {
-        Log.i("🔘 [OnboardingViewModel] handleSpecialMessageAction: \(action) for message: \(messageId)", category: "Onboarding")
-
-        // 直接将用户的选择作为消息发送
-        sendMessage(action)
     }
 }
 
 #Preview {
     OnboardingView(onComplete: {})
+        .environment(\.colorScheme, .dark)
 }

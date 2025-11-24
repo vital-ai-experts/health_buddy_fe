@@ -10,8 +10,8 @@ let package = Package(
         .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "DomainAuth", path: "../../../Domain/DomainAuth"),
-        .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding"),
         .package(name: "DomainHealth", path: "../../../Domain/Health"),
+        .package(name: "FeatureOnboardingApi", path: "../../Onboarding/FeatureOnboardingApi"),
         .package(name: "FeatureDebugToolsApi", path: "../../DebugTools/FeatureDebugToolsApi"),
         .package(name: "FeatureAgendaApi", path: "../../Agenda/FeatureAgendaApi")
     ],
@@ -23,8 +23,8 @@ let package = Package(
                 .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "DomainAuth", package: "DomainAuth"),
-                .product(name: "DomainOnboarding", package: "DomainOnboarding"),
                 .product(name: "DomainHealth", package: "DomainHealth"),
+                .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "FeatureDebugToolsApi", package: "FeatureDebugToolsApi"),
                 .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi")
             ],

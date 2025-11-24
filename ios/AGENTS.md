@@ -222,7 +222,6 @@ enum AppComposition {
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
         ChatDomainBootstrap.configure()
-        OnboardingDomainBootstrap.configure()
 
         // Features...
         AccountModule.register(router: router)

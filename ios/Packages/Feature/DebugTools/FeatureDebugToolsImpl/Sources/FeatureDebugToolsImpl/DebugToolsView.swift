@@ -1,12 +1,14 @@
 import SwiftUI
 import LibraryNotification
-import DomainOnboarding
+import FeatureOnboardingApi
+import LibraryServiceLoader
 
 /// Debug Tools Main View - 调试工具主界面
 struct DebugToolsView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showCopiedAlert = false
     @State private var hasJustReset = false
+    private let onboardingManager = ServiceManager.shared.resolve(OnboardingStateManaging.self)
 
     var body: some View {
         List {
@@ -115,13 +117,13 @@ struct DebugToolsView: View {
         if hasJustReset {
             return "已重置onboarding状态"
         } else {
-            return OnboardingStateManager.shared.hasCompletedOnboarding ? "已完成onboarding" : "未完成onboarding"
+            return onboardingManager.hasCompletedOnboarding ? "已完成onboarding" : "未完成onboarding"
         }
     }
 
     /// 重置 Onboarding 状态
     private func resetOnboardingState() {
-        OnboardingStateManager.shared.resetOnboardingState()
+        onboardingManager.resetOnboardingState()
         hasJustReset = true
     }
 

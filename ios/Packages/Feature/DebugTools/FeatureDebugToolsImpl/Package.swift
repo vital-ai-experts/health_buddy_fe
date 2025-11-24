@@ -10,7 +10,7 @@ let package = Package(
         .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "LibraryNotification", path: "../../../Library/Notification"),
-        .package(name: "DomainOnboarding", path: "../../../Domain/Onboarding"),
+        .package(name: "FeatureOnboardingApi", path: "../../Onboarding/FeatureOnboardingApi"),
         .package(name: "FeatureChatImpl", path: "../../FeatureChat/FeatureChatImpl")
     ],
     targets: [
@@ -21,7 +21,7 @@ let package = Package(
                 .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "LibraryNotification", package: "LibraryNotification"),
-                .product(name: "DomainOnboarding", package: "DomainOnboarding"),
+                .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "FeatureChatImpl", package: "FeatureChatImpl")
             ],
             path: "Sources"

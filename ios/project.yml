@@ -36,8 +36,6 @@ packages:
     path: Packages/Domain/DomainAuth
   DomainChat:
     path: Packages/Domain/DomainChat
-  DomainOnboarding:
-    path: Packages/Domain/Onboarding
   FeatureAccountApi:
     path: Packages/Feature/FeatureAccount/FeatureAccountApi
   FeatureAccountImpl:
@@ -97,8 +95,6 @@ targets:
         product: DomainAuth
       - package: DomainChat
         product: DomainChat
-      - package: DomainOnboarding
-        product: DomainOnboarding
       - package: FeatureAccountApi
         product: FeatureAccountApi
       - package: FeatureAccountImpl

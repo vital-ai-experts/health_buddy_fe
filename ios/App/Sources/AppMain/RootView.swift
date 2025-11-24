@@ -12,7 +12,6 @@ import FeatureChatApi
 import FeatureOnboardingApi
 import FeatureAgendaApi
 import DomainAuth
-import DomainOnboarding
 import LibraryServiceLoader
 import LibraryNetworking
 import LibraryNotification
@@ -30,6 +29,7 @@ struct RootView: View {
     private let chatFeature: FeatureChatBuildable
     private let onboardingFeature: FeatureOnboardingBuildable
     private let authService: AuthenticationService
+    private let onboardingStateManager: OnboardingStateManaging
     private let loginURL = URL(string: "thrivebody://login")!
     private let nonDismissableLoginURL = URL(string: "thrivebody://login?dismissable=false")!
     
@@ -44,12 +44,14 @@ struct RootView: View {
         accountFeature: FeatureAccountBuildable = ServiceManager.shared.resolve(FeatureAccountBuildable.self),
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self),
         onboardingFeature: FeatureOnboardingBuildable = ServiceManager.shared.resolve(FeatureOnboardingBuildable.self),
-        authService: AuthenticationService = ServiceManager.shared.resolve(AuthenticationService.self)
+        authService: AuthenticationService = ServiceManager.shared.resolve(AuthenticationService.self),
+        onboardingStateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self)
     ) {
         self.accountFeature = accountFeature
         self.chatFeature = chatFeature
         self.onboardingFeature = onboardingFeature
         self.authService = authService
+        self.onboardingStateManager = onboardingStateManager
     }
 
     var body: some View {
@@ -61,7 +63,6 @@ struct RootView: View {
 
                 case .onboarding:
                     onboardingFeature.makeOnboardingView {
-                        OnboardingStateManager.shared.markOnboardingAsCompleted()
                         Task { @MainActor in
                             appState = .authenticated
                             presentLogin(dismissable: false)
@@ -116,7 +117,6 @@ struct RootView: View {
         let isAuthenticated = await checkAuthentication()
 
         // 检查是否需要显示Onboarding
-        let onboardingStateManager = OnboardingStateManager.shared
         let shouldShowOnboarding = onboardingStateManager.shouldShowOnboarding(isAuthenticated: isAuthenticated)
 
         // 等待最少 Splash 时间（动画播放）
