@@ -37,7 +37,7 @@ struct RootView: View {
     enum AppState {
         case initializing      // 初始化中（Splash阶段）
         case onboarding       // 首次使用引导
-        case authenticated    // 已登录
+        case mainPage         // 进入首页
     }
 
     init(
@@ -64,12 +64,12 @@ struct RootView: View {
                 case .onboarding:
                     onboardingFeature.makeOnboardingView {
                         Task { @MainActor in
-                            appState = .authenticated
-                            presentLogin(dismissable: false)
+                            appState = .mainPage
+                            // presentLogin(dismissable: false)
                         }
                     }
 
-                case .authenticated:
+                case .mainPage:
                     // ⚠️ 关键修改：不用 NavigationStack 包裹 TabView
                     // 每个 tab 会有自己的 NavigationStack（在 builder 中）
                     MainTabView(
@@ -146,15 +146,12 @@ struct RootView: View {
 
         // 确定应用初始状态
         let initialState: AppState
-        if isAuthenticated {
-            // 已登录，直接进入主界面
-            initialState = .authenticated
-        } else if shouldShowOnboarding {
-            // 未登录且需要Onboarding
+        if shouldShowOnboarding {
+            // 需要Onboarding
             initialState = .onboarding
         } else {
-            // 未登录但已完成过Onboarding，直接显示登录页
-            initialState = .authenticated // 先进入authenticated状态，然后立即弹出登录页
+            // 不需要onboarding，直接进入首页
+            initialState = .mainPage // 先进入authenticated状态，然后立即弹出登录页
         }
 
         // 关闭 Splash，同时设置应用状态
@@ -163,9 +160,9 @@ struct RootView: View {
             showingSplash = false
 
             // 如果未登录但已完成Onboarding，立即弹出登录页
-            if !isAuthenticated && !shouldShowOnboarding {
-                presentLogin()
-            }
+            // if !isAuthenticated && !shouldShowOnboarding {
+            //     presentLogin()
+            // }
         }
 
         // 请求推送通知权限
@@ -295,9 +292,9 @@ struct RootView: View {
     
     /// 处理退出登录
     private func handleLogout() {
-        appState = .onboarding
+        appState = .mainPage
         // 退出登录后，显示登录页
-        presentLogin()
+        // presentLogin()
     }
 
     private func presentLogin(dismissable: Bool = true) {
@@ -308,7 +305,7 @@ struct RootView: View {
 
     private func configureRouterCallbacks() {
         router.onLoginSuccess = {
-            appState = .authenticated
+            appState = .mainPage
             Task {
                 await NotificationManager.shared.reportDeviceInfoIfPossible()
             }
