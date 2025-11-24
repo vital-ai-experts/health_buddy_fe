@@ -93,8 +93,10 @@ struct AgendaLiveActivityView: View {
                             HStack(spacing: 2) {
                                 Image(systemName: buff.icon)
                                     .font(.system(size: 12))
+                                    .colorScheme(.dark)
                                 Text(buff.label)
                                     .font(.system(size: 10, weight: .medium))
+                                    .colorScheme(.dark)
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -109,17 +111,14 @@ struct AgendaLiveActivityView: View {
                 // Middle: Task card with frosted glass effect
                 HStack(alignment: .center, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("QUEST: 光合作用")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-
                         Text(context.state.task.title)
                             .font(.system(size: 14, weight: .bold))
+                            .colorScheme(.dark)
                             .lineLimit(1)
 
                         Text(context.state.task.description)
                             .font(.system(size: 11))
+                            .colorScheme(.dark)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
@@ -137,16 +136,17 @@ struct AgendaLiveActivityView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 44, height: 44)
+                                .frame(width: 28, height: 28)
                                 .shadow(color: Color.yellow.opacity(0.5), radius: 6, x: 0, y: 3)
 
                             Image(systemName: context.state.task.button.icon)
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(.white)
                         }
 
                         Text(context.state.task.button.label)
                             .font(.system(size: 9, weight: .semibold))
+                            .colorScheme(.dark)
                     }
                 }
                 .padding(10)
@@ -166,64 +166,55 @@ struct AgendaLiveActivityView: View {
                         )
                 )
 
-                // Bottom: Countdown with gradient progress bar
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(context.state.countdown.label)
-                            .font(.system(size: 11, weight: .medium))
+                // Bottom: Countdown with gradient progress bar (auto-updates by remainingTimeSeconds)
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    let progress = dynamicProgress(at: timeline.date)
 
-                        Spacer()
-
-                        HStack(spacing: 2) {
-                            Image(systemName: "clock")
-                                .font(.system(size: 9))
-                            Text("最佳时间: \(context.state.countdown.timeRange)")
-                                .font(.system(size: 9))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-
-                    // Progress bar with fixed height
-                    ZStack(alignment: .leading) {
-                        // Background track
-                        Capsule()
-                            .fill(Color(.systemGray6))
-                            .frame(height: 8)
-
-                        // Progress fill with gradient
-                        GeometryReader { geometry in
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 1, green: 0.84, blue: 0),
-                                            Color(red: 1, green: 0.65, blue: 0)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geometry.size.width * context.state.countdown.progress, height: 8)
-                        }
-                        .frame(height: 8)
-
-                        // Sun icon at start
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Image(systemName: "sun.max.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color(red: 1, green: 0.84, blue: 0))
-                                .padding(.leading, 3)
+                            Text(context.state.countdown.label)
+                                .font(.system(size: 11, weight: .medium))
+                                .colorScheme(.dark)
 
                             Spacer()
 
-                            // Moon icon at end
-                            Image(systemName: "moon.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .padding(.trailing, 3)
+                            HStack(spacing: 2) {
+                                Image(systemName: "clock")
+                                    .font(.system(size: 9))
+                                Text("最佳时间: \(context.state.countdown.timeRange)")
+                                    .font(.system(size: 9))
+                                    .colorScheme(.dark)
+                            }
+                            .foregroundStyle(.secondary)
                         }
+
+                        // Progress bar with fixed height
+                        ZStack(alignment: .leading) {
+                            // Background track
+                            Capsule()
+                                .fill(Color(.systemGray6))
+                                .opacity(0.4)
+                                .frame(height: 8)
+
+                            // Progress fill with gradient
+                            GeometryReader { geometry in
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color(red: 1, green: 0.84, blue: 0),
+                                                Color(red: 1, green: 0.65, blue: 0)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: geometry.size.width * progress, height: 8)
+                            }
+                            .frame(height: 8)
+                        }
+                        .frame(height: 8)
                     }
-                    .frame(height: 8)
                 }
             }
             .padding(.horizontal, 12)
@@ -259,6 +250,31 @@ struct AgendaLiveActivityView: View {
             URLQueryItem(name: "complete", value: "1")
         ]
         return components.url
+    }
+
+    private func dynamicProgress(at date: Date) -> Double {
+        let countdown = context.state.countdown
+        let total = max(Double(countdown.totalTimeSeconds ?? 0), 0)
+
+        // 如果有剩余时间，按倒计时计算；否则使用传入的 progress
+        if let remaining = countdown.remainingTimeSeconds {
+            let start = countdown.startAt ?? Date()
+            let elapsed = max(0, date.timeIntervalSince(start))
+
+            let initialLeft: Double
+            if total > 0 {
+                initialLeft = Double(remaining)
+            } else {
+                initialLeft = Double(remaining)
+            }
+
+            let left = max(0, initialLeft - elapsed)
+            let denom = total > 0 ? total : max(initialLeft, 1)
+            let ratio = left / denom
+            return min(max(ratio, 0), 1)
+        } else {
+            return min(max(countdown.progress, 0), 1)
+        }
     }
 }
 

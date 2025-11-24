@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FeatureOnboardingApi
 import FeatureAgendaApi
 import LibraryServiceLoader
@@ -104,6 +105,9 @@ struct OnboardingView: View {
                         if viewModel.step == .call && viewModel.callState == .completed {
                             showDungeonDetail = true
                         } else {
+                            if viewModel.step == .call {
+                                dismissKeyboard()
+                            }
                             viewModel.handlePrimaryAction()
                         }
                     }
@@ -151,6 +155,11 @@ struct OnboardingView: View {
         router.currentTab = .chat
         router.enqueueChatMessage(viewModel.dungeonJoinMockMessage)
         viewModel.completeAfterDungeonStart()
+    }
+
+    /// 收起键盘，适用于预约回电按钮点击
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 

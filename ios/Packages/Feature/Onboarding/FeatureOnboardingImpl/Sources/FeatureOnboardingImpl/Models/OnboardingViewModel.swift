@@ -8,8 +8,8 @@ final class OnboardingViewModel: ObservableObject {
     @Published var visibleScanLines: [OnboardingScanLine] = []
     @Published var isScanCompleted = false
     @Published var selectedIssueID: String
-    @Published var name: String = ""
-    @Published var phoneNumber: String = ""
+    @Published var name: String = "凌安"
+    @Published var phoneNumber: String = "110110"
     @Published var callState: OnboardingCallState = .idle
 
     let issueOptions: [OnboardingIssueOption]
@@ -175,7 +175,7 @@ private extension OnboardingViewModel {
                 }
             }
 
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.35)) {
                     callState = .completed

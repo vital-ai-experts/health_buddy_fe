@@ -27,14 +27,13 @@ enum OnboardingMockData {
     ]
 
     static let scanLines: [OnboardingScanLine] = [
-        OnboardingScanLine(text: "同步基本档案：性别 - 男"),
-        OnboardingScanLine(text: "同步年龄：30 岁"),
-        OnboardingScanLine(text: "同步身高：178 cm"),
-        OnboardingScanLine(text: "同步体重：75 kg"),
-        OnboardingScanLine(text: "读取最近一次心率：64 bpm"),
-        OnboardingScanLine(text: "读取静息心率：58 bpm"),
+        OnboardingScanLine(text: "基本信息：性别 - 男"),
+        OnboardingScanLine(text: "基本信息：年龄 - 30 岁"),
+        OnboardingScanLine(text: "身高：178 cm"),
+        OnboardingScanLine(text: "体重：75 kg"),
+        OnboardingScanLine(text: "读取最近 1 天平均心率：64 bpm"),
+        OnboardingScanLine(text: "读取最近 1 天静息心率：58 bpm"),
         OnboardingScanLine(text: "过去 7 天平均心率：67 bpm"),
-        OnboardingScanLine(text: "最近 30 天心率变异性均值：62 ms"),
         OnboardingScanLine(text: "最近一周静息心率波动范围：56 - 62 bpm"),
         OnboardingScanLine(text: "过去 30 天日均步数：8,420 步"),
         OnboardingScanLine(text: "过去 30 天日均爬楼：11 层"),

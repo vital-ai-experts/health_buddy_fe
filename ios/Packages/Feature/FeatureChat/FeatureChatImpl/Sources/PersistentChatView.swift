@@ -3,13 +3,11 @@ import SwiftData
 import DomainChat
 import LibraryServiceLoader
 import LibraryChatUI
-import LibraryNotification
 import LibraryBase
 
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.notificationParameters) private var notificationParameters
     @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
 
@@ -72,29 +70,11 @@ struct PersistentChatView: View {
                 await handlePendingChatMessageIfNeeded()
             }
         }
-        .onChange(of: notificationParameters) { _, newParams in
-            handleNotificationParameters(newParams)
-        }
         .onChange(of: router.pendingChatMessage) { _, _ in
             Task {
                 await handlePendingChatMessageIfNeeded()
             }
         }
-    }
-
-    /// 处理通知参数
-    private func handleNotificationParameters(_ params: [String: String]?) {
-        guard let params = params else { return }
-
-        let msgId = params["msg_id"] ?? ""
-        let from = params["from"] ?? ""
-
-        Log.i("📬 Chat Tab 收到通知参数:", category: "Chat")
-        Log.i("   msg_id: \(msgId)", category: "Chat")
-        Log.i("   from: \(from)", category: "Chat")
-
-        // TODO: 根据 msg_id 和 from 执行相应的操作
-        // 例如：滚动到特定消息、显示特定内容等
     }
 
     @MainActor

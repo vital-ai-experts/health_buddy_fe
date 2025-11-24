@@ -71,19 +71,33 @@ public struct AgendaActivityAttributes: ActivityAttributes {
             public var label: String
             /// Time range text (e.g., "08:00 - 12:00")
             public var timeRange: String
+            /// Total countdown duration in seconds (optional,默认为 remainingTimeSeconds)
+            public var totalTimeSeconds: Int?
             /// Progress bar color (hex string, e.g., "#FFD700")
             public var progressColor: String
             /// Current progress value (0.0 to 1.0)
             public var progress: Double
             /// (Optional) Remaining time in seconds
             public var remainingTimeSeconds: Int?
+            /// Countdown start time，用于基于 remainingTimeSeconds 计算实时进度
+            public var startAt: Date?
 
-            public init(label: String, timeRange: String, progressColor: String, progress: Double, remainingTimeSeconds: Int? = nil) {
+            public init(
+                label: String,
+                timeRange: String,
+                progressColor: String,
+                progress: Double,
+                remainingTimeSeconds: Int? = nil,
+                totalTimeSeconds: Int? = nil,
+                startAt: Date? = nil
+            ) {
                 self.label = label
                 self.timeRange = timeRange
+                self.totalTimeSeconds = totalTimeSeconds
                 self.progressColor = progressColor
                 self.progress = progress
                 self.remainingTimeSeconds = remainingTimeSeconds
+                self.startAt = startAt
             }
         }
 

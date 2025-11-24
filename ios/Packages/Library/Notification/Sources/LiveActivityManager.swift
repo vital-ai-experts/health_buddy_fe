@@ -65,16 +65,17 @@ public final class LiveActivityManager: ObservableObject {
         currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
 
         // 当前要展示的内容
-        let contentState: AgendaActivityAttributes.ContentState
+        let selectedState: AgendaActivityAttributes.ContentState
         if let initialState {
-            contentState = initialState
+            selectedState = initialState
         } else if currentMockTaskIndex < tasks.count {
-            contentState = tasks[currentMockTaskIndex]
+            selectedState = tasks[currentMockTaskIndex]
         } else {
-            contentState = tasks.first!
+            selectedState = tasks.first!
             currentMockTaskIndex = 0
             persistCurrentMockIndex(0)
         }
+        let contentState = prepareState(selectedState)
 
         do {
             let activity = try Activity<AgendaActivityAttributes>.request(
@@ -146,7 +147,7 @@ public final class LiveActivityManager: ObservableObject {
         )
 
         await activity.update(
-            .init(state: newState, staleDate: nil),
+            .init(state: prepareState(newState), staleDate: nil),
             alertConfiguration: alertConfiguration
         )
 
@@ -182,13 +183,13 @@ public final class LiveActivityManager: ObservableObject {
         
         let nextState: AgendaActivityAttributes.ContentState
         if nextIndex < mockTasks.count {
-            nextState = mockTasks[nextIndex]
+            nextState = prepareState(mockTasks[nextIndex])
         } else {
-            nextState = mockTasks.first!
+            nextState = prepareState(mockTasks.first!)
             currentMockTaskIndex = 0
             persistCurrentMockIndex(0)
         }
-        
+
         if let activity = currentAgendaActivity, activity.activityState == .active {
             await activity.update(.init(state: nextState, staleDate: nil))
             Log.i("✅ [LiveActivity] 切换到下一任务: \(nextState.task.title)", category: "Notification")
@@ -295,6 +296,29 @@ public final class LiveActivityManager: ObservableObject {
         Log.i("🔕 Stopped push token observation", category: "Notification")
     }
     
+    private func prepareState(_ state: AgendaActivityAttributes.ContentState) -> AgendaActivityAttributes.ContentState {
+        var newState = state
+        var countdown = newState.countdown
+
+        // 如果传入了总时长但没有剩余时间，则用 progress 推导初始剩余时间
+        if countdown.remainingTimeSeconds == nil,
+           let total = countdown.totalTimeSeconds {
+            let initialRemaining = max(0, Int(Double(total) * (1 - countdown.progress)))
+            countdown.remainingTimeSeconds = initialRemaining
+        }
+
+        if let remaining = countdown.remainingTimeSeconds {
+            if countdown.totalTimeSeconds == nil {
+                countdown.totalTimeSeconds = remaining
+            }
+            if countdown.startAt == nil {
+                countdown.startAt = Date()
+            }
+            newState.countdown = countdown
+        }
+        return newState
+    }
+    
     // MARK: - Mock 任务管理（本地持久化）
     
     private func loadMockTasksIfNeeded() {
@@ -355,7 +379,9 @@ public final class LiveActivityManager: ObservableObject {
                     timeRange: timeRange,
                     progressColor: "#FFD700",
                     progress: progress,
-                    remainingTimeSeconds: remaining
+                    remainingTimeSeconds: remaining,
+                    totalTimeSeconds: remaining,
+                    startAt: nil
                 )
             )
         }
@@ -407,7 +433,7 @@ public final class LiveActivityManager: ObservableObject {
                 countdownLabel: "立即执行",
                 timeRange: "现在",
                 progress: 0.8,
-                remaining: 300
+                remaining: 60
             ),
             makeState(
                 type: "vision",
