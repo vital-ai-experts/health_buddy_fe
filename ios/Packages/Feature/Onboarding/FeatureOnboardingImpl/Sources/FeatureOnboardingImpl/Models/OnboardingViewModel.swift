@@ -65,6 +65,12 @@ final class OnboardingViewModel: ObservableObject {
         issueOptions.first { $0.id == selectedIssueID }
     }
 
+    /// 生成开启副本时要发送到对话的 mock 消息
+    var dungeonJoinMockMessage: String {
+        let title = selectedIssue?.title ?? "ThriveBody"
+        return "#mock#已加入副本【\(title)】"
+    }
+
     func handlePrimaryAction() {
         switch step {
         case .intro:

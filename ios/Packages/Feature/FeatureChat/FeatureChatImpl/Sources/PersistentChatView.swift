@@ -10,6 +10,7 @@ import LibraryBase
 struct PersistentChatView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.notificationParameters) private var notificationParameters
+    @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
 
     init() {
@@ -67,9 +68,17 @@ struct PersistentChatView: View {
             Task {
                 await viewModel.syncWithServer()
             }
+            Task {
+                await handlePendingChatMessageIfNeeded()
+            }
         }
         .onChange(of: notificationParameters) { _, newParams in
             handleNotificationParameters(newParams)
+        }
+        .onChange(of: router.pendingChatMessage) { _, _ in
+            Task {
+                await handlePendingChatMessageIfNeeded()
+            }
         }
     }
 
@@ -86,6 +95,13 @@ struct PersistentChatView: View {
 
         // TODO: 根据 msg_id 和 from 执行相应的操作
         // 例如：滚动到特定消息、显示特定内容等
+    }
+
+    @MainActor
+    private func handlePendingChatMessageIfNeeded() async {
+        guard let message = router.pendingChatMessage else { return }
+        await viewModel.sendMessage(message)
+        router.clearPendingChatMessage(message)
     }
 }
 
@@ -469,7 +485,11 @@ final class PersistentChatViewModel: ObservableObject {
 
     /// 发送消息
     func sendMessage(_ text: String) async {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return }
+
+        let displayText = ChatMocking.stripMockPrefix(from: trimmedText)
+        guard !displayText.isEmpty else { return }
 
         // 1. 检查对话是否超时（超过4小时）
         var effectiveConversationId = conversationId
@@ -489,7 +509,7 @@ final class PersistentChatViewModel: ObservableObject {
         let userMessageId = UUID().uuidString
         let userMessage = ChatMessage(
             id: userMessageId,
-            text: text,
+            text: displayText,
             isFromUser: true,
             timestamp: Date(),
             isStreaming: false
@@ -499,7 +519,7 @@ final class PersistentChatViewModel: ObservableObject {
         // 3. 保存用户消息到本地
         await saveMessageToLocal(
             id: userMessageId,
-            content: text,
+            content: displayText,
             isFromUser: true,
             createdAt: userMessage.timestamp
         )
@@ -510,7 +530,7 @@ final class PersistentChatViewModel: ObservableObject {
 
         do {
             try await chatService.sendMessage(
-                userInput: text,
+                userInput: trimmedText,
                 conversationId: effectiveConversationId
             ) { [weak self] event in
                 Task { @MainActor in

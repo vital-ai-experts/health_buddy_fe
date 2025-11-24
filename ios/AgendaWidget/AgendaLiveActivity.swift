@@ -229,6 +229,7 @@ struct AgendaLiveActivityView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
         }
+        .widgetURL(deepLinkURL)
     }
 
     private var energyColor: Color {
@@ -244,6 +245,20 @@ struct AgendaLiveActivityView: View {
             }
         }
         return .green
+    }
+
+    /// Build deep link to open app and send mock completion message
+    private var deepLinkURL: URL? {
+        let message = "#mock#完成\(context.state.task.title)任务"
+        var components = URLComponents()
+        components.scheme = "thrivebody"
+        components.host = "main"
+        components.queryItems = [
+            URLQueryItem(name: "tab", value: "chat"),
+            URLQueryItem(name: "sendmsg", value: message),
+            URLQueryItem(name: "complete", value: "1")
+        ]
+        return components.url
     }
 }
 

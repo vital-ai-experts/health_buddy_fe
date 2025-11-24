@@ -149,6 +149,7 @@ struct OnboardingView: View {
     private func startDungeonAndFinish() {
         showDungeonDetail = false
         router.currentTab = .chat
+        router.enqueueChatMessage(viewModel.dungeonJoinMockMessage)
         viewModel.completeAfterDungeonStart()
     }
 }

@@ -54,7 +54,7 @@ public class NotificationManager: NSObject, ObservableObject {
     }
 
     /// 自动启动 Live Activity（如果满足条件）
-    /// 条件：同时满足有通知权限且已登录
+    /// 条件：有通知权限即可（不再要求已登录）
     public func autoStartLiveActivityIfNeeded() async {
         // Check if notification permission is granted
         let hasNotificationPermission = await checkNotificationPermission()
@@ -63,15 +63,8 @@ public class NotificationManager: NSObject, ObservableObject {
             return
         }
 
-        // Check if user is logged in
-        let isLoggedIn = UserDefaultsTokenStorage.shared.getToken() != nil
-        guard isLoggedIn else {
-            Log.i("ℹ️ [NotificationManager] 用户未登录，跳过自动启动 Live Activity", category: "Notification")
-            return
-        }
-
-        // Both conditions are met, auto-start Live Activity
-        Log.i("✅ [NotificationManager] 满足条件，自动启动 Live Activity", category: "Notification")
+        // 满足条件，自动启动 Live Activity
+        Log.i("✅ [NotificationManager] 有通知权限，自动启动 Live Activity（无需登录）", category: "Notification")
 
         if #available(iOS 16.1, *) {
             // Check if Live Activity is already active
@@ -82,8 +75,8 @@ public class NotificationManager: NSObject, ObservableObject {
 
             // Start Live Activity with default values
             do {
-                // Get user ID from token or use default
-                let userId = "auto-start"
+                // 尝试使用 token 对应的用户，否则降级为 guest
+                let userId = UserDefaultsTokenStorage.shared.getToken() != nil ? "auto-start" : "guest"
                 try await LiveActivityManager.shared.startAgendaActivity(userId: userId)
                 Log.i("✅ [NotificationManager] Live Activity 已自动启动", category: "Notification")
             } catch {

@@ -14,9 +14,19 @@ public final class LiveActivityManager: ObservableObject {
 
     /// Live Activity push token (stored in memory)
     @Published public private(set) var liveActivityToken: String?
+    
+    /// Mock 任务列表（本地持久化）
+    private var mockTasks: [AgendaActivityAttributes.ContentState] = []
+    /// 当前展示的 mock 任务索引（本地持久化）
+    private var currentMockTaskIndex: Int = 0
+    /// 记录当前使用的用户ID，便于重启或切换任务时复用
+    private var currentUserId: String = "guest"
 
     /// Push token observation task
     private var pushTokenTask: Task<Void, Never>?
+    
+    private let mockTasksKey = "com.thrivebody.liveactivity.mockTasks"
+    private let mockTaskIndexKey = "com.thrivebody.liveactivity.mockTaskIndex"
 
     private init() {}
 
@@ -29,10 +39,12 @@ public final class LiveActivityManager: ObservableObject {
     public func startAgendaActivity(
         userId: String,
         title: String = "Mission to thrive ✨",
-        text: String = "Take a deep breath 🌬️"
+        text: String = "Take a deep breath 🌬️",
+        initialState: AgendaActivityAttributes.ContentState? = nil
     ) async throws {
         Log.i("🚀 Starting RPG-style Live Activity...", category: "Notification")
         Log.i("   - User ID: \(userId)", category: "Notification")
+        currentUserId = userId
 
         // Check if activities are enabled
         let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
@@ -43,29 +55,26 @@ public final class LiveActivityManager: ObservableObject {
 
         let attributes = AgendaActivityAttributes(userId: userId)
 
-        // Mock RPG-style content state
-        let contentState = AgendaActivityAttributes.ContentState(
-            status: .init(
-                type: "energy",
-                title: "30%",
-                icon: "battery.25",
-                buffs: [
-                    .init(icon: "moon.stars.fill", label: "褪黑素")
-                ]
-            ),
-            task: .init(
-                title: "去阳台进行光合作用",
-                description: "别让你的生物钟以为还在深夜。哪怕只把脸伸出去晒 5 分钟,今晚入睡都能快半小时。",
-                button: .init(label: "完成", icon: "checkmark")
-            ),
-            countdown: .init(
-                label: "日照充能窗口",
-                timeRange: "08:00 - 12:00",
-                progressColor: "#FFD700",
-                progress: 0.6,
-                remainingTimeSeconds: 1200
-            )
-        )
+        // 读取/生成 mock 任务列表
+        loadMockTasksIfNeeded()
+        let tasks = mockTasks.isEmpty ? defaultMockTasks() : mockTasks
+        if mockTasks.isEmpty {
+            mockTasks = tasks
+            persistMockTasks(tasks)
+        }
+        currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
+
+        // 当前要展示的内容
+        let contentState: AgendaActivityAttributes.ContentState
+        if let initialState {
+            contentState = initialState
+        } else if currentMockTaskIndex < tasks.count {
+            contentState = tasks[currentMockTaskIndex]
+        } else {
+            contentState = tasks.first!
+            currentMockTaskIndex = 0
+            persistCurrentMockIndex(0)
+        }
 
         do {
             let activity = try Activity<AgendaActivityAttributes>.request(
@@ -158,6 +167,43 @@ public final class LiveActivityManager: ObservableObject {
     public var isAgendaActive: Bool {
         currentAgendaActivity != nil && currentAgendaActivity?.activityState == .active
     }
+    
+    /// 切换到下一条 mock 任务（会保存索引并立即更新 Live Activity）
+    public func advanceToNextMockTask() async {
+        loadMockTasksIfNeeded()
+        guard !mockTasks.isEmpty else {
+            Log.w("⚠️ [LiveActivity] 没有可用的 mock 任务", category: "Notification")
+            return
+        }
+        
+        let nextIndex = (currentMockTaskIndex + 1) % mockTasks.count
+        currentMockTaskIndex = nextIndex
+        persistCurrentMockIndex(nextIndex)
+        
+        let nextState: AgendaActivityAttributes.ContentState
+        if nextIndex < mockTasks.count {
+            nextState = mockTasks[nextIndex]
+        } else {
+            nextState = mockTasks.first!
+            currentMockTaskIndex = 0
+            persistCurrentMockIndex(0)
+        }
+        
+        if let activity = currentAgendaActivity, activity.activityState == .active {
+            await activity.update(.init(state: nextState, staleDate: nil))
+            Log.i("✅ [LiveActivity] 切换到下一任务: \(nextState.task.title)", category: "Notification")
+        } else {
+            Log.w("ℹ️ [LiveActivity] 当前没有活动，尝试重启并展示下一任务", category: "Notification")
+            do {
+                try await startAgendaActivity(
+                    userId: currentUserId,
+                    initialState: nextState
+                )
+            } catch {
+                Log.e("❌ [LiveActivity] 重启活动失败: \(error)", category: "Notification")
+            }
+        }
+    }
 
     /// Clean up all existing agenda activities
     /// This ensures we don't have duplicate activities
@@ -247,6 +293,135 @@ public final class LiveActivityManager: ObservableObject {
         pushTokenTask?.cancel()
         pushTokenTask = nil
         Log.i("🔕 Stopped push token observation", category: "Notification")
+    }
+    
+    // MARK: - Mock 任务管理（本地持久化）
+    
+    private func loadMockTasksIfNeeded() {
+        if !mockTasks.isEmpty { return }
+        if let data = UserDefaults.standard.data(forKey: mockTasksKey),
+           let tasks = try? JSONDecoder().decode([AgendaActivityAttributes.ContentState].self, from: data),
+           !tasks.isEmpty {
+            mockTasks = tasks
+            currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
+            return
+        }
+        
+        let defaults = defaultMockTasks()
+        mockTasks = defaults
+        persistMockTasks(defaults)
+        currentMockTaskIndex = 0
+        persistCurrentMockIndex(0)
+    }
+    
+    private func persistMockTasks(_ tasks: [AgendaActivityAttributes.ContentState]) {
+        guard let data = try? JSONEncoder().encode(tasks) else { return }
+        UserDefaults.standard.set(data, forKey: mockTasksKey)
+    }
+    
+    private func loadCurrentMockIndex(max count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        let stored = UserDefaults.standard.integer(forKey: mockTaskIndexKey)
+        return stored % count
+    }
+    
+    private func persistCurrentMockIndex(_ index: Int) {
+        UserDefaults.standard.set(index, forKey: mockTaskIndexKey)
+    }
+    
+    /// 参考 Agenda 样式的 5 条 mock 任务
+    private func defaultMockTasks() -> [AgendaActivityAttributes.ContentState] {
+        func makeState(
+            type: String,
+            title: String,
+            icon: String,
+            buffs: [AgendaActivityAttributes.ContentState.BuffInfo],
+            taskTitle: String,
+            taskDesc: String,
+            countdownLabel: String,
+            timeRange: String,
+            progress: Double,
+            remaining: Int?
+        ) -> AgendaActivityAttributes.ContentState {
+            AgendaActivityAttributes.ContentState(
+                status: .init(type: type, title: title, icon: icon, buffs: buffs),
+                task: .init(
+                    title: taskTitle,
+                    description: taskDesc,
+                    button: .init(label: "完成", icon: "checkmark")
+                ),
+                countdown: .init(
+                    label: countdownLabel,
+                    timeRange: timeRange,
+                    progressColor: "#FFD700",
+                    progress: progress,
+                    remainingTimeSeconds: remaining
+                )
+            )
+        }
+        
+        return [
+            makeState(
+                type: "energy",
+                title: "65%",
+                icon: "bolt.fill",
+                buffs: [.init(icon: "sun.max.fill", label: "觉醒")],
+                taskTitle: "任务：采集光子",
+                taskDesc: "去窗边/户外晒 5 分钟。向视网膜发送信号，定好今晚的入睡闹钟。",
+                countdownLabel: "日照充能窗口",
+                timeRange: "08:00 - 12:00",
+                progress: 0.55,
+                remaining: 1200
+            ),
+            makeState(
+                type: "hydration",
+                title: "74%",
+                icon: "drop.fill",
+                buffs: [.init(icon: "cup.and.saucer.fill", label: "补水")],
+                taskTitle: "任务：填充冷却液",
+                taskDesc: "喝一杯 300ml 温水，让“缩水”的脑组织重新膨胀，提升反应速度。",
+                countdownLabel: "水分补给窗口",
+                timeRange: "全天",
+                progress: 0.4,
+                remaining: 900
+            ),
+            makeState(
+                type: "focus",
+                title: "58%",
+                icon: "brain.head.profile",
+                buffs: [.init(icon: "flame.fill", label: "心肺")],
+                taskTitle: "史诗任务：引擎重铸",
+                taskDesc: "进行 4 组 2 分钟全力冲刺，把心率推到 160+。",
+                countdownLabel: "心肺训练窗口",
+                timeRange: "18:00 - 21:00",
+                progress: 0.3,
+                remaining: 2400
+            ),
+            makeState(
+                type: "calm",
+                title: "70%",
+                icon: "lungs.fill",
+                buffs: [.init(icon: "wind", label: "冷静值")],
+                taskTitle: "任务：系统强制冷却",
+                taskDesc: "执行“生理叹息”（两吸一呼），只需 60 秒，重启副交感神经。",
+                countdownLabel: "立即执行",
+                timeRange: "现在",
+                progress: 0.8,
+                remaining: 300
+            ),
+            makeState(
+                type: "vision",
+                title: "80%",
+                icon: "eye.fill",
+                buffs: [.init(icon: "viewfinder.circle", label: "鹰眼")],
+                taskTitle: "任务：全景扫描",
+                taskDesc: "去窗边盯着远处看 30 秒，解除眼部肌肉痉挛，降低焦虑。",
+                countdownLabel: "视神经重置",
+                timeRange: "每 60 分钟一次",
+                progress: 0.2,
+                remaining: 600
+            )
+        ]
     }
 }
 

@@ -76,6 +76,7 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 
     @Published public var activeSheet: RouteMatch?
     @Published public var activeFullscreen: RouteMatch?
+    @Published public var pendingChatMessage: String?
 
     public var onLoginSuccess: (() -> Void)?
     public var onLogout: (() -> Void)?
@@ -136,6 +137,18 @@ public final class RouteManager: ObservableObject, RouteRegistering {
 
     public func handleLogoutRequested() {
         onLogout?()
+    }
+
+    /// 预置一条待发送的聊天消息
+    public func enqueueChatMessage(_ message: String) {
+        pendingChatMessage = message
+    }
+
+    /// 消费已处理的待发送聊天消息
+    public func clearPendingChatMessage(_ message: String) {
+        if pendingChatMessage == message {
+            pendingChatMessage = nil
+        }
     }
 
     /// 构建 URL

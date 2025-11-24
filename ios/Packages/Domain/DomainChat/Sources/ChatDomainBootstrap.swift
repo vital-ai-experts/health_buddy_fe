@@ -7,7 +7,7 @@ public enum ChatDomainBootstrap {
     public static func configure(manager: ServiceManager = .shared) {
         // Register chat service
         manager.register(ChatService.self) {
-            ChatServiceImpl()
+            ChatServiceWithMock()
         }
     }
 }

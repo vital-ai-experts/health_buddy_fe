@@ -322,10 +322,66 @@ struct RootView: View {
 
         let path = url.host.map { "/\($0)" } ?? (url.path.isEmpty ? "/" : url.path)
         if path == "/main" {
-            return
+            handleMainDeepLink(url)
+        } else {
+            router.open(url: url)
+        }
+    }
+
+    private func handleMainDeepLink(_ url: URL) {
+        let queryItems = parseQueryItems(from: url)
+
+        // 切到主页面
+        appState = .mainPage
+
+        // 切 tab，默认保持当前 tab，sendmsg 存在时强制聊天 tab
+        if let tabValue = queryItems["tab"]?.lowercased() {
+            switch tabValue {
+            case "chat":
+                router.currentTab = .chat
+            case "agenda":
+                router.currentTab = .agenda
+            case "profile":
+                router.currentTab = .profile
+            default:
+                break
+            }
+        } else if queryItems["sendmsg"] != nil {
+            router.currentTab = .chat
         }
 
-        router.open(url: url)
+        // 预置要发送的消息
+        if let rawMessage = queryItems["sendmsg"], !rawMessage.isEmpty {
+            let cleaned = rawMessage
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            if !cleaned.isEmpty {
+                router.enqueueChatMessage(cleaned)
+            }
+        }
+
+        // 如果是从 Live Activity 完成按钮点击而来，切换到下一条 mock 任务
+        if queryItems["complete"] == "1" {
+            Task { @MainActor in
+                if #available(iOS 16.1, *) {
+                    await LiveActivityManager.shared.advanceToNextMockTask()
+                }
+            }
+        }
+    }
+
+    private func parseQueryItems(from url: URL) -> [String: String] {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return [:]
+        }
+
+        var result: [String: String] = [:]
+        for item in items {
+            if let value = item.value {
+                result[item.name] = value
+            }
+        }
+        return result
     }
 }
 
@@ -427,18 +483,12 @@ private class PreviewAuthService: AuthenticationService {
 
 /// 主界面TabView，包含AI助手、Agenda占位和我的三个Tab
 struct MainTabView: View {
-    @State private var selectedTab: Tab = .chat
+    @EnvironmentObject private var router: RouteManager
 
     private let chatFeature: FeatureChatBuildable
     private let agendaFeature: FeatureAgendaBuildable
     private let accountFeature: FeatureAccountBuildable
     private let onLogout: () -> Void
-
-    enum Tab {
-        case chat
-        case agenda
-        case profile
-    }
 
     init(
         chatFeature: FeatureChatBuildable,
@@ -453,27 +503,30 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: Binding(
+            get: { router.currentTab },
+            set: { router.currentTab = $0 }
+        )) {
             // Talk Tab
             chatFeature.makeChatTabView()
                 .tabItem {
                     Label("对话", systemImage: "message.fill")
                 }
-                .tag(Tab.chat)
+                .tag(RouteManager.Tab.chat)
 
             // Agenda Tab (Placeholder)
             agendaFeature.makeAgendaTabView()
                 .tabItem {
                     Label("任务", systemImage: "checklist")
                 }
-                .tag(Tab.agenda)
+                .tag(RouteManager.Tab.agenda)
 
             // Me Tab
             accountFeature.makeProfileView(onLogout: onLogout)
                 .tabItem {
                     Label("我", systemImage: "person.fill")
                 }
-                .tag(Tab.profile)
+                .tag(RouteManager.Tab.profile)
         }
     }
 }
