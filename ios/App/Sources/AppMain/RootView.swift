@@ -27,6 +27,7 @@ struct RootView: View {
 
     private let accountFeature: FeatureAccountBuildable
     private let chatFeature: FeatureChatBuildable
+    private let agendaFeature: FeatureAgendaBuildable
     private let onboardingFeature: FeatureOnboardingBuildable
     private let authService: AuthenticationService
     private let onboardingStateManager: OnboardingStateManaging
@@ -43,12 +44,14 @@ struct RootView: View {
     init(
         accountFeature: FeatureAccountBuildable = ServiceManager.shared.resolve(FeatureAccountBuildable.self),
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self),
+        agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolve(FeatureAgendaBuildable.self),
         onboardingFeature: FeatureOnboardingBuildable = ServiceManager.shared.resolve(FeatureOnboardingBuildable.self),
         authService: AuthenticationService = ServiceManager.shared.resolve(AuthenticationService.self),
         onboardingStateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self)
     ) {
         self.accountFeature = accountFeature
         self.chatFeature = chatFeature
+        self.agendaFeature = agendaFeature
         self.onboardingFeature = onboardingFeature
         self.authService = authService
         self.onboardingStateManager = onboardingStateManager
@@ -74,6 +77,7 @@ struct RootView: View {
                     // 每个 tab 会有自己的 NavigationStack（在 builder 中）
                     MainTabView(
                         chatFeature: chatFeature,
+                        agendaFeature: agendaFeature,
                         accountFeature: accountFeature,
                         onLogout: handleLogout
                     )
@@ -329,6 +333,7 @@ struct RootView: View {
     RootView(
         accountFeature: PreviewAccountFeature(),
         chatFeature: PreviewChatFeature(),
+        agendaFeature: PreviewAgendaFeature(),
         onboardingFeature: PreviewOnboardingFeature(),
         authService: PreviewAuthService()
     )
@@ -363,6 +368,16 @@ private struct PreviewChatFeature: FeatureChatBuildable {
     
     func makeChatTabView() -> AnyView {
         AnyView(Text("Chat Tab Preview"))
+    }
+}
+
+private struct PreviewAgendaFeature: FeatureAgendaBuildable {
+    func makeAgendaTabView() -> AnyView {
+        AnyView(Text("Agenda Tab Preview"))
+    }
+
+    func makeAgendaSettingsView() -> AnyView {
+        AnyView(Text("Agenda Settings Preview"))
     }
 }
 
@@ -411,6 +426,7 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .chat
 
     private let chatFeature: FeatureChatBuildable
+    private let agendaFeature: FeatureAgendaBuildable
     private let accountFeature: FeatureAccountBuildable
     private let onLogout: () -> Void
 
@@ -422,10 +438,12 @@ struct MainTabView: View {
 
     init(
         chatFeature: FeatureChatBuildable,
+        agendaFeature: FeatureAgendaBuildable,
         accountFeature: FeatureAccountBuildable,
         onLogout: @escaping () -> Void
     ) {
         self.chatFeature = chatFeature
+        self.agendaFeature = agendaFeature
         self.accountFeature = accountFeature
         self.onLogout = onLogout
     }
@@ -440,7 +458,7 @@ struct MainTabView: View {
                 .tag(Tab.chat)
 
             // Agenda Tab (Placeholder)
-            AgendaPlaceholderView()
+            agendaFeature.makeAgendaTabView()
                 .tabItem {
                     Label("Agenda", systemImage: "checklist")
                 }
@@ -452,30 +470,6 @@ struct MainTabView: View {
                     Label("Me", systemImage: "person.fill")
                 }
                 .tag(Tab.profile)
-        }
-    }
-}
-
-// MARK: - AgendaPlaceholderView
-
-/// Agenda页面占位视图
-struct AgendaPlaceholderView: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "checklist")
-                    .font(.system(size: 80))
-                    .foregroundColor(.gray)
-
-                Text("Agenda")
-                    .font(.title)
-                    .fontWeight(.semibold)
-
-                Text("Coming Soon")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle("Agenda")
         }
     }
 }

@@ -2,6 +2,10 @@ import SwiftUI
 
 /// Builder protocol for Agenda feature
 public protocol FeatureAgendaBuildable {
+    /// Build the agenda tab view for the main tab bar
+    /// - Returns: The agenda tab view
+    func makeAgendaTabView() -> AnyView
+
     /// Build the agenda settings view where users can start/stop the live activity
     /// - Returns: The agenda settings view
     func makeAgendaSettingsView() -> AnyView

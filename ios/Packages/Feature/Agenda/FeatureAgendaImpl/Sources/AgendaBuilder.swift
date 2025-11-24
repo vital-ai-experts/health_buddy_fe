@@ -2,8 +2,14 @@ import SwiftUI
 import FeatureAgendaApi
 
 /// Builder for Agenda feature views
-final class AgendaBuilder: FeatureAgendaBuildable {
-    func makeAgendaSettingsView() -> AnyView {
+public final class AgendaBuilder: FeatureAgendaBuildable {
+    public init() {}
+
+    public func makeAgendaTabView() -> AnyView {
+        AnyView(AgendaTabView())
+    }
+
+    public func makeAgendaSettingsView() -> AnyView {
         AnyView(AgendaSettingsView())
     }
 }
