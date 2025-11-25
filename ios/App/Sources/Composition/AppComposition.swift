@@ -7,10 +7,7 @@ import DomainAuth
 import DomainChat
 import LibraryServiceLoader
 import LibraryTrack
-
-#if DEBUG
 import FeatureDebugToolsImpl
-#endif
 
 enum AppComposition {
     @MainActor
@@ -28,9 +25,6 @@ enum AppComposition {
         ChatModule.register()
         OnboardingModule.register()
         AgendaModule.register()
-
-        #if DEBUG
         DebugToolsFeatureModule.register(router: router)
-        #endif
     }
 }

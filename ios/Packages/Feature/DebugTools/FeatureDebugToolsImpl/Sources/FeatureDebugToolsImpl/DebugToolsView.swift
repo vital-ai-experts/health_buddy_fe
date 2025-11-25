@@ -1,7 +1,9 @@
 import SwiftUI
 import LibraryNotification
 import FeatureOnboardingApi
+import DomainAuth
 import LibraryServiceLoader
+import LibraryBase
 
 /// Debug Tools Main View - 调试工具主界面
 struct DebugToolsView: View {
@@ -9,6 +11,7 @@ struct DebugToolsView: View {
     @State private var showCopiedAlert = false
     @State private var hasJustReset = false
     private let onboardingManager = ServiceManager.shared.resolve(OnboardingStateManaging.self)
+    private let authService = ServiceManager.shared.resolve(AuthenticationService.self)
 
     var body: some View {
         List {
@@ -125,6 +128,20 @@ struct DebugToolsView: View {
     private func resetOnboardingState() {
         onboardingManager.resetOnboardingState()
         hasJustReset = true
+        Task {
+            await logoutAfterReset()
+        }
+    }
+
+    private func logoutAfterReset() async {
+        do {
+            try await authService.logout()
+            await MainActor.run {
+                RouteManager.shared.handleLogoutRequested()
+            }
+        } catch {
+            Log.e("退出登录失败: \(error.localizedDescription)", error: error, category: "DebugTools")
+        }
     }
 
     /// 复制 Device Token 到剪切板

@@ -79,9 +79,8 @@ public struct ProfileView: View {
             }
 
             // 开发者选项
-            #if DEBUG
-            Section("开发者选项") {
-                if ServiceManager.shared.resolveOptional(FeatureDebugToolsBuildable.self) != nil {
+            if ServiceManager.shared.resolveOptional(FeatureDebugToolsBuildable.self) != nil {
+                Section("开发者选项") {
                     Button {
                         openRoute("/debug_tools")
                     } label: {
@@ -89,7 +88,6 @@ public struct ProfileView: View {
                     }
                 }
             }
-            #endif
         }
         .navigationTitle("Me")
         .task {
