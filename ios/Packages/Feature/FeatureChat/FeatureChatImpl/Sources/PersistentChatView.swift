@@ -4,6 +4,7 @@ import DomainChat
 import LibraryServiceLoader
 import LibraryChatUI
 import LibraryBase
+import ResourceKit
 
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
@@ -104,6 +105,7 @@ final class PersistentChatViewModel: ObservableObject {
     private var oldestLoadedMessageDate: Date?  // 已加载的最旧消息的时间（用于游标分页）
     private var hasMoreMessagesToLoad = true  // 是否还有更多历史消息可以加载
     private var conversationUpdatedAt: Date?  // 对话的最后更新时间
+    private var lastUserMessageText: String = ""  // 记录最近的用户消息文本（用于提取任务名称）
 
     private let initialLoadLimit = 10  // 初次加载消息数量
     private let loadMoreLimit = 20  // 每次加载更多的消息数量
@@ -471,6 +473,9 @@ final class PersistentChatViewModel: ObservableObject {
         let displayText = ChatMocking.stripMockPrefix(from: trimmedText)
         guard !displayText.isEmpty else { return }
 
+        // 记录最近的用户消息文本（用于提取任务名称）
+        lastUserMessageText = displayText
+
         // 1. 检查对话是否超时（超过4小时）
         var effectiveConversationId = conversationId
         if let conversationId = conversationId, let updatedAt = conversationUpdatedAt {
@@ -579,6 +584,9 @@ final class PersistentChatViewModel: ObservableObject {
             finalizeStreamingMessages(shouldPersist: true)
             isSending = false
 
+            // 检查最后一条系统消息是否在请求上传图片
+            checkAndAutoSendPhotoIfNeeded()
+
         case .error:
             Log.e("❌ Agent 错误", category: "Chat")
             markStreamingMessageAsError("Agent error")
@@ -589,6 +597,84 @@ final class PersistentChatViewModel: ObservableObject {
             finalizeStreamingMessages(shouldPersist: true)
             isSending = false
         }
+    }
+
+    /// 检查是否需要自动发送图片，如果需要则自动处理
+    private func checkAndAutoSendPhotoIfNeeded() {
+        // 获取最后一条系统消息
+        guard let lastMessage = displayMessages.last, !lastMessage.isFromUser else { return }
+
+        // 检查是否在请求上传图片
+        guard ChatMocking.isRequestingPhotoUpload(in: lastMessage.text) else { return }
+
+        Log.i("📷 检测到请求上传图片的消息，自动发送图片...", category: "Chat")
+
+        // 从最近的用户消息中提取任务名称
+        let taskName = ChatMocking.extractTaskNameFromRequest(lastMessage.text, userMessageText: lastUserMessageText)
+
+        // 延迟一小段时间后自动发送图片
+        Task { @MainActor in
+            // 等待一小段时间，让用户看到请求消息
+            try? await Task.sleep(nanoseconds: 800_000_000)  // 0.8秒
+
+            await sendPhotoMessage(taskName: taskName)
+        }
+    }
+
+    /// 发送带图片的消息
+    private func sendPhotoMessage(taskName: String) async {
+        // 1. 根据任务类型选择不同的模拟图片
+        let mockImage = getMockImageForTask(taskName)
+
+        // 2. 创建用户消息（带图片）
+        let userMessageId = UUID().uuidString
+        let userMessage = ChatMessage(
+            id: userMessageId,
+            text: "",  // 图片消息不需要文本
+            isFromUser: true,
+            timestamp: Date(),
+            isStreaming: false,
+            images: [mockImage]
+        )
+        displayMessages.append(userMessage)
+
+        // 3. 保存用户消息到本地（图片消息用特殊标记）
+        await saveMessageToLocal(
+            id: userMessageId,
+            content: "[图片]",
+            isFromUser: true,
+            createdAt: userMessage.timestamp
+        )
+
+        // 4. 发送图片上传消息到服务器（mock）
+        isSending = true
+        errorMessage = nil
+
+        let photoUploadMessage = ChatMocking.makePhotoUploadMessage(for: taskName)
+
+        do {
+            try await chatService.sendMessage(
+                userInput: photoUploadMessage,
+                conversationId: conversationId
+            ) { [weak self] event in
+                Task { @MainActor in
+                    self?.handleStreamEvent(event)
+                }
+            }
+        } catch {
+            errorMessage = "发送图片失败: \(error.localizedDescription)"
+        }
+
+        isSending = false
+    }
+
+    /// 根据任务类型获取对应的模拟图片
+    private func getMockImageForTask(_ taskName: String) -> MessageImage {
+        // 所有任务统一使用本地资源图片
+        return MessageImage(
+            imageName: "MockPhoto",
+            bundle: ResourceManager.bundle
+        )
     }
 
     /// 处理Agent消息

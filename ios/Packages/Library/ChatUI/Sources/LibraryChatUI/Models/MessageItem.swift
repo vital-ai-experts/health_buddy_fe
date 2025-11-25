@@ -30,11 +30,13 @@ public struct UserMessage: Hashable, Identifiable {
     public let id: String
     public let text: String
     public let timestamp: Date
+    public let images: [MessageImage]?  // 图片附件
 
-    public init(id: String = UUID().uuidString, text: String, timestamp: Date = Date()) {
+    public init(id: String = UUID().uuidString, text: String, timestamp: Date = Date(), images: [MessageImage]? = nil) {
         self.id = id
         self.text = text
         self.timestamp = timestamp
+        self.images = images
     }
 }
 
@@ -128,7 +130,8 @@ extension MessageItem {
             return .user(UserMessage(
                 id: chatMessage.id,
                 text: chatMessage.text,
-                timestamp: chatMessage.timestamp
+                timestamp: chatMessage.timestamp,
+                images: chatMessage.images
             ))
         } else {
             return .system(SystemMessage(

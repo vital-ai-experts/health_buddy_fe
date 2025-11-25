@@ -30,6 +30,8 @@ packages:
     path: Packages/Library/Track
   LibraryChatUI:
     path: Packages/Library/ChatUI
+  ResourceKit:
+    path: Packages/Library/ResourceKit
   DomainHealth:
     path: Packages/Domain/Health
   DomainAuth:
@@ -89,6 +91,8 @@ targets:
         product: LibraryTrack
       - package: LibraryChatUI
         product: LibraryChatUI
+      - package: ResourceKit
+        product: ResourceKit
       - package: DomainHealth
         product: DomainHealth
       - package: DomainAuth

@@ -4,6 +4,7 @@ import SwiftUI
 /// 特殊消息类型
 public enum SpecialMessageType: String, Codable, Equatable, Hashable {
     case userHealthProfile = "user_health_profile"  // 用户健康档案确认
+    case waitingForPhotoUpload = "waiting_for_photo_upload"  // 等待用户上传照片
 }
 
 /// 聊天消息协议
@@ -32,6 +33,21 @@ public struct ToolCallInfo: Equatable, Codable, Hashable, Identifiable {
     }
 }
 
+/// 用户消息中的图片附件
+public struct MessageImage: Equatable, Hashable {
+    public let id: String
+    public let imageName: String  // 用于本地资源图片
+    public let imageURL: URL?     // 用于网络图片
+    public let bundle: Bundle?    // 用于指定图片所在的 Bundle
+
+    public init(id: String = UUID().uuidString, imageName: String, imageURL: URL? = nil, bundle: Bundle? = nil) {
+        self.id = id
+        self.imageName = imageName
+        self.imageURL = imageURL
+        self.bundle = bundle
+    }
+}
+
 /// 聊天消息实现
 public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let id: String
@@ -39,6 +55,9 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let isFromUser: Bool
     public let timestamp: Date
     public let isStreaming: Bool
+
+    // 图片附件（用户消息）
+    public let images: [MessageImage]?
 
     // AI相关的额外信息
     public let thinkingContent: String?  // AI的思考过程
@@ -56,6 +75,7 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         isFromUser: Bool,
         timestamp: Date = Date(),
         isStreaming: Bool = false,
+        images: [MessageImage]? = nil,
         thinkingContent: String? = nil,
         toolCalls: [ToolCallInfo]? = nil,
         specialMessageType: SpecialMessageType? = nil,
@@ -68,6 +88,7 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.isFromUser = isFromUser
         self.timestamp = timestamp
         self.isStreaming = isStreaming
+        self.images = images
         self.thinkingContent = thinkingContent
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType

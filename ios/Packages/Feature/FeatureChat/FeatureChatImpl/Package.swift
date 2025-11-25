@@ -10,6 +10,7 @@ let package = Package(
         .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "LibraryNotification", path: "../../../Library/Notification"),
+        .package(name: "ResourceKit", path: "../../../Library/ResourceKit"),
         .package(name: "DomainChat", path: "../../../Domain/DomainChat"),
         .package(name: "LibraryChatUI", path: "../../../Library/ChatUI")
     ],
@@ -21,6 +22,7 @@ let package = Package(
                 .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "LibraryNotification", package: "LibraryNotification"),
+                .product(name: "ResourceKit", package: "ResourceKit"),
                 .product(name: "DomainChat", package: "DomainChat"),
                 .product(name: "LibraryChatUI", package: "LibraryChatUI")
             ],
