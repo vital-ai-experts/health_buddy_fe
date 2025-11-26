@@ -10,28 +10,44 @@ public struct AgendaActivityAttributes: ActivityAttributes {
         public struct StatusInfo: Codable, Hashable {
             /// Status type identifier (e.g., "energy", "focus")
             public var type: String
-            /// Main status value/title (e.g., "30%")
-            public var title: String
+            /// Status name (e.g., "电量", "脑力", "兴奋度")
+            public var name: String
+            /// Main status value (e.g., "30%", "高", "低")
+            public var value: String
             /// Main status icon name (SF Symbol)
             public var icon: String
             /// List of active buffs/debuffs
             public var buffs: [BuffInfo]
 
-            public init(type: String, title: String, icon: String, buffs: [BuffInfo]) {
+            public init(type: String, name: String, value: String, icon: String, buffs: [BuffInfo]) {
                 self.type = type
-                self.title = title
+                self.name = name
+                self.value = value
                 self.icon = icon
                 self.buffs = buffs
             }
         }
 
+        /// Buff type classification
+        public enum BuffType: String, Codable, Hashable {
+            /// Positive buff (增益)
+            case positive
+            /// Negative buff/Debuff (减益)
+            case negative
+            /// Neutral buff (中性)
+            case neutral
+        }
+
         public struct BuffInfo: Codable, Hashable {
+            /// Buff type (positive/negative/neutral)
+            public var type: BuffType
             /// Buff icon identifier (SF Symbol)
             public var icon: String
             /// Short label for the buff
             public var label: String
 
-            public init(icon: String, label: String) {
+            public init(type: BuffType, icon: String, label: String) {
+                self.type = type
                 self.icon = icon
                 self.label = label
             }

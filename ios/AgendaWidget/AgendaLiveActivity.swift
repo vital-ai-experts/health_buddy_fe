@@ -85,13 +85,20 @@ struct AgendaLiveActivityView: View {
                         .font(.system(size: 20))
                         .foregroundStyle(energyColor)
 
-                    Text(context.state.status.title)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(energyColor)
+                    // Display "状态名称 值" format
+                    HStack(spacing: 4) {
+                        Text(context.state.status.name)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(energyColor)
+
+                        Text(context.state.status.value)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(energyColor)
+                    }
 
                     Spacer()
 
-                    // Buffs with rounded background
+                    // Buffs with type-specific colors
                     HStack(spacing: 4) {
                         ForEach(context.state.status.buffs, id: \.icon) { buff in
                             HStack(spacing: 2) {
@@ -106,7 +113,7 @@ struct AgendaLiveActivityView: View {
                             .padding(.vertical, 3)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.blue.opacity(0.25))
+                                    .fill(buffBackgroundColor(for: buff.type))
                             )
                         }
                     }
@@ -277,8 +284,8 @@ struct AgendaLiveActivityView: View {
     }
 
     private var energyColor: Color {
-        // Parse percentage from title
-        let percentString = context.state.status.title.replacingOccurrences(of: "%", with: "")
+        // Parse percentage from value
+        let percentString = context.state.status.value.replacingOccurrences(of: "%", with: "")
         if let percent = Int(percentString) {
             if percent > 60 {
                 return .green
@@ -289,6 +296,21 @@ struct AgendaLiveActivityView: View {
             }
         }
         return .green
+    }
+
+    /// Returns background color for different buff types
+    private func buffBackgroundColor(for type: AgendaActivityAttributes.ContentState.BuffType) -> Color {
+        switch type {
+        case .positive:
+            // Positive buffs: green/gold tones
+            return Color.green.opacity(0.3)
+        case .negative:
+            // Negative buffs/debuffs: red/purple tones
+            return Color.red.opacity(0.3)
+        case .neutral:
+            // Neutral buffs: blue/gray tones
+            return Color.blue.opacity(0.25)
+        }
     }
 
     /// Build deep link to open app and send mock completion message
@@ -324,52 +346,78 @@ struct AgendaLiveActivityView: View {
 #Preview("Live Activity", as: .content, using: AgendaActivityAttributes(userId: "preview")) {
     AgendaLiveActivity()
 } contentStates: {
-    // Preview state 1: Morning sunlight quest
+    // Preview state 1: 光子锚定 - 早晨任务
     AgendaActivityAttributes.ContentState(
         status: .init(
             type: "energy",
-            title: "30%",
+            name: "电量",
+            value: "30%",
             icon: "battery.25",
             buffs: [
-                .init(icon: "moon.stars.fill", label: "褪黑素")
+                .init(type: .negative, icon: "moon.stars.fill", label: "褪黑素残留")
             ]
         ),
         task: .init(
-            title: "去阳台进行光合作用",
-            description: "别让你的生物钟以为还在深夜。哪怕只把脸伸出去晒 5 分钟,今晚入睡都能快半小时。",
+            title: "任务：采集光子",
+            description: "去窗边/户外晒 5 分钟。向视网膜发送信号，定好今晚的入睡闹钟。",
             button: .init(label: "完成", icon: "checkmark")
         ),
         countdown: .init(
-            label: "日照充能窗口",
+            label: "⏳ 剩余 15 分钟",
             timeRange: "08:00 - 12:00",
             progressColor: "#FFD700",
-            progress: 0.6,
-            remainingTimeSeconds: 1200
+            progress: 0.75,
+            remainingTimeSeconds: 900
         )
     )
 
-    // Preview state 2: High energy state
+    // Preview state 2: 脑部补水任务
     AgendaActivityAttributes.ContentState(
         status: .init(
-            type: "energy",
-            title: "85%",
-            icon: "battery.100",
+            type: "brain",
+            name: "脑力",
+            value: "40%",
+            icon: "brain.head.profile",
             buffs: [
-                .init(icon: "sun.max.fill", label: "活力"),
-                .init(icon: "leaf.fill", label: "专注")
+                .init(type: .negative, icon: "drop.slash.fill", label: "大脑干旱")
             ]
         ),
         task: .init(
-            title: "完成深度工作任务",
-            description: "你的能量和注意力都处于最佳状态,现在是完成重要工作的黄金时间。",
+            title: "任务：填充冷却液",
+            description: "喝一杯 300ml 温水。让\"缩水\"的脑组织重新膨胀，提升反应速度。",
             button: .init(label: "完成", icon: "checkmark")
         ),
         countdown: .init(
-            label: "专注时段",
-            timeRange: "09:00 - 11:00",
-            progressColor: "#4CAF50",
-            progress: 0.35,
-            remainingTimeSeconds: 3600
+            label: "⏳ 剩余 10 分钟",
+            timeRange: "全天",
+            progressColor: "#FFD700",
+            progress: 0.5,
+            remainingTimeSeconds: 600
+        )
+    )
+
+    // Preview state 3: 压力释放任务
+    AgendaActivityAttributes.ContentState(
+        status: .init(
+            type: "cpu",
+            name: "CPU",
+            value: "过热",
+            icon: "flame.fill",
+            buffs: [
+                .init(type: .negative, icon: "exclamationmark.triangle.fill", label: "情绪脑劫持")
+            ]
+        ),
+        task: .init(
+            title: "任务：系统强制冷却",
+            description: "执行\"生理叹息\"（两吸一呼），只需 60 秒，强制重启副交感神经。",
+            button: .init(label: "完成", icon: "checkmark")
+        ),
+        countdown: .init(
+            label: "⏳ 立即执行",
+            timeRange: "现在",
+            progressColor: "#FFD700",
+            progress: 0.9,
+            remainingTimeSeconds: 60
         )
     )
 }
