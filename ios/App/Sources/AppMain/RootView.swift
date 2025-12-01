@@ -521,22 +521,17 @@ struct MainTabView: View {
                 }
                 .tag(RouteManager.Tab.profile)
         }
-        .overlay(alignment: .bottomTrailing) {
-            // 圆形对话按钮
-            Button(action: handleChatButtonTapped) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 56, height: 56)
-                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-
-                    Image(systemName: "message.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.white)
-                }
-            }
-            .padding(.trailing, 20)
-            .padding(.bottom, 20)
+        .toolbar(.hidden, for: .tabBar)  // 隐藏系统TabBar
+        .safeAreaInset(edge: .bottom) {
+            // 自定义TabBar，支持液态玻璃拖动效果
+            CustomTabBar(
+                selectedTab: Binding(
+                    get: { router.currentTab },
+                    set: { router.currentTab = $0 }
+                ),
+                onChatTapped: handleChatButtonTapped
+            )
+            .background(.clear)
         }
     }
 
