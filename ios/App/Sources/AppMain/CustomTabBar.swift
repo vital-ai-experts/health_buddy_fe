@@ -143,30 +143,18 @@ struct CustomTabBar: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        if #available(iOS 26, *) {
-            // iOS 26+: 使用液态玻璃效果
-            Capsule()
-                .glassEffect(.regular.interactive())
-        } else {
-            // 旧系统: 使用普通模糊材质
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.95 : 0.85)
-        }
+        // 使用普通模糊材质
+        Capsule()
+            .fill(.ultraThinMaterial)
+            .opacity(colorScheme == .dark ? 0.95 : 0.85)
     }
 
     @ViewBuilder
     private var chatButtonBackground: some View {
-        if #available(iOS 26, *) {
-            // iOS 26+: 使用液态玻璃效果
-            Circle()
-                .glassEffect(.regular.interactive())
-        } else {
-            // 旧系统: 使用普通模糊材质
-            Circle()
-                .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.95 : 0.85)
-        }
+        // 使用普通模糊材质
+        Circle()
+            .fill(.ultraThinMaterial)
+            .opacity(colorScheme == .dark ? 0.95 : 0.85)
     }
 }
 
