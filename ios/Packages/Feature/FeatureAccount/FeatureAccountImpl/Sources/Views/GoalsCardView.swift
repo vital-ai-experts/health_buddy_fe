@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// Goals card view displaying The Core Drivers
 struct GoalsCardView: View {
@@ -43,26 +44,26 @@ struct GoalsCardView: View {
                 
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.Palette.textPrimary)
             }
             
             Text(description)
                 .font(.system(size: 15))
-                .foregroundColor(.primary)
+                .foregroundColor(.Palette.textSecondary)
                 .lineSpacing(4)
             
             if let thinking = aiThinking {
                 HStack(alignment: .top, spacing: 8) {
                     Text("AI 🤔:")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.Palette.infoMain)
                     
                     Text(thinking)
                         .font(.system(size: 14))
-                        .foregroundColor(.blue.opacity(0.8))
+                        .foregroundColor(.Palette.infoMain.opacity(0.8))
                 }
                 .padding(12)
-                .background(Color.blue.opacity(0.08))
+                .background(Color.Palette.infoBgSoft)
                 .cornerRadius(12)
             }
         }
@@ -77,5 +78,5 @@ struct GoalsCardView: View {
         )
         .padding()
     }
-    .background(Color(uiColor: .systemGroupedBackground))
+    .background(Color.Palette.surfaceElevated)
 }

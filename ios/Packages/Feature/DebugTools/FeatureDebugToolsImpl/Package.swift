@@ -12,7 +12,8 @@ let package = Package(
         .package(name: "LibraryNotification", path: "../../../Library/Notification"),
         .package(name: "FeatureOnboardingApi", path: "../../Onboarding/FeatureOnboardingApi"),
         .package(name: "FeatureChatImpl", path: "../../FeatureChat/FeatureChatImpl"),
-        .package(name: "DomainAuth", path: "../../../Domain/DomainAuth")
+        .package(name: "DomainAuth", path: "../../../Domain/DomainAuth"),
+        .package(name: "ThemeKit", path: "../../../Library/ThemeKit")
     ],
     targets: [
         .target(
@@ -24,7 +25,8 @@ let package = Package(
                 .product(name: "LibraryNotification", package: "LibraryNotification"),
                 .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "FeatureChatImpl", package: "FeatureChatImpl"),
-                .product(name: "DomainAuth", package: "DomainAuth")
+                .product(name: "DomainAuth", package: "DomainAuth"),
+                .product(name: "ThemeKit", package: "ThemeKit")
             ],
             path: "Sources"
         )

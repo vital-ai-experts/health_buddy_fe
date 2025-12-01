@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// Neuro-Software card view displaying behavioral preferences
 struct NeuroSoftwareCardView: View {
@@ -42,12 +43,12 @@ struct NeuroSoftwareCardView: View {
                 
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.Palette.textPrimary)
             }
             
             Text(description)
                 .font(.system(size: 15))
-                .foregroundColor(.primary)
+                .foregroundColor(.Palette.textSecondary)
                 .lineSpacing(4)
         }
     }
@@ -61,5 +62,5 @@ struct NeuroSoftwareCardView: View {
         )
         .padding()
     }
-    .background(Color(uiColor: .systemGroupedBackground))
+    .background(Color.Palette.surfaceElevated)
 }

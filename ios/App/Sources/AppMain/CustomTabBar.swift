@@ -12,6 +12,7 @@ import LibraryServiceLoader
 struct CustomTabBar: View {
     @Binding var selectedTab: RouteManager.Tab
     let onChatTapped: () -> Void
+    let onDeveloperTapped: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var indicatorOffset: CGFloat = 0
@@ -45,6 +46,16 @@ struct CustomTabBar: View {
 
     private var selectedIndex: Int {
         tabs.firstIndex(where: { $0.tab == selectedTab }) ?? 0
+    }
+
+    init(
+        selectedTab: Binding<RouteManager.Tab>,
+        onChatTapped: @escaping () -> Void,
+        onDeveloperTapped: @escaping () -> Void = {}
+    ) {
+        self._selectedTab = selectedTab
+        self.onChatTapped = onChatTapped
+        self.onDeveloperTapped = onDeveloperTapped
     }
 
     var body: some View {
@@ -133,10 +144,26 @@ struct CustomTabBar: View {
 
             // 间距放在对话按钮右边
             Spacer()
+
+            #if DEBUG
+            // 开发者入口按钮
+            Button(action: onDeveloperTapped) {
+                VStack(spacing: 4) {
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .font(.system(size: 20))
+                    Text("调试")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.secondary)
+                .frame(width: tabBarHeight, height: tabBarHeight)
+                .background(chatButtonBackground)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
+            }
+            .buttonStyle(.plain)
+            #endif
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 12)
-        .padding(.top, 8)
     }
 
     @ViewBuilder

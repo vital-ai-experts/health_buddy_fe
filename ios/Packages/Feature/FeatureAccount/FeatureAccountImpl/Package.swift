@@ -13,7 +13,8 @@ let package = Package(
         .package(name: "DomainHealth", path: "../../../Domain/Health"),
         .package(name: "FeatureOnboardingApi", path: "../../Onboarding/FeatureOnboardingApi"),
         .package(name: "FeatureDebugToolsApi", path: "../../DebugTools/FeatureDebugToolsApi"),
-        .package(name: "FeatureAgendaApi", path: "../../Agenda/FeatureAgendaApi")
+        .package(name: "FeatureAgendaApi", path: "../../Agenda/FeatureAgendaApi"),
+        .package(name: "ThemeKit", path: "../../../Library/ThemeKit")
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 .product(name: "DomainHealth", package: "DomainHealth"),
                 .product(name: "FeatureOnboardingApi", package: "FeatureOnboardingApi"),
                 .product(name: "FeatureDebugToolsApi", package: "FeatureDebugToolsApi"),
-                .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi")
+                .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi"),
+                .product(name: "ThemeKit", package: "ThemeKit")
             ],
             path: "Sources"
         )

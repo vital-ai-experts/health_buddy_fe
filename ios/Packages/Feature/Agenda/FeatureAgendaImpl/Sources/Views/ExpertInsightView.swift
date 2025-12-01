@@ -1,38 +1,43 @@
 import SwiftUI
+import ThemeKit
 
 /// 专家简报视图 - 引用样式
 struct ExpertInsightView: View {
     let insight: ExpertInsight
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 问候语
-            Text(insight.greeting)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.black.opacity(0.85))
+        let accentColor = Color.Palette.warningMain
 
-            // 分析和建议
-            VStack(alignment: .leading, spacing: 8) {
-                Text(insight.analysis)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(.black.opacity(0.75))
-                    .lineSpacing(4)
+        HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 0) {
+                Text("“")
+                    .font(.system(size: 22, weight: .bold, design: .serif))
+                    .foregroundColor(accentColor.opacity(0.9))
 
-                Text(insight.recommendation)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(.black.opacity(0.75))
-                    .lineSpacing(4)
+                Rectangle()
+                    .fill(accentColor.opacity(0.4))
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
+                    .padding(.top, -6)
+            }
+            .frame(width: 18, alignment: .top)
+
+            VStack(alignment: .leading, spacing: 12) {
+                // 问候语
+                Text(insight.greeting)
+                    .font(.system(size: 18, weight: .semibold, design: .serif))
+                    .foregroundColor(.Palette.textPrimary)
+
+                // 分析和建议
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(insight.analysis)
+                    Text(insight.recommendation)
+                }
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .foregroundColor(.Palette.textSecondary)
+                .lineSpacing(5)
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.black.opacity(0.08), lineWidth: 1)
-        )
         .padding(.horizontal, 20)
     }
 }
@@ -42,5 +47,5 @@ struct ExpertInsightView: View {
         ExpertInsightView(insight: HealthStatus.sample.expertInsight)
         Spacer()
     }
-    .background(Color(red: 0.98, green: 0.98, blue: 0.96))
+    .background(Color.Palette.bgBase)
 }

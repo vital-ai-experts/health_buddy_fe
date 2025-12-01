@@ -140,6 +140,8 @@ targets:
         product: LibraryBase
       - package: LibraryNotification
         product: LibraryNotification
+      - package: LibraryThemeKit
+        product: ThemeKit
 schemes:
   ThriveBody:
     build:

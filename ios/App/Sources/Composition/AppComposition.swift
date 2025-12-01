@@ -24,7 +24,7 @@ enum AppComposition {
         AccountModule.register(router: router)
         ChatModule.register(router: router)
         OnboardingModule.register()
-        AgendaModule.register()
+        AgendaModule.register(router: router)
         DebugToolsFeatureModule.register(router: router)
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 import DomainAuth
 import LibraryServiceLoader
 import LibraryBase
+import ThemeKit
 
 /// 关于我页面 - 展示AI对用户的全部理解和数字孪生
 public struct AboutMeView: View {
@@ -33,7 +34,7 @@ public struct AboutMeView: View {
                     .padding(.bottom, 40)
             }
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.Palette.bgBase)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadUserInfo()
@@ -59,7 +60,7 @@ public struct AboutMeView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color.orange.opacity(0.3), Color.orange.opacity(0.15)],
+                                colors: [Color.Palette.warningMain.opacity(0.3), Color.Palette.warningMain.opacity(0.15)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -71,9 +72,9 @@ public struct AboutMeView: View {
                 }
 
                 // 昵称
-                Text("Jason")
+                Text("凌安")
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.Palette.textPrimary)
                 
                 Spacer()
             }
@@ -126,13 +127,14 @@ public struct AboutMeView: View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.primary)
+                .foregroundColor(.Palette.textPrimary)
 
             if showInfo {
                 Button(action: onInfoTapped) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -151,12 +153,12 @@ public struct AboutMeView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("这是基于我们过去的 42 次对话、Onboarding 访谈以及 14 天的穿戴数据，我为你构建的\"数字孪生\"。")
                         .font(.system(size: 16))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.Palette.textPrimary)
                         .lineSpacing(6)
 
                     Text("如果我有理解错的地方，请随时点击修正。你的修正会让我的决策更精准。")
                         .font(.system(size: 16))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.Palette.textPrimary)
                         .lineSpacing(6)
                 }
                 .padding(24)

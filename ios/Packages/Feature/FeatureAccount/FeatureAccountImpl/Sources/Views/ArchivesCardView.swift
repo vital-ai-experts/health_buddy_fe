@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// Archives card view displaying historical data
 struct ArchivesCardView: View {
@@ -15,7 +16,7 @@ struct ArchivesCardView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("❌ 过去失败的项目")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.Palette.textPrimary)
                     
                     ForEach(data.failedProjects) { project in
                         VStack(alignment: .leading, spacing: 8) {
@@ -23,10 +24,10 @@ struct ArchivesCardView: View {
                                 .font(.system(size: 15, weight: .medium))
                             Text("  \(project.duration)")
                                 .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.Palette.textSecondary)
                             Text("  失败原因：\(project.failureReason)")
                                 .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.Palette.textSecondary)
                         }
                     }
                 }
@@ -37,12 +38,12 @@ struct ArchivesCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("✅ 本次策略调整")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.green)
+                        .foregroundColor(.Palette.successMain)
                     
                     ForEach(data.strategyAdjustments, id: \.self) { adjustment in
                         Text("• \(adjustment)")
                             .font(.system(size: 14))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.Palette.textPrimary)
                     }
                 }
             }
@@ -58,5 +59,5 @@ struct ArchivesCardView: View {
         )
         .padding()
     }
-    .background(Color(uiColor: .systemGroupedBackground))
+    .background(Color.Palette.surfaceElevated)
 }

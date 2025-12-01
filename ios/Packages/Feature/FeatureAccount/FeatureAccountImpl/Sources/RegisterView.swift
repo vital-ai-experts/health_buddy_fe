@@ -2,6 +2,7 @@ import SwiftUI
 import DomainAuth
 import FeatureOnboardingApi
 import LibraryServiceLoader
+import ThemeKit
 
 struct RegisterView: View {
     @StateObject private var viewModel: RegisterViewModel
@@ -24,15 +25,16 @@ struct RegisterView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "person.badge.plus.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.Palette.infoMain)
 
                     Text("Create Account")
                         .font(.largeTitle)
                         .fontWeight(.bold)
+                        .foregroundColor(.Palette.textPrimary)
 
                     Text("Join us today")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
                 .padding(.top, 40)
 
@@ -43,13 +45,14 @@ struct RegisterView: View {
                         Text("Full Name")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         TextField("Enter your full name", text: $viewModel.fullName)
                             .textFieldStyle(.plain)
                             .textContentType(.name)
                             .autocapitalization(.words)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
                     }
 
@@ -58,6 +61,7 @@ struct RegisterView: View {
                         Text("Email")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         TextField("Enter your email", text: $viewModel.email)
                             .textFieldStyle(.plain)
@@ -65,7 +69,7 @@ struct RegisterView: View {
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
                     }
 
@@ -74,17 +78,18 @@ struct RegisterView: View {
                         Text("Password")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         SecureField("Enter your password", text: $viewModel.password)
                             .textFieldStyle(.plain)
                             .textContentType(.newPassword)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
 
                         Text("Password must be at least 6 characters")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                     }
 
                     // Confirm password field
@@ -92,12 +97,13 @@ struct RegisterView: View {
                         Text("Confirm Password")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         SecureField("Confirm your password", text: $viewModel.confirmPassword)
                             .textFieldStyle(.plain)
                             .textContentType(.newPassword)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
                     }
 
@@ -105,7 +111,7 @@ struct RegisterView: View {
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
                             .font(.caption)
-                            .foregroundColor(.red)
+                            .foregroundColor(.Palette.dangerMain)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -121,7 +127,7 @@ struct RegisterView: View {
                         HStack {
                             if viewModel.isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color.Palette.textOnAccent))
                             } else {
                                 Text("Create Account")
                                     .fontWeight(.semibold)
@@ -129,8 +135,8 @@ struct RegisterView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(viewModel.isFormValid ? Color.blue : Color.gray)
-                        .foregroundColor(.white)
+                        .background(viewModel.isFormValid ? Color.Palette.infoMain : Color.Palette.textDisabled)
+                        .foregroundColor(Color.Palette.textOnAccent)
                         .cornerRadius(10)
                     }
                     .disabled(!viewModel.isFormValid || viewModel.isLoading)
@@ -140,6 +146,7 @@ struct RegisterView: View {
                 Spacer()
             }
         }
+        .background(Color.Palette.bgBase)
         .navigationTitle("Register")
     }
 }

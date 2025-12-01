@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// Edit sheet for About Me sections
 struct AboutMeEditSheet: View {
@@ -64,7 +65,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🏷️ 表层意图")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedGoals.surfaceGoal)
                     .frame(minHeight: 60)
@@ -75,7 +76,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🔑 深层动机")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedGoals.deepMotivation)
                     .frame(minHeight: 80)
@@ -86,7 +87,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🚫 潜在障碍")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedGoals.obstacle)
                     .frame(minHeight: 80)
@@ -102,7 +103,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🧬 昼夜节律")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedBioHardware.chronotype)
                     .frame(minHeight: 60)
@@ -113,7 +114,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("☕️ 咖啡因代谢")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedBioHardware.caffeineSensitivity)
                     .frame(minHeight: 60)
@@ -124,7 +125,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🔋 压力耐受度")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedBioHardware.stressResilience)
                     .frame(minHeight: 60)
@@ -140,7 +141,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🥗 饮食弱点")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedNeuroSoftware.dietaryKryptonite)
                     .frame(minHeight: 60)
@@ -151,7 +152,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🏃 运动偏好")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedNeuroSoftware.exercisePreference)
                     .frame(minHeight: 80)
@@ -162,7 +163,7 @@ struct AboutMeEditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("💤 助眠触发器")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
                 
                 TextEditor(text: $editedNeuroSoftware.sleepTrigger)
                     .frame(minHeight: 60)
@@ -180,7 +181,7 @@ struct AboutMeEditSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("项目名称")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                         TextField("例如：生酮饮食", text: $editedArchives.failedProjects[index].name)
                             .textFieldStyle(.roundedBorder)
                     }
@@ -188,7 +189,7 @@ struct AboutMeEditSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("坚持时长")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                         TextField("例如：坚持了 2 周。", text: $editedArchives.failedProjects[index].duration)
                             .textFieldStyle(.roundedBorder)
                     }
@@ -196,7 +197,7 @@ struct AboutMeEditSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("失败原因")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                         TextEditor(text: $editedArchives.failedProjects[index].failureReason)
                             .frame(minHeight: 60)
                     }

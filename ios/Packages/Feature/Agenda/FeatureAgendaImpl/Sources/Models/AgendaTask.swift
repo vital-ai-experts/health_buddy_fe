@@ -4,7 +4,6 @@ struct AgendaTask: Identifiable {
     let id = UUID()
     let emoji: String // 任务图标（emoji）
     let title: String
-    let subtitle: String
     let description: String
     let countdown: String
     let tags: [String]
@@ -13,6 +12,7 @@ struct AgendaTask: Identifiable {
     let status: AgendaTaskStatus
     let accent: AgendaTheme
     let timeWindow: String // 时间窗口
+    let progress: Double // 0...1 倒计时进度
     let actionType: TaskActionType
 
     enum TaskActionType {

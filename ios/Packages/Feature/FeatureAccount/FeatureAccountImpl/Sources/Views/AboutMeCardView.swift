@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// Reusable AI Insight Card component with edit functionality
 struct AboutMeCardView<Content: View>: View {
@@ -14,11 +15,11 @@ struct AboutMeCardView<Content: View>: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.Palette.textPrimary)
                     
                     Text(subtitle)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
                 
                 Spacer()
@@ -26,7 +27,7 @@ struct AboutMeCardView<Content: View>: View {
                 Button(action: onEdit) {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -35,9 +36,13 @@ struct AboutMeCardView<Content: View>: View {
             content()
         }
         .padding(24)
-        .background(Color(uiColor: .systemBackground))
+        .background(Color.Palette.surfaceElevated)
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
+        )
+        .shadow(color: Color.Palette.textPrimary.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -52,5 +57,5 @@ struct AboutMeCardView<Content: View>: View {
         }
         .padding()
     }
-    .background(Color(uiColor: .systemGroupedBackground))
+    .background(Color.Palette.bgBase)
 }

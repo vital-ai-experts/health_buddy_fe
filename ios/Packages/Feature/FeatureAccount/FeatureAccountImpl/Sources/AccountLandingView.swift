@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 struct AccountLandingView: View {
     let onSuccess: () -> Void
@@ -21,14 +22,15 @@ struct AccountLandingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "heart.text.square.fill")
                         .font(.system(size: 100))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.Palette.infoMain)
 
                     Text("ThriveBody")
                         .font(.system(size: 42, weight: .bold))
+                        .foregroundColor(.Palette.textPrimary)
 
                     Text("Your AI Health Assistant")
                         .font(.title3)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
 
                 Spacer()
@@ -41,8 +43,8 @@ struct AccountLandingView: View {
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
+                            .background(Color.Palette.infoMain)
+                            .foregroundColor(.Palette.textOnAccent)
                             .cornerRadius(12)
                     }
 
@@ -52,11 +54,11 @@ struct AccountLandingView: View {
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.white)
-                            .foregroundColor(.blue)
+                            .background(Color.Palette.bgBase)
+                            .foregroundColor(.Palette.infoMain)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.blue, lineWidth: 2)
+                                    .stroke(Color.Palette.infoMain, lineWidth: 2)
                             )
                     }
 
@@ -67,13 +69,14 @@ struct AccountLandingView: View {
                     }) {
                         Text("Continue as Guest")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                     }
                     .padding(.top, 8)
                 }
                 .padding(.horizontal, 32)
                 .padding(.bottom, 40)
             }
+            .background(Color.Palette.bgBase)
             .navigationBarHidden(!isDismissable)
             .toolbar {
                 if isDismissable {

@@ -1,5 +1,6 @@
 import SwiftUI
 import LibraryServiceLoader
+import ThemeKit
 
 /// Agenda 主 Tab 视图，展示健康管理任务清单
 struct AgendaTabView: View {
@@ -9,7 +10,7 @@ struct AgendaTabView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
                 // 顶部话题列表
                 TopicBarView(topics: viewModel.topics)
 
@@ -23,8 +24,8 @@ struct AgendaTabView: View {
 
                 // 任务标题
                 Text("任务")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.black.opacity(0.9))
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundColor(.Palette.textPrimary)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
 
@@ -35,11 +36,10 @@ struct AgendaTabView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .padding(.bottom, 56)
             }
         }
-        .background(Color(red: 0.98, green: 0.98, blue: 0.96))
-        .ignoresSafeArea(edges: .top)
+        .background(Color.Palette.bgBase)
         .onAppear {
             router.currentTab = .agenda
         }
@@ -55,6 +55,6 @@ struct AgendaTabView: View {
 
 private final class AgendaTabViewModel {
     let topics: [AgendaTopic] = AgendaTopic.sampleTopics
-    let healthStatus: HealthStatus = HealthStatus.sample
+    let healthStatus: HealthStatus = HealthStatus.randomSample()
     let tasks: [AgendaTask] = AgendaTask.sampleTasks
 }

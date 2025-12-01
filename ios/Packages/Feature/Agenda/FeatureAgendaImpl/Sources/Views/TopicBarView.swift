@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// 顶部话题列表视图
 struct TopicBarView: View {
@@ -14,6 +15,7 @@ struct TopicBarView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+        .background(Color.Palette.bgBase)
     }
 }
 
@@ -28,11 +30,11 @@ private struct TopicCircleView: View {
             ZStack {
                 Circle()
                     .fill(topic.backgroundColor)
-                    .frame(width: 72, height: 72)
+                    .frame(width: 56, height: 56)
 
                 Image(systemName: topic.icon)
                     .font(.system(size: topic.isAddButton ? 32 : 28))
-                    .foregroundColor(topic.isAddButton ? Color(red: 0.5, green: 0.5, blue: 0.5) : .black.opacity(0.7))
+                    .foregroundColor(topic.isAddButton ? Color.Palette.textSecondary : Color.Palette.textPrimary)
             }
         }
     }
@@ -43,5 +45,5 @@ private struct TopicCircleView: View {
         TopicBarView(topics: AgendaTopic.sampleTopics)
         Spacer()
     }
-    .background(Color(red: 0.98, green: 0.98, blue: 0.96))
+    .background(Color.Palette.bgBase)
 }

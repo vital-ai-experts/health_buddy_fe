@@ -1,6 +1,7 @@
 import SwiftUI
 import DomainAuth
 import LibraryServiceLoader
+import ThemeKit
 
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
@@ -23,15 +24,16 @@ struct LoginView: View {
                     VStack(spacing: 8) {
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: 80))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.Palette.infoMain)
 
                         Text("Welcome Back")
                             .font(.largeTitle)
                             .fontWeight(.bold)
+                            .foregroundColor(.Palette.textPrimary)
 
                         Text("Sign in to continue")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.Palette.textSecondary)
                     }
                     .padding(.top, 40)
 
@@ -42,6 +44,7 @@ struct LoginView: View {
                         Text("Email")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         TextField("Enter your email", text: $viewModel.email)
                             .textFieldStyle(.plain)
@@ -49,7 +52,7 @@ struct LoginView: View {
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
                     }
 
@@ -58,12 +61,13 @@ struct LoginView: View {
                         Text("Password")
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .foregroundColor(.Palette.textPrimary)
 
                         SecureField("Enter your password", text: $viewModel.password)
                             .textFieldStyle(.plain)
                             .textContentType(.password)
                             .padding()
-                            .background(Color(.systemGray6))
+                            .background(Color.Palette.bgMuted)
                             .cornerRadius(10)
                     }
 
@@ -71,7 +75,7 @@ struct LoginView: View {
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
                             .font(.caption)
-                            .foregroundColor(.red)
+                            .foregroundColor(.Palette.dangerMain)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -87,7 +91,7 @@ struct LoginView: View {
                         HStack {
                             if viewModel.isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color.Palette.textOnAccent))
                             } else {
                                 Text("Sign In")
                                     .fontWeight(.semibold)
@@ -95,8 +99,8 @@ struct LoginView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(viewModel.isFormValid ? Color.blue : Color.gray)
-                        .foregroundColor(.white)
+                        .background(viewModel.isFormValid ? Color.Palette.infoMain : Color.Palette.textDisabled)
+                        .foregroundColor(Color.Palette.textOnAccent)
                         .cornerRadius(10)
                     }
                     .disabled(!viewModel.isFormValid || viewModel.isLoading)
@@ -105,6 +109,7 @@ struct LoginView: View {
 
                 Spacer()
             }
+            .background(Color.Palette.bgBase)
         }
         .navigationTitle("Login")
         .navigationBarTitleDisplayMode(.inline)

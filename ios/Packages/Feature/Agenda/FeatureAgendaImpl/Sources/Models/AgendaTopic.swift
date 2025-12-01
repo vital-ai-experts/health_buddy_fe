@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// 话题模型
 struct AgendaTopic: Identifiable {
@@ -16,8 +17,8 @@ struct AgendaTopic: Identifiable {
 
 extension AgendaTopic {
     static let sampleTopics: [AgendaTopic] = [
-        AgendaTopic(icon: "moon.zzz.fill", backgroundColor: Color(red: 0.8, green: 0.8, blue: 1.0)),
-        AgendaTopic(icon: "figure.run", backgroundColor: Color(red: 0.8, green: 1.0, blue: 0.9)),
-        AgendaTopic(icon: "plus", backgroundColor: Color(red: 0.85, green: 0.85, blue: 0.85), isAddButton: true)
+        AgendaTopic(icon: "moon.zzz.fill", backgroundColor: Color.Palette.infoBgSoft),
+        AgendaTopic(icon: "figure.run", backgroundColor: Color.Palette.successBgSoft),
+        AgendaTopic(icon: "plus", backgroundColor: Color.Palette.bgMuted, isAddButton: true)
     ]
 }

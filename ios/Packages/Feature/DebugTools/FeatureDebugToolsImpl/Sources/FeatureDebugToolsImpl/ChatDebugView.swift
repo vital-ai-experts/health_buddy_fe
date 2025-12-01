@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import FeatureChatImpl
 import LibraryBase
+import ThemeKit
 
 /// 调试视图：查看本地存储的聊天消息
 struct ChatDebugView: View {
@@ -18,7 +19,7 @@ struct ChatDebugView: View {
                     Text("消息总数")
                     Spacer()
                     Text("\(messageCount)")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
             }
 
@@ -31,10 +32,10 @@ struct ChatDebugView: View {
                     }
                 } else if let error = errorMessage {
                     Text("错误: \(error)")
-                        .foregroundColor(.red)
+                        .foregroundColor(.Palette.dangerMain)
                 } else if messages.isEmpty {
                     Text("暂无消息")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 } else {
                     ForEach(messages, id: \.id) { message in
                         VStack(alignment: .leading, spacing: 8) {
@@ -43,14 +44,14 @@ struct ChatDebugView: View {
                                     .font(.caption)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(message.isFromUser ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                                    .background(message.isFromUser ? Color.Palette.infoMain.opacity(0.2) : Color.Palette.successMain.opacity(0.2))
                                     .cornerRadius(4)
 
                                 Spacer()
 
                                 Text(formatDate(message.createdAt))
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.Palette.textSecondary)
                             }
 
                             Text(message.content)
@@ -59,14 +60,14 @@ struct ChatDebugView: View {
                             HStack {
                                 Text("ID: \(message.id)")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.Palette.textSecondary)
 
                                 Spacer()
 
                                 if let convId = message.conversationId {
                                     Text("会话: \(convId.prefix(8))...")
                                         .font(.caption2)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.Palette.textSecondary)
                                 }
                             }
                         }

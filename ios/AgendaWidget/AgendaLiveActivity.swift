@@ -5,6 +5,7 @@ import WidgetKit
 import LibraryNotification
 import LibraryBase
 import AppIntents
+import ThemeKit
 
 /// Live Activity Widget for Agenda
 @available(iOS 16.1, *)
@@ -13,20 +14,20 @@ struct AgendaLiveActivity: Widget {
         ActivityConfiguration(for: AgendaActivityAttributes.self) { context in
             // Lock screen UI
             AgendaLiveActivityView(context: context)
-                .activityBackgroundTint(Color.blue.opacity(0.1))
-                .activitySystemActionForegroundColor(Color.blue)
+                .activityBackgroundTint(Color.Palette.bgMuted)
+                .activitySystemActionForegroundColor(Color.Palette.textPrimary)
         } dynamicIsland: { context in
             DynamicIsland {
                 // Expanded region
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "heart.circle.fill")
                         .symbolRenderingMode(.palette)
-                        .foregroundStyle(.blue, .white)
+                        .foregroundStyle(Color.Palette.successMain, Color.Palette.textOnAccent)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
                     Image(systemName: "sparkles")
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Color.Palette.warningMain)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -45,13 +46,13 @@ struct AgendaLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "heart.circle.fill")
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.blue, .white)
+                    .foregroundStyle(Color.Palette.successMain, Color.Palette.textOnAccent)
             } compactTrailing: {
                 Text("✨")
                     .font(.caption2)
             } minimal: {
                 Image(systemName: "heart.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.Palette.successMain)
             }
         }
     }
@@ -70,13 +71,13 @@ struct AgendaLiveActivityView: View {
             // Background gradient for RPG atmosphere
             LinearGradient(
                 colors: [
-                    Color(red: 0.1, green: 0.15, blue: 0.2),
-                    Color(red: 0.15, green: 0.2, blue: 0.25)
+                    Color.Palette.bgBase,
+                    Color.Palette.bgMuted
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .opacity(0.95)
+            .opacity(0.98)
 
             VStack(alignment: .leading, spacing: 8) {
                 // Top: Status with dynamic color
@@ -104,10 +105,10 @@ struct AgendaLiveActivityView: View {
                             HStack(spacing: 2) {
                                 Image(systemName: buff.icon)
                                     .font(.system(size: 12))
-                                    .colorScheme(.dark)
+                                    .foregroundColor(Color.Palette.textPrimary)
                                 Text(buff.label)
                                     .font(.system(size: 10, weight: .medium))
-                                    .colorScheme(.dark)
+                                    .foregroundColor(Color.Palette.textSecondary)
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -124,13 +125,12 @@ struct AgendaLiveActivityView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(context.state.task.title)
                             .font(.system(size: 14, weight: .bold))
-                            .colorScheme(.dark)
+                            .foregroundColor(Color.Palette.textPrimary)
                             .lineLimit(1)
 
                         Text(context.state.task.description)
                             .font(.system(size: 11))
-                            .colorScheme(.dark)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(Color.Palette.textSecondary)
                             .lineLimit(2)
                     }
 
@@ -140,35 +140,29 @@ struct AgendaLiveActivityView: View {
                     VStack(spacing: 1) {
                         ZStack {
                             Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(red: 1, green: 0.84, blue: 0), Color(red: 1, green: 0.65, blue: 0)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .fill(Color.Palette.successMain)
                                 .frame(width: 28, height: 28)
-                                .shadow(color: Color.yellow.opacity(0.5), radius: 6, x: 0, y: 3)
+                                .shadow(color: Color.Palette.successMain.opacity(0.4), radius: 6, x: 0, y: 3)
 
                             Image(systemName: context.state.task.button.icon)
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.Palette.textOnAccent)
                         }
 
                         Text(context.state.task.button.label)
                             .font(.system(size: 9, weight: .semibold))
-                            .colorScheme(.dark)
+                            .foregroundColor(Color.Palette.textSecondary)
                     }
                 }
                 .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.3))
+                        .fill(Color.Palette.bgMuted.opacity(0.85))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
                                 .strokeBorder(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                        colors: [Color.Palette.borderSubtle.opacity(0.5), Color.Palette.borderSubtle.opacity(0.2)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -182,7 +176,7 @@ struct AgendaLiveActivityView: View {
                     HStack {
                         Text(context.state.countdown.label)
                             .font(.system(size: 11, weight: .medium))
-                            .colorScheme(.dark)
+                            .foregroundColor(Color.Palette.textSecondary)
 
                         Spacer()
 
@@ -191,16 +185,14 @@ struct AgendaLiveActivityView: View {
                                 .font(.system(size: 9))
                             Text("最佳时间: \(context.state.countdown.timeRange)")
                                 .font(.system(size: 9))
-                                .colorScheme(.dark)
-                        }
-                        .foregroundStyle(.secondary)
+                                .foregroundColor(Color.Palette.textSecondary)
+                    }
                     }
 
                     if let interval = timerInterval() {
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color(.systemGray6))
-                                .opacity(0.4)
+                                .fill(Color.Palette.warningBgSoft.opacity(0.7))
                                 .frame(height: 8)
 
                             // 使用 ProgressView 的 timerInterval，叠加渐变遮罩
@@ -215,8 +207,8 @@ struct AgendaLiveActivityView: View {
                             .overlay {
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 1, green: 0.84, blue: 0),
-                                        Color(red: 1, green: 0.65, blue: 0)
+                                        Color.Palette.warningMain,
+                                        Color.Palette.warningHover
                                     ],
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -236,15 +228,14 @@ struct AgendaLiveActivityView: View {
                         let staticProgress = min(max(context.state.countdown.progress, 0), 1)
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color(.systemGray6))
-                                .opacity(0.4)
+                                .fill(Color.Palette.warningBgSoft.opacity(0.7))
                                 .frame(height: 8)
 
                             GeometryReader { geometry in
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 1, green: 0.84, blue: 0),
-                                        Color(red: 1, green: 0.65, blue: 0)
+                                        Color.Palette.warningMain,
+                                        Color.Palette.warningHover
                                     ],
                                     startPoint: .leading,
                                     endPoint: .trailing
@@ -288,14 +279,14 @@ struct AgendaLiveActivityView: View {
         let percentString = context.state.status.value.replacingOccurrences(of: "%", with: "")
         if let percent = Int(percentString) {
             if percent > 60 {
-                return .green
+                return Color.Palette.successMain
             } else if percent > 30 {
-                return .orange
+                return Color.Palette.warningMain
             } else {
-                return .red
+                return Color.Palette.dangerMain
             }
         }
-        return .green
+        return Color.Palette.successMain
     }
 
     /// Returns background color for different buff types
@@ -303,13 +294,13 @@ struct AgendaLiveActivityView: View {
         switch type {
         case .positive:
             // Positive buffs: green/gold tones
-            return Color.green.opacity(0.3)
+            return Color.Palette.successBgSoft
         case .negative:
             // Negative buffs/debuffs: red/purple tones
-            return Color.red.opacity(0.3)
+            return Color.Palette.dangerBgSoft
         case .neutral:
             // Neutral buffs: blue/gray tones
-            return Color.blue.opacity(0.25)
+            return Color.Palette.infoBgSoft
         }
     }
 
@@ -337,6 +328,40 @@ struct AgendaLiveActivityView: View {
         let end = start.addingTimeInterval(total)
         return start...end
     }
+}
+
+// 本地 Palette，保持与 ThemeKit 一致，避免 Widget 依赖缺失
+private enum Palette {
+    static let bgBase = Color(red: 0.961, green: 0.953, blue: 0.925)
+    static let bgMuted = Color(red: 0.945, green: 0.945, blue: 0.953)
+
+    static let borderSubtle = Color(red: 0.878, green: 0.878, blue: 0.902)
+    static let borderStrong = Color(red: 0.773, green: 0.780, blue: 0.816)
+
+    static let textPrimary = Color(red: 0.067, green: 0.141, blue: 0.224)
+    static let textSecondary = Color(red: 0.424, green: 0.447, blue: 0.502)
+    static let textDisabled = Color(red: 0.612, green: 0.639, blue: 0.686)
+    static let textOnAccent = Color(red: 1.0, green: 1.0, blue: 1.0)
+
+    static let warningMain = Color(red: 1.0, green: 0.478, blue: 0.102)
+    static let warningBgSoft = Color(red: 1.0, green: 0.961, blue: 0.914)
+    static let warningBorder = Color(red: 1.0, green: 0.816, blue: 0.639)
+    static let warningText = Color(red: 0.604, green: 0.235, blue: 0.0)
+    static let warningHover = Color(red: 1.0, green: 0.549, blue: 0.2)
+    static let warningActive = Color(red: 0.91, green: 0.392, blue: 0.0)
+
+    static let successMain = Color(red: 0.133, green: 0.773, blue: 0.545)
+    static let successBgSoft = Color(red: 0.906, green: 0.984, blue: 0.957)
+    static let successBorder = Color(red: 0.659, green: 0.941, blue: 0.824)
+    static let successText = Color(red: 0.016, green: 0.424, blue: 0.306)
+    static let successHover = Color(red: 0.102, green: 0.686, blue: 0.478)
+    static let successActive = Color(red: 0.059, green: 0.588, blue: 0.404)
+
+    static let dangerMain = Color(red: 0.937, green: 0.267, blue: 0.267)
+    static let dangerBgSoft = Color(red: 0.996, green: 0.886, blue: 0.886)
+
+    static let infoMain = Color(red: 0.141, green: 0.388, blue: 0.922)
+    static let infoBgSoft = Color(red: 0.898, green: 0.929, blue: 1.0)
 }
 
 

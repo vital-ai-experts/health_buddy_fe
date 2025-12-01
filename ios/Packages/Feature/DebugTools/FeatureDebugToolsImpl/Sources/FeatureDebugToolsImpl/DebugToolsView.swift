@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 import LibraryNotification
 import FeatureOnboardingApi
 import DomainAuth
@@ -27,7 +28,7 @@ struct DebugToolsView: View {
                         resetOnboardingState()
                     } label: {
                         Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
-                            .foregroundColor(.orange)
+                            .foregroundColor(.Palette.warningMain)
                     }
 
                     Text(onboardingStatusText)
@@ -37,22 +38,30 @@ struct DebugToolsView: View {
                 .padding(.vertical, 4)
             }
 
+            Section("功能调试") {
+                Button {
+                    openDungeonDetail()
+                } label: {
+                    Label("打开副本详情页", systemImage: "gamecontroller")
+                }
+            }
+
             // 推送通知
             Section("推送通知") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Device Token")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
 
                     if let token = notificationManager.deviceToken {
                         Text(token)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.Palette.textPrimary)
                             .textSelection(.enabled)
                     } else {
                         Text("未获取到 Device Token")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.Palette.warningMain)
                     }
                 }
                 .padding(.vertical, 4)
@@ -71,7 +80,7 @@ struct DebugToolsView: View {
                     Text("Bundle ID")
                     Spacer()
                     Text(Bundle.main.bundleIdentifier ?? "Unknown")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                         .font(.caption)
                 }
 
@@ -79,14 +88,14 @@ struct DebugToolsView: View {
                     Text("Version")
                     Spacer()
                     Text(appVersion)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
 
                 HStack {
                     Text("Build")
                     Spacer()
                     Text(appBuild)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
             }
 
@@ -95,14 +104,14 @@ struct DebugToolsView: View {
                     Text("iOS Version")
                     Spacer()
                     Text(UIDevice.current.systemVersion)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
 
                 HStack {
                     Text("Device Model")
                     Spacer()
                     Text(UIDevice.current.model)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
             }
         }
@@ -149,6 +158,11 @@ struct DebugToolsView: View {
         guard let token = notificationManager.deviceToken else { return }
         UIPasteboard.general.string = token
         showCopiedAlert = true
+    }
+
+    private func openDungeonDetail() {
+        guard let url = RouteManager.shared.buildURL(path: "/dungeon_detail") else { return }
+        RouteManager.shared.open(url: url)
     }
 
     private var appVersion: String {

@@ -5,6 +5,7 @@ import LibraryServiceLoader
 import FeatureDebugToolsApi
 import FeatureAgendaApi
 import LibraryBase
+import ThemeKit
 
 /// Me页面，显示用户信息和设置选项
 public struct ProfileView: View {
@@ -38,7 +39,7 @@ public struct ProfileView: View {
                         HStack {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.Palette.infoMain)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(user.fullName)
@@ -47,7 +48,7 @@ public struct ProfileView: View {
 
                                 Text(user.email.isEmpty ? "user@example.com" : user.email)
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.Palette.textSecondary)
                             }
 
                             Spacer()
@@ -140,7 +141,7 @@ struct SettingsView: View {
                 } label: {
                     HStack {
                         Label("重新授权 HealthKit", systemImage: "heart.text.square")
-                            .foregroundColor(.primary)
+                            .foregroundColor(.Palette.textPrimary)
 
                         Spacer()
 
@@ -153,7 +154,7 @@ struct SettingsView: View {
 
                 Text("如果您添加了新的健康数据权限，可以点击此按钮重新授权")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.Palette.textSecondary)
             }
 
             // 通用设置
@@ -254,7 +255,7 @@ struct AccountSettingsView: View {
                         HStack {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.Palette.infoMain)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(user.fullName)
@@ -263,7 +264,7 @@ struct AccountSettingsView: View {
 
                                 Text(user.email.isEmpty ? "user@example.com" : user.email)
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.Palette.textSecondary)
                             }
 
                             Spacer()
@@ -359,7 +360,7 @@ struct AboutView: View {
                     Text("版本")
                     Spacer()
                     Text("1.0.0")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.Palette.textSecondary)
                 }
             }
 

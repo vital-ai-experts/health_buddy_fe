@@ -9,7 +9,8 @@ let package = Package(
         .package(name: "FeatureAgendaApi", path: "../FeatureAgendaApi"),
         .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
-        .package(name: "LibraryNotification", path: "../../../Library/Notification")
+        .package(name: "LibraryNotification", path: "../../../Library/Notification"),
+        .package(name: "ThemeKit", path: "../../../Library/ThemeKit")
     ],
     targets: [
         .target(
@@ -18,7 +19,8 @@ let package = Package(
                 .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi"),
                 .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
-                .product(name: "LibraryNotification", package: "LibraryNotification")
+                .product(name: "LibraryNotification", package: "LibraryNotification"),
+                .product(name: "ThemeKit", package: "ThemeKit")
             ],
             path: "Sources"
         )
