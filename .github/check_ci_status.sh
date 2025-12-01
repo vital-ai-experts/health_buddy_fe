@@ -134,8 +134,8 @@ extract_and_print_logs() {
         if [ "$file_size" -gt 500 ]; then
             echo -e "${BLUE}日志文件较大 (${file_size} 行)，只显示包含错误和警告的部分...${NC}\n"
 
-            # 首先尝试提取错误信息
-            local error_lines=$(grep -i -E "error|失败|fail|❌" "$log_file" | tail -n 100)
+            # 首先尝试提取错误信息（grep 无匹配时返回 1，需要 || true 避免触发 set -e）
+            local error_lines=$(grep -i -E "error|失败|fail|❌" "$log_file" | tail -n 100 || true)
 
             if [ -n "$error_lines" ]; then
                 echo -e "${RED}=== 错误信息 ===${NC}"
@@ -144,7 +144,7 @@ extract_and_print_logs() {
             fi
 
             # 然后提取警告信息（限制数量）
-            local warning_lines=$(grep -i -E "warning|warn|⚠" "$log_file" | tail -n 50)
+            local warning_lines=$(grep -i -E "warning|warn|⚠" "$log_file" | tail -n 50 || true)
 
             if [ -n "$warning_lines" ]; then
                 echo -e "${YELLOW}=== 警告信息 (最后50条) ===${NC}"
