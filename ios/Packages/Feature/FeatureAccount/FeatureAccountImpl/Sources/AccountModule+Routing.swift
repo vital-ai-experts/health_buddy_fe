@@ -21,6 +21,20 @@ extension AccountModule {
         router.register(path: "/settings/about", defaultSurface: .tab) { _ in
             AnyView(AboutView())
         }
+
+        router.register(path: "/settings/profile", defaultSurface: .tab) { _ in
+            AnyView(ProfileSettingsRouteView())
+        }
+    }
+}
+
+private struct ProfileSettingsRouteView: View {
+    @EnvironmentObject var router: RouteManager
+
+    var body: some View {
+        ProfileView(onLogout: {
+            router.handleLogoutRequested()
+        })
     }
 }
 
