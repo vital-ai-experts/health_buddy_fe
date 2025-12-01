@@ -503,28 +503,40 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        ZStack {
-            // 主内容区域
-            Group {
-                switch router.currentTab {
-                case .agenda:
-                    agendaFeature.makeAgendaTabView()
-                case .profile:
-                    accountFeature.makeProfileView(onLogout: onLogout)
+        TabView(selection: Binding(
+            get: { router.currentTab },
+            set: { router.currentTab = $0 }
+        )) {
+            // Agenda Tab
+            agendaFeature.makeAgendaTabView()
+                .tabItem {
+                    Label("今天", systemImage: "calendar")
+                }
+                .tag(RouteManager.Tab.agenda)
+
+            // Profile Tab
+            accountFeature.makeProfileView(onLogout: onLogout)
+                .tabItem {
+                    Label("关于我", systemImage: "person.fill")
+                }
+                .tag(RouteManager.Tab.profile)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            // 圆形对话按钮
+            Button(action: handleChatButtonTapped) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 56, height: 56)
+                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white)
                 }
             }
-
-            // 自定义底部Tab栏
-            VStack {
-                Spacer()
-                CustomTabBar(
-                    selectedTab: Binding(
-                        get: { router.currentTab },
-                        set: { router.currentTab = $0 }
-                    ),
-                    onChatTapped: handleChatButtonTapped
-                )
-            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
     }
 
