@@ -500,38 +500,37 @@ struct MainTabView: View {
         self.agendaFeature = agendaFeature
         self.accountFeature = accountFeature
         self.onLogout = onLogout
+
+        // 隐藏系统TabBar
+        UITabBar.appearance().isHidden = true
     }
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { router.currentTab },
-            set: { router.currentTab = $0 }
-        )) {
-            // Agenda Tab
-            agendaFeature.makeAgendaTabView()
-                .tabItem {
-                    Label("今天", systemImage: "calendar")
+        ZStack {
+            // 内容区域
+            Group {
+                switch router.currentTab {
+                case .agenda:
+                    agendaFeature.makeAgendaTabView()
+                        .transition(.opacity)
+                case .profile:
+                    accountFeature.makeProfileView(onLogout: onLogout)
+                        .transition(.opacity)
                 }
-                .tag(RouteManager.Tab.agenda)
+            }
+            .animation(.easeInOut(duration: 0.2), value: router.currentTab)
 
-            // Profile Tab
-            accountFeature.makeProfileView(onLogout: onLogout)
-                .tabItem {
-                    Label("关于我", systemImage: "person.fill")
-                }
-                .tag(RouteManager.Tab.profile)
-        }
-        .toolbar(.hidden, for: .tabBar)  // 隐藏系统TabBar
-        .safeAreaInset(edge: .bottom) {
-            // 自定义TabBar，支持液态玻璃拖动效果
-            CustomTabBar(
-                selectedTab: Binding(
-                    get: { router.currentTab },
-                    set: { router.currentTab = $0 }
-                ),
-                onChatTapped: handleChatButtonTapped
-            )
-            .background(.clear)
+            // 自定义TabBar
+            VStack {
+                Spacer()
+                CustomTabBar(
+                    selectedTab: Binding(
+                        get: { router.currentTab },
+                        set: { router.currentTab = $0 }
+                    ),
+                    onChatTapped: handleChatButtonTapped
+                )
+            }
         }
     }
 
