@@ -122,15 +122,17 @@ private struct ExpertInsightView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(insight.greeting)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.black)
+            HStack(alignment: .top, spacing: 0) {
+                Text(insight.greeting)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.black)
                 + Text(" \(insight.userName)。")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.black)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.black)
                 + Text(insight.analysis)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundColor(.black.opacity(0.75))
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.black.opacity(0.75))
+            }
 
             Text(insight.recommendation)
                 .font(.system(size: 16, weight: .regular))
