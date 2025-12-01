@@ -4,118 +4,108 @@ struct AgendaCardView: View {
     let task: AgendaTask
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(task.title)
-                    .font(.title3).bold()
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                Text(task.subtitle)
-                    .font(.footnote)
-                    .foregroundColor(.white.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(2)
+        VStack(alignment: .leading, spacing: 12) {
+            // 顶部：标题和奖励
+            HStack(alignment: .top, spacing: 12) {
+                Text(task.emoji)
+                    .font(.system(size: 28))
 
-                if !task.tags.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(task.tags, id: \.self) { tag in
-                            label(text: tag, systemImage: "shield.fill", color: .orange)
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(task.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.black.opacity(0.9))
+
+                    Text(task.subtitle)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.black.opacity(0.65))
                 }
+
+                Spacer()
             }
 
-            Spacer(minLength: 6)
+            // 描述
+            Text(task.description)
+                .font(.system(size: 14))
+                .foregroundColor(.black.opacity(0.7))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .center, spacing: 6) {
-                Button(action: {}) {
-                    Text(buttonTitle(for: task.status))
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                }
-                .foregroundColor(buttonStyle(for: task.status).foreground)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(buttonStyle(for: task.status).background)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(buttonStyle(for: task.status).border, lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 3)
-                .disabled(task.status == .failed)
-
-                Text(statusText(for: task.status, countdown: task.countdown))
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.85))
+            // 时间窗口
+            HStack(spacing: 6) {
+                Text(task.countdown)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.black.opacity(0.6))
             }
-            .frame(width: 100, alignment: .trailing)
+            .padding(.top, 4)
+
+            // 操作按钮
+            TaskActionButton(actionType: task.actionType, status: task.status)
         }
-        .padding(12)
-        .background(task.accent.gradient)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.7))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: Color.black.opacity(0.35), radius: 12, x: 0, y: 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.black.opacity(0.06), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
     }
+}
 
-    private func label(text: String, systemImage: String, color: Color) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: systemImage)
-            Text(text)
+/// 任务操作按钮
+private struct TaskActionButton: View {
+    let actionType: AgendaTask.TaskActionType
+    let status: AgendaTaskStatus
+
+    var body: some View {
+        Button(action: {
+            // TODO: 处理任务操作
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: iconName)
+                    .font(.system(size: 14, weight: .medium))
+                Text(buttonText)
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .foregroundColor(status == .completed ? .white : .black.opacity(0.7))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(backgroundColor)
+            )
         }
-        .font(.caption2)
-        .foregroundColor(color)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.black.opacity(0.25))
-        .clipShape(Capsule())
+        .disabled(status == .failed)
     }
 
-    private func buttonTitle(for status: AgendaTaskStatus) -> String {
-        switch status {
-        case .completed:
-            return "领取奖励"
-        case .failed:
-            return "已失效"
-        case .inProgress:
-            return "去完成"
-        }
-    }
-
-    private func buttonStyle(for status: AgendaTaskStatus) -> (background: Color, foreground: Color, border: Color) {
-        switch status {
-        case .completed:
-            return (
-                background: Color(red: 1.0, green: 0.82, blue: 0.3), // 更浓的金色
-                foreground: .black,
-                border: Color.white.opacity(0.6)
-            )
-        case .inProgress:
-            return (
-                background: Color.yellow.opacity(0.65),             // 更浅的黄
-                foreground: .black,
-                border: Color.black.opacity(0.08)
-            )
-        case .failed:
-            return (
-                background: Color.gray.opacity(0.55),               // 更明显的灰
-                foreground: .white.opacity(0.85),
-                border: Color.black.opacity(0.2)
-            )
+    private var iconName: String {
+        switch actionType {
+        case .photo: return "camera.fill"
+        case .check: return "checkmark.circle.fill"
+        case .play: return "play.circle.fill"
+        case .sync: return "arrow.triangle.2.circlepath"
         }
     }
 
-    private func statusText(for status: AgendaTaskStatus, countdown: String) -> String {
+    private var buttonText: String {
+        switch actionType {
+        case .photo(let text): return text
+        case .check(let text): return text
+        case .play(let text): return text
+        case .sync(let text): return text
+        }
+    }
+
+    private var backgroundColor: Color {
         switch status {
         case .completed:
-            return "已完成"
+            return Color(red: 0.4, green: 0.9, blue: 0.6)
         case .failed:
-            return "任务已过期"
+            return Color.gray.opacity(0.3)
         case .inProgress:
-            return countdown
+            return Color.white.opacity(0.5)
         }
     }
 }
@@ -123,18 +113,13 @@ struct AgendaCardView: View {
 #Preview {
     let samples = AgendaTask.sampleTasks
 
-    return VStack(spacing: 16) {
-        ForEach(Array(samples.prefix(4))) { task in
-            AgendaCardView(task: task)
+    return ScrollView {
+        VStack(spacing: 16) {
+            ForEach(Array(samples.prefix(3))) { task in
+                AgendaCardView(task: task)
+            }
         }
+        .padding()
     }
-    .padding()
-    .background(
-        LinearGradient(
-            gradient: Gradient(colors: [Color.black.opacity(0.92), Color.blue.opacity(0.4)]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    )
-    .environment(\.colorScheme, .dark)
+    .background(Color(red: 0.98, green: 0.98, blue: 0.96))
 }

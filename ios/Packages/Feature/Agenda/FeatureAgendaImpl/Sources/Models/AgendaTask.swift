@@ -2,13 +2,25 @@ import SwiftUI
 
 struct AgendaTask: Identifiable {
     let id = UUID()
+    let emoji: String // 任务图标（emoji）
     let title: String
     let subtitle: String
+    let description: String
     let countdown: String
     let tags: [String]
     let reward: String
+    let rewardDescription: String
     let status: AgendaTaskStatus
     let accent: AgendaTheme
+    let timeWindow: String // 时间窗口
+    let actionType: TaskActionType
+
+    enum TaskActionType {
+        case photo(String) // 拍摄打卡，参数为提示文本
+        case check(String) // 勾选确认，参数为提示文本
+        case play(String) // 播放音频，参数为提示文本
+        case sync(String) // 同步数据，参数为提示文本
+    }
 }
 
 enum AgendaTaskStatus {
