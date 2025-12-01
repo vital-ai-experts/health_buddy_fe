@@ -28,6 +28,16 @@ struct CustomTabBar: View {
     private let horizontalPadding: CGFloat = 8
     // TabBar 高度
     private let tabBarHeight: CGFloat = 56
+    // 暖色系底色，区分明暗模式
+    private var warmTintColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.52, green: 0.42, blue: 0.36)
+            : Color(red: 0.94, green: 0.88, blue: 0.80)
+    }
+
+    private var warmOverlayOpacity: Double {
+        colorScheme == .dark ? 0.42 : 0.34
+    }
 
     private var tabBarWidth: CGFloat {
         CGFloat(tabs.count) * tabItemWidth + horizontalPadding * 2
@@ -147,11 +157,21 @@ struct CustomTabBar: View {
             // iOS 26+: 使用液态玻璃效果
             Capsule()
                 .glassEffect(.regular.interactive())
+                .overlay(
+                    Capsule()
+                        .fill(warmTintColor)
+                        .opacity(warmOverlayOpacity)
+                )
         } else {
             // 旧系统: 使用普通模糊材质
             Capsule()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.95 : 0.85)
+                .opacity(colorScheme == .dark ? 0.95 : 0.88)
+                .overlay(
+                    Capsule()
+                        .fill(warmTintColor)
+                        .opacity(warmOverlayOpacity)
+                )
         }
     }
 
@@ -161,11 +181,21 @@ struct CustomTabBar: View {
             // iOS 26+: 使用液态玻璃效果
             Circle()
                 .glassEffect(.regular.interactive())
+                .overlay(
+                    Circle()
+                        .fill(warmTintColor)
+                        .opacity(warmOverlayOpacity)
+                )
         } else {
             // 旧系统: 使用普通模糊材质
             Circle()
                 .fill(.ultraThinMaterial)
-                .opacity(colorScheme == .dark ? 0.95 : 0.85)
+                .opacity(colorScheme == .dark ? 0.95 : 0.88)
+                .overlay(
+                    Circle()
+                        .fill(warmTintColor)
+                        .opacity(warmOverlayOpacity)
+                )
         }
     }
 }
