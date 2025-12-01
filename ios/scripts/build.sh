@@ -260,15 +260,15 @@ if [ "$DEVICE_TYPE" = "simulator" ]; then
         DESTINATION="platform=iOS Simulator,id=${DEVICE_UDID}"
         log_info "检测到运行中的模拟器: ${DEVICE_NAME}"
     else
-        # 动态查找可用的模拟器
-        DEVICE_UDID=""
-        DEVICE_NAME=$(xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//")
-        if [ -z "$DEVICE_NAME" ]; then
+        # 动态查找可用的模拟器 - 使用第一个可用的 iOS 模拟器（任意 iOS 版本）
+        DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | grep -E -o "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}")
+        if [ -z "$DEVICE_UDID" ]; then
             log_error "未找到可用的 iPhone 模拟器"
             exit 1
         fi
-        DESTINATION="platform=iOS Simulator,name=${DEVICE_NAME}"
-        log_warning "未检测到运行中的模拟器，使用可用模拟器: ${DEVICE_NAME}"
+        DEVICE_NAME=$(xcrun simctl list devices | grep "$DEVICE_UDID" | sed -E 's/^[[:space:]]*([^(]+).*/\1/' | xargs)
+        DESTINATION="platform=iOS Simulator,id=${DEVICE_UDID}"
+        log_warning "未检测到运行中的模拟器，使用可用模拟器: ${DEVICE_NAME} (${DEVICE_UDID})"
     fi
 else
     # 真机模式

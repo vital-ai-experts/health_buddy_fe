@@ -72,6 +72,104 @@ get_job_logs() {
          "${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/jobs/${job_id}/logs"
 }
 
+# 函数：获取 workflow run 的 artifacts
+get_workflow_artifacts() {
+    local run_id=$1
+    call_github_api "/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${run_id}/artifacts"
+}
+
+# 函数：下载 artifact
+download_artifact() {
+    local artifact_id=$1
+    local output_file=$2
+
+    echo -e "${BLUE}正在下载 artifact (ID: ${artifact_id})...${NC}"
+
+    # 获取 artifact 下载 URL
+    local download_url="${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/actions/artifacts/${artifact_id}/zip"
+
+    # 下载 artifact
+    curl -L -H "Authorization: token ${GITHUB_CI_TOKEN}" \
+         -H "Accept: application/vnd.github.v3+json" \
+         "${download_url}" -o "${output_file}"
+
+    if [ -f "${output_file}" ]; then
+        echo -e "${GREEN}✓ Artifact 下载成功: ${output_file}${NC}"
+        return 0
+    else
+        echo -e "${RED}✗ Artifact 下载失败${NC}"
+        return 1
+    fi
+}
+
+# 函数：解压缩并打印编译日志
+extract_and_print_logs() {
+    local zip_file=$1
+    local temp_dir=$(mktemp -d)
+
+    echo -e "${BLUE}正在解压缩 artifact...${NC}"
+
+    # 解压缩到临时目录
+    unzip -q "${zip_file}" -d "${temp_dir}"
+
+    # 查找所有 .log 文件
+    local log_files=$(find "${temp_dir}" -name "*.log" -type f)
+
+    if [ -z "$log_files" ]; then
+        echo -e "${YELLOW}未找到日志文件${NC}"
+        rm -rf "${temp_dir}"
+        return 1
+    fi
+
+    # 打印每个日志文件
+    echo "$log_files" | while read -r log_file; do
+        local log_name=$(basename "$log_file")
+        echo -e "\n${YELLOW}==================================================${NC}"
+        echo -e "${YELLOW}编译日志: ${log_name}${NC}"
+        echo -e "${YELLOW}==================================================${NC}"
+
+        # 检查日志文件大小
+        local file_size=$(wc -l < "$log_file")
+
+        if [ "$file_size" -gt 500 ]; then
+            echo -e "${BLUE}日志文件较大 (${file_size} 行)，只显示包含错误和警告的部分...${NC}\n"
+
+            # 首先尝试提取错误信息（grep 无匹配时返回 1，需要 || true 避免触发 set -e）
+            local error_lines=$(grep -i -E "error|失败|fail|❌" "$log_file" | tail -n 100 || true)
+
+            if [ -n "$error_lines" ]; then
+                echo -e "${RED}=== 错误信息 ===${NC}"
+                echo "$error_lines"
+                echo ""
+            fi
+
+            # 然后提取警告信息（限制数量）
+            local warning_lines=$(grep -i -E "warning|warn|⚠" "$log_file" | tail -n 50 || true)
+
+            if [ -n "$warning_lines" ]; then
+                echo -e "${YELLOW}=== 警告信息 (最后50条) ===${NC}"
+                echo "$warning_lines"
+                echo ""
+            fi
+
+            # 最后显示日志的最后部分
+            echo -e "${BLUE}=== 日志末尾 (最后100行) ===${NC}"
+            tail -n 100 "$log_file"
+        else
+            # 如果文件不大，直接显示全部内容
+            cat "$log_file"
+        fi
+
+        echo -e "${YELLOW}==================================================${NC}"
+    done
+
+    # 清理临时目录
+    rm -rf "${temp_dir}"
+    rm -f "${zip_file}"
+
+    return 0
+}
+
 # 函数：打印失败的 job 日志
 print_failed_job_logs() {
     local run_id=$1
@@ -96,6 +194,43 @@ print_failed_job_logs() {
         # 打印日志（只打印最后 200 行，避免输出过多）
         echo "$logs" | tail -n 200
         echo -e "${YELLOW}--------------------------------------------------${NC}"
+    done
+
+    # 尝试下载并解析 artifacts 中的编译日志
+    echo -e "\n${BLUE}==================================================${NC}"
+    echo -e "${BLUE}检查是否有编译日志 artifacts...${NC}"
+    echo -e "${BLUE}==================================================${NC}"
+
+    artifacts_response=$(get_workflow_artifacts "$run_id")
+    total_artifacts=$(echo "$artifacts_response" | jq -r '.total_count')
+
+    if [ "$total_artifacts" -eq 0 ]; then
+        echo -e "${YELLOW}未找到 artifacts${NC}"
+        return
+    fi
+
+    echo -e "${BLUE}找到 ${total_artifacts} 个 artifact(s)${NC}"
+
+    # 查找 build-artifacts
+    echo "$artifacts_response" | jq -r '.artifacts[] | @json' | while read -r artifact; do
+        artifact_name=$(echo "$artifact" | jq -r '.name')
+        artifact_id=$(echo "$artifact" | jq -r '.id')
+        artifact_size=$(echo "$artifact" | jq -r '.size_in_bytes')
+
+        echo -e "\n${BLUE}找到 Artifact: ${artifact_name} (ID: ${artifact_id}, 大小: ${artifact_size} bytes)${NC}"
+
+        # 如果是 build-artifacts，下载并解析
+        if [[ "$artifact_name" == "build-artifacts" ]] || [[ "$artifact_name" == *"build"* ]]; then
+            local temp_zip="/tmp/artifact_${artifact_id}.zip"
+
+            if download_artifact "$artifact_id" "$temp_zip"; then
+                extract_and_print_logs "$temp_zip"
+            else
+                echo -e "${RED}无法下载 artifact${NC}"
+            fi
+        else
+            echo -e "${YELLOW}跳过非编译日志 artifact: ${artifact_name}${NC}"
+        fi
     done
 }
 
