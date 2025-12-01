@@ -8,6 +8,8 @@ public struct AboutMeView: View {
     @State private var user: DomainAuth.User?
     @State private var isLoading = true
     @State private var showingInfoSheet = false
+    @State private var editingSection: AboutMeSection?
+    @State private var aboutMeData = AboutMeData.mock
 
     private let authService: AuthenticationService
 
@@ -39,27 +41,44 @@ public struct AboutMeView: View {
         .sheet(isPresented: $showingInfoSheet) {
             infoSheetContent
         }
+        .sheet(item: $editingSection) { section in
+            AboutMeEditSheet(section: section, data: $aboutMeData)
+        }
     }
 
     // MARK: - Header Section
 
     @ViewBuilder
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        HStack(spacing: 16) {
             if isLoading {
                 ProgressView()
             } else {
-                // 头像
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.blue.opacity(0.8))
+                // 头像 - 猫猫
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.orange.opacity(0.3), Color.orange.opacity(0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+                    
+                    Text("🐱")
+                        .font(.system(size: 48))
+                }
 
                 // 昵称
-                Text(user?.fullName ?? "用户")
+                Text("Jason")
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundColor(.primary)
+                
+                Spacer()
             }
         }
+        .padding(.horizontal, 24)
     }
 
     // MARK: - Content Section
@@ -75,36 +94,28 @@ public struct AboutMeView: View {
             )
 
             // 目标 (The Core Drivers)
-            aiInsightCard(
-                title: "目标",
-                subtitle: "The Core Drivers"
-            ) {
-                goalsContent
-            }
+            GoalsCardView(
+                data: aboutMeData.goals,
+                onEdit: { editingSection = .goals }
+            )
 
             // 生理信息 (Bio-Hardware)
-            aiInsightCard(
-                title: "生理信息",
-                subtitle: "Bio-Hardware"
-            ) {
-                bioHardwareContent
-            }
+            BioHardwareCardView(
+                data: aboutMeData.bioHardware,
+                onEdit: { editingSection = .bioHardware }
+            )
 
             // 行为与偏好 (Neuro-Software)
-            aiInsightCard(
-                title: "行为与偏好",
-                subtitle: "Neuro-Software"
-            ) {
-                neuroSoftwareContent
-            }
+            NeuroSoftwareCardView(
+                data: aboutMeData.neuroSoftware,
+                onEdit: { editingSection = .neuroSoftware }
+            )
 
             // 历史档案 (The Archives)
-            aiInsightCard(
-                title: "历史档案",
-                subtitle: "The Archives"
-            ) {
-                archivesContent
-            }
+            ArchivesCardView(
+                data: aboutMeData.archives,
+                onEdit: { editingSection = .archives }
+            )
         }
     }
 
@@ -129,191 +140,6 @@ public struct AboutMeView: View {
             Spacer()
         }
         .padding(.bottom, 8)
-    }
-
-    // MARK: - AI Insight Card
-
-    @ViewBuilder
-    private func aiInsightCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // 卡片标题
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Text(subtitle)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-
-            // 卡片内容
-            content()
-        }
-        .padding(24)
-        .background(Color(uiColor: .systemBackground))
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-    }
-
-    // MARK: - Content Builders
-
-    @ViewBuilder
-    private var goalsContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-                insightItem(
-                    emoji: "🏷️",
-                    title: "表层意图 (Surface Goal)",
-                    description: "\"提升精力，消除下午的脑雾。\""
-                )
-
-                insightItem(
-                    emoji: "🔑",
-                    title: "深层动机 (Deep Motivation)",
-                    description: "[职业恐惧]：你曾在对话中提到\"担心35岁后拼不过年轻人\"。你的核心驱动力不是健康本身，而是**\"保持职场竞争力\"和\"认知敏锐度\"**。"
-                )
-
-                insightItem(
-                    emoji: "🚫",
-                    title: "潜在障碍 (The Obstacle)",
-                    description: "[全有全无心态]：你倾向于制定完美的计划，一旦有一天没做到（比如偷吃了），就会产生强烈的挫败感并彻底放弃。",
-                    aiThinking: "需为你提供高容错率的方案。"
-                )
-        }
-    }
-
-    @ViewBuilder
-    private var bioHardwareContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-                insightItem(
-                    emoji: "🧬",
-                    title: "昼夜节律 (Chronotype)",
-                    description: "[夜猫子型 (Wolf)]：数据显示你的自然觉醒时间在 09:30。强迫 06:00 起床会让你皮质醇飙升。",
-                    aiThinking: "当前策略 - 推迟高强度任务至 10:00 以后。"
-                )
-
-                insightItem(
-                    emoji: "☕️",
-                    title: "咖啡因代谢 (Caffeine Sensitivity)",
-                    description: "[慢代谢者]：你在下午 14:00 喝咖啡会导致当晚入睡潜伏期增加 45 分钟。",
-                    aiThinking: "当前策略 - 为你设置了 12:00 的咖啡因熔断机制。"
-                )
-
-                insightItem(
-                    emoji: "🔋",
-                    title: "压力耐受度 (Stress Resilience)",
-                    description: "[中低]：静息心率 (RHR) 对压力反应敏感。高压会议后，你的 HRV 恢复时间通常需要 4 小时。"
-                )
-        }
-    }
-
-    @ViewBuilder
-    private var neuroSoftwareContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-                insightItem(
-                    emoji: "🥗",
-                    title: "饮食弱点 (Dietary Kryptonite)",
-                    description: "[碳水安抚]：在高压状态下（心率 > 100），你点\"高碳水外卖\"的概率高达 90%。"
-                )
-
-                insightItem(
-                    emoji: "🏃",
-                    title: "运动偏好 (Exercise Preference)",
-                    description: "[独狼模式] & [数据驱动]：你不喜欢团课，喜欢盯着 Apple Watch 的圆环看。你更愿意执行\"且有明确数据反馈\"的任务（如 Zone 2 跑步），而不是模糊的任务（如冥想）。"
-                )
-
-                insightItem(
-                    emoji: "💤",
-                    title: "助眠触发器 (Sleep Trigger)",
-                    description: "[声音敏感]：白噪音对你无效，但\"播客（人声）\"能让你在 15 分钟内入睡。"
-                )
-        }
-    }
-
-    @ViewBuilder
-    private var archivesContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("❌ 过去失败的项目")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("• 生酮饮食")
-                            .font(.system(size: 15, weight: .medium))
-                        Text("  坚持了 2 周。")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                        Text("  失败原因：社交困扰，无法和同事聚餐。")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("• 晨跑计划")
-                            .font(.system(size: 15, weight: .medium))
-                        Text("  坚持了 3 天。")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                        Text("  失败原因：起不来，导致全天精神萎靡。")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("✅ 本次策略调整")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.green)
-
-                    Text("• 不采用极端饮食，改为\"饮食顺序调整法\"。")
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary)
-
-                    Text("• 不强迫晨跑，改为\"下班后快走\"。")
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary)
-                }
-        }
-    }
-
-    // MARK: - Insight Item
-
-    @ViewBuilder
-    private func insightItem(emoji: String, title: String, description: String, aiThinking: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(emoji)
-                    .font(.system(size: 20))
-
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-            }
-
-            Text(description)
-                .font(.system(size: 15))
-                .foregroundColor(.primary)
-                .lineSpacing(4)
-
-            if let thinking = aiThinking {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("AI 🤔:")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.blue)
-
-                    Text(thinking)
-                        .font(.system(size: 14))
-                        .foregroundColor(.blue.opacity(0.8))
-                }
-                .padding(12)
-                .background(Color.blue.opacity(0.08))
-                .cornerRadius(12)
-            }
-        }
     }
 
     // MARK: - Info Sheet
