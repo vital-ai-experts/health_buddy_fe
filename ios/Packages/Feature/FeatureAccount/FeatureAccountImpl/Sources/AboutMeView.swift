@@ -164,13 +164,13 @@ public struct AboutMeView: View {
                 insightItem(
                     emoji: "🏷️",
                     title: "表层意图 (Surface Goal)",
-                    description: ""提升精力，消除下午的脑雾。""
+                    description: "\"提升精力，消除下午的脑雾。\""
                 )
 
                 insightItem(
                     emoji: "🔑",
                     title: "深层动机 (Deep Motivation)",
-                    description: "[职业恐惧]：你曾在对话中提到"担心35岁后拼不过年轻人"。你的核心驱动力不是健康本身，而是**"保持职场竞争力"和"认知敏锐度"**。"
+                    description: "[职业恐惧]：你曾在对话中提到\"担心35岁后拼不过年轻人\"。你的核心驱动力不是健康本身，而是**\"保持职场竞争力\"和\"认知敏锐度\"**。"
                 )
 
                 insightItem(
@@ -213,19 +213,19 @@ public struct AboutMeView: View {
                 insightItem(
                     emoji: "🥗",
                     title: "饮食弱点 (Dietary Kryptonite)",
-                    description: "[碳水安抚]：在高压状态下（心率 > 100），你点"高碳水外卖"的概率高达 90%。"
+                    description: "[碳水安抚]：在高压状态下（心率 > 100），你点\"高碳水外卖\"的概率高达 90%。"
                 )
 
                 insightItem(
                     emoji: "🏃",
                     title: "运动偏好 (Exercise Preference)",
-                    description: "[独狼模式] & [数据驱动]：你不喜欢团课，喜欢盯着 Apple Watch 的圆环看。你更愿意执行"且有明确数据反馈"的任务（如 Zone 2 跑步），而不是模糊的任务（如冥想）。"
+                    description: "[独狼模式] & [数据驱动]：你不喜欢团课，喜欢盯着 Apple Watch 的圆环看。你更愿意执行\"且有明确数据反馈\"的任务（如 Zone 2 跑步），而不是模糊的任务（如冥想）。"
                 )
 
                 insightItem(
                     emoji: "💤",
                     title: "助眠触发器 (Sleep Trigger)",
-                    description: "[声音敏感]：白噪音对你无效，但"播客（人声）"能让你在 15 分钟内入睡。"
+                    description: "[声音敏感]：白噪音对你无效，但\"播客（人声）\"能让你在 15 分钟内入睡。"
                 )
         }
     }
@@ -269,11 +269,11 @@ public struct AboutMeView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.green)
 
-                    Text("• 不采用极端饮食，改为"饮食顺序调整法"。")
+                    Text("• 不采用极端饮食，改为\"饮食顺序调整法\"。")
                         .font(.system(size: 14))
                         .foregroundColor(.primary)
 
-                    Text("• 不强迫晨跑，改为"下班后快走"。")
+                    Text("• 不强迫晨跑，改为\"下班后快走\"。")
                         .font(.system(size: 14))
                         .foregroundColor(.primary)
                 }
@@ -323,7 +323,7 @@ public struct AboutMeView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("这是基于我们过去的 42 次对话、Onboarding 访谈以及 14 天的穿戴数据，我为你构建的"数字孪生"。")
+                    Text("这是基于我们过去的 42 次对话、Onboarding 访谈以及 14 天的穿戴数据，我为你构建的\"数字孪生\"。")
                         .font(.system(size: 16))
                         .foregroundColor(.primary)
                         .lineSpacing(6)
