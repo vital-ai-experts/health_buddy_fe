@@ -23,14 +23,24 @@ public final class AccountBuilder: FeatureAccountBuildable {
     }
 }
 
-/// ProfileView 的 Tab 包装器，带有独立的 NavigationStack
+/// AboutMeView 的 Tab 包装器，带有独立的 NavigationStack
 private struct ProfileTabView: View {
     @EnvironmentObject var router: RouteManager
     let onLogout: () -> Void
 
     var body: some View {
         NavigationStack(path: $router.profilePath) {
-            ProfileView(onLogout: onLogout)
+            AboutMeView()
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            openSettings()
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 18))
+                        }
+                    }
+                }
                 .navigationDestination(for: RouteMatch.self) { match in
                     print("[ProfileTab] navigationDestination: \(match.path)")
                     return router.buildView(for: match)
@@ -39,6 +49,13 @@ private struct ProfileTabView: View {
         .onAppear {
             // 更新当前 tab
             router.currentTab = .profile
+        }
+    }
+
+    private func openSettings() {
+        let trimmedPath = "settings/profile"
+        if let url = URL(string: "thrivebody://\(trimmedPath)") {
+            router.open(url: url)
         }
     }
 }
