@@ -334,11 +334,9 @@ struct RootView: View {
         // 切到主页面
         appState = .mainPage
 
-        // 切 tab，默认保持当前 tab，sendmsg 存在时强制聊天 tab
+        // 切 tab，默认保持当前 tab
         if let tabValue = queryItems["tab"]?.lowercased() {
             switch tabValue {
-            case "chat":
-                router.currentTab = .chat
             case "agenda":
                 router.currentTab = .agenda
             case "profile":
@@ -346,17 +344,19 @@ struct RootView: View {
             default:
                 break
             }
-        } else if queryItems["sendmsg"] != nil {
-            router.currentTab = .chat
         }
 
-        // 预置要发送的消息
+        // 预置要发送的消息（如果需要发送消息，则打开对话页面）
         if let rawMessage = queryItems["sendmsg"], !rawMessage.isEmpty {
             let cleaned = rawMessage
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             if !cleaned.isEmpty {
                 router.enqueueChatMessage(cleaned)
+                // 打开对话页面
+                if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
+                    router.open(url: chatURL)
+                }
             }
         }
 
@@ -481,7 +481,7 @@ private class PreviewAuthService: AuthenticationService {
 
 // MARK: - MainTabView
 
-/// 主界面TabView，包含AI助手、Agenda占位和我的三个Tab
+/// 主界面TabView，包含今天和关于我两个Tab，以及独立的对话按钮
 struct MainTabView: View {
     @EnvironmentObject private var router: RouteManager
 
@@ -503,30 +503,39 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { router.currentTab },
-            set: { router.currentTab = $0 }
-        )) {
-            // Talk Tab
-            chatFeature.makeChatTabView()
-                .tabItem {
-                    Label("对话", systemImage: "message.fill")
-                }
-                .tag(RouteManager.Tab.chat)
+        ZStack {
+            // 使用 TabView 管理页面切换
+            TabView(selection: Binding(
+                get: { router.currentTab },
+                set: { router.currentTab = $0 }
+            )) {
+                agendaFeature.makeAgendaTabView()
+                    .tag(RouteManager.Tab.agenda)
+                    .toolbar(.hidden, for: .tabBar)
 
-            // Agenda Tab (Placeholder)
-            agendaFeature.makeAgendaTabView()
-                .tabItem {
-                    Label("任务", systemImage: "checklist")
-                }
-                .tag(RouteManager.Tab.agenda)
+                accountFeature.makeProfileView(onLogout: onLogout)
+                    .tag(RouteManager.Tab.profile)
+                    .toolbar(.hidden, for: .tabBar)
+            }
 
-            // Me Tab
-            accountFeature.makeProfileView(onLogout: onLogout)
-                .tabItem {
-                    Label("我", systemImage: "person.fill")
-                }
-                .tag(RouteManager.Tab.profile)
+            // 自定义TabBar
+            VStack {
+                Spacer()
+                CustomTabBar(
+                    selectedTab: Binding(
+                        get: { router.currentTab },
+                        set: { router.currentTab = $0 }
+                    ),
+                    onChatTapped: handleChatButtonTapped
+                )
+            }
+        }
+    }
+
+    private func handleChatButtonTapped() {
+        // 以fullscreen方式打开对话页面
+        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
+            router.open(url: chatURL)
         }
     }
 }

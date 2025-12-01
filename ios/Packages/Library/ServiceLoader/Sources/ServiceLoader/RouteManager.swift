@@ -66,9 +66,8 @@ public final class RouteManager: ObservableObject, RouteRegistering {
     }
 
     // 为每个 tab 维护独立的导航路径
-    @Published public var chatPath = NavigationPath()
     @Published public var profilePath = NavigationPath()
-    @Published public var currentTab: Tab = .chat {
+    @Published public var currentTab: Tab = .agenda {
         didSet {
             print("[RouteManager] 📍 Current tab changed to: \(currentTab)")
         }
@@ -85,7 +84,6 @@ public final class RouteManager: ObservableObject, RouteRegistering {
     private let lock = NSLock()
 
     public enum Tab {
-        case chat
         case agenda
         case profile
     }
@@ -194,9 +192,6 @@ public final class RouteManager: ObservableObject, RouteRegistering {
         case .tab:
             // 根据当前 tab 往对应的 path 中 append
             switch currentTab {
-            case .chat:
-                print("[RouteManager] 🚀 open: \(context.path) on Chat tab, current path.count = \(chatPath.count)")
-                chatPath.append(match)
             case .agenda:
                 print("[RouteManager] 🚀 open: \(context.path) on Agenda tab")
                 // Agenda tab 暂时不支持导航

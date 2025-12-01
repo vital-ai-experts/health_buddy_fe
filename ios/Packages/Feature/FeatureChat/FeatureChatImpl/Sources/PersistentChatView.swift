@@ -9,6 +9,7 @@ import ResourceKit
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
 
@@ -38,6 +39,16 @@ struct PersistentChatView: View {
         .navigationTitle("对话")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(role: .destructive) {

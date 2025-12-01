@@ -21,21 +21,13 @@ public final class ChatBuilder: FeatureChatBuildable {
     }
 }
 
-/// ChatView 的 Tab 包装器，带有独立的 NavigationStack
+/// ChatView 包装器，用于fullscreen展示
 private struct ChatTabView: View {
     @EnvironmentObject var router: RouteManager
 
     var body: some View {
-        NavigationStack(path: $router.chatPath) {
+        NavigationStack {
             PersistentChatView()
-                .navigationDestination(for: RouteMatch.self) { match in
-                    print("[ChatTab] navigationDestination: \(match.path)")
-                    return router.buildView(for: match)
-                }
-        }
-        .onAppear {
-            // 更新当前 tab
-            router.currentTab = .chat
         }
     }
 }

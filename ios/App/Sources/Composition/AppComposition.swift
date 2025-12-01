@@ -22,7 +22,7 @@ enum AppComposition {
 
         // 3. 注册Features
         AccountModule.register(router: router)
-        ChatModule.register()
+        ChatModule.register(router: router)
         OnboardingModule.register()
         AgendaModule.register()
         DebugToolsFeatureModule.register(router: router)

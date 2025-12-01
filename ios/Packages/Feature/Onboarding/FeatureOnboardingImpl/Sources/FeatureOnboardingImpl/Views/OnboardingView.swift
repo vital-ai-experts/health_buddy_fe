@@ -152,8 +152,11 @@ struct OnboardingView: View {
 
     private func startDungeonAndFinish() {
         showDungeonDetail = false
-        router.currentTab = .chat
         router.enqueueChatMessage(viewModel.dungeonJoinMockMessage)
+        // 打开对话页面
+        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
+            router.open(url: chatURL)
+        }
         viewModel.completeAfterDungeonStart()
     }
 
