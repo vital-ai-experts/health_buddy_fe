@@ -2,19 +2,38 @@ import SwiftUI
 
 struct AgendaTask: Identifiable {
     let id = UUID()
+    let icon: String
     let title: String
-    let subtitle: String
-    let countdown: String
-    let tags: [String]
     let reward: String
-    let status: AgendaTaskStatus
-    let accent: AgendaTheme
+    let description: String
+    let timeTag: String
+    let completed: Bool
+    let actionType: TaskActionType
 }
 
-enum AgendaTaskStatus {
-    case inProgress
-    case completed
-    case failed
+enum TaskActionType {
+    case photo
+    case watch
+    case audio
+    case check
+
+    var icon: String {
+        switch self {
+        case .photo: return "📸"
+        case .watch: return "⌚️"
+        case .audio: return "▶️"
+        case .check: return "✅"
+        }
+    }
+
+    var actionText: String {
+        switch self {
+        case .photo: return "拍摄天空 (0/1)"
+        case .watch: return "同步手表步数"
+        case .audio: return "播放引导音频"
+        case .check: return "我已完成冷却"
+        }
+    }
 }
 
 enum AgendaTheme {

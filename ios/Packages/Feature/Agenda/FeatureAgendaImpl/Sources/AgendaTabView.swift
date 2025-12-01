@@ -1,34 +1,43 @@
 import SwiftUI
 import LibraryServiceLoader
 
-/// Agenda 主 Tab 视图，展示 RPG 风格的每日任务清单
+/// Agenda 主 Tab 视图，展示健康管理每日任务
 struct AgendaTabView: View {
     @EnvironmentObject private var router: RouteManager
 
     private let viewModel = AgendaTabViewModel()
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // 顶部话题列表
+                TopicListView(topics: viewModel.topics)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
+
+                // 全局状态区（"今天"模块）
+                TodayStatusView(
+                    bodyStatus: viewModel.bodyStatus,
+                    expertInsight: viewModel.expertInsight
+                )
+                .padding(.bottom, 32)
+
+                // 任务列表
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("任务")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 24)
+
                     ForEach(viewModel.tasks) { task in
-                        AgendaCardView(task: task)
+                        NewAgendaCardView(task: task)
+                            .padding(.horizontal, 24)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.bottom, 32)
             }
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black.opacity(0.9), Color.blue.opacity(0.35)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            )
-            .navigationTitle("今日任务")
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .background(Color(red: 0.96, green: 0.96, blue: 0.94))
         .onAppear {
             router.currentTab = .agenda
         }
@@ -38,11 +47,13 @@ struct AgendaTabView: View {
 #Preview {
     AgendaTabView()
         .environmentObject(RouteManager())
-        .environment(\.colorScheme, .dark)
 }
 
 // MARK: - View Model
 
 private final class AgendaTabViewModel {
+    let topics: [Topic] = Topic.sampleTopics
+    let bodyStatus: BodyStatus = .sample
+    let expertInsight: ExpertInsight = .sample
     let tasks: [AgendaTask] = AgendaTask.sampleTasks
 }
