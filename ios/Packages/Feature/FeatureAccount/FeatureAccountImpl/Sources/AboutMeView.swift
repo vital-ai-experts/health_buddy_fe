@@ -77,30 +77,34 @@ public struct AboutMeView: View {
             // 目标 (The Core Drivers)
             aiInsightCard(
                 title: "目标",
-                subtitle: "The Core Drivers",
-                content: goalsContent
-            )
+                subtitle: "The Core Drivers"
+            ) {
+                goalsContent
+            }
 
             // 生理信息 (Bio-Hardware)
             aiInsightCard(
                 title: "生理信息",
-                subtitle: "Bio-Hardware",
-                content: bioHardwareContent
-            )
+                subtitle: "Bio-Hardware"
+            ) {
+                bioHardwareContent
+            }
 
             // 行为与偏好 (Neuro-Software)
             aiInsightCard(
                 title: "行为与偏好",
-                subtitle: "Neuro-Software",
-                content: neuroSoftwareContent
-            )
+                subtitle: "Neuro-Software"
+            ) {
+                neuroSoftwareContent
+            }
 
             // 历史档案 (The Archives)
             aiInsightCard(
                 title: "历史档案",
-                subtitle: "The Archives",
-                content: archivesContent
-            )
+                subtitle: "The Archives"
+            ) {
+                archivesContent
+            }
         }
     }
 
@@ -130,7 +134,7 @@ public struct AboutMeView: View {
     // MARK: - AI Insight Card
 
     @ViewBuilder
-    private func aiInsightCard(title: String, subtitle: String, content: AnyView) -> some View {
+    private func aiInsightCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // 卡片标题
             VStack(alignment: .leading, spacing: 4) {
@@ -144,7 +148,7 @@ public struct AboutMeView: View {
             }
 
             // 卡片内容
-            content
+            content()
         }
         .padding(24)
         .background(Color(uiColor: .systemBackground))
@@ -155,9 +159,8 @@ public struct AboutMeView: View {
     // MARK: - Content Builders
 
     @ViewBuilder
-    private var goalsContent: AnyView {
-        AnyView(
-            VStack(alignment: .leading, spacing: 16) {
+    private var goalsContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
                 insightItem(
                     emoji: "🏷️",
                     title: "表层意图 (Surface Goal)",
@@ -176,14 +179,12 @@ public struct AboutMeView: View {
                     description: "[全有全无心态]：你倾向于制定完美的计划，一旦有一天没做到（比如偷吃了），就会产生强烈的挫败感并彻底放弃。",
                     aiThinking: "需为你提供高容错率的方案。"
                 )
-            }
-        )
+        }
     }
 
     @ViewBuilder
-    private var bioHardwareContent: AnyView {
-        AnyView(
-            VStack(alignment: .leading, spacing: 16) {
+    private var bioHardwareContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
                 insightItem(
                     emoji: "🧬",
                     title: "昼夜节律 (Chronotype)",
@@ -203,14 +204,12 @@ public struct AboutMeView: View {
                     title: "压力耐受度 (Stress Resilience)",
                     description: "[中低]：静息心率 (RHR) 对压力反应敏感。高压会议后，你的 HRV 恢复时间通常需要 4 小时。"
                 )
-            }
-        )
+        }
     }
 
     @ViewBuilder
-    private var neuroSoftwareContent: AnyView {
-        AnyView(
-            VStack(alignment: .leading, spacing: 16) {
+    private var neuroSoftwareContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
                 insightItem(
                     emoji: "🥗",
                     title: "饮食弱点 (Dietary Kryptonite)",
@@ -228,14 +227,12 @@ public struct AboutMeView: View {
                     title: "助眠触发器 (Sleep Trigger)",
                     description: "[声音敏感]：白噪音对你无效，但"播客（人声）"能让你在 15 分钟内入睡。"
                 )
-            }
-        )
+        }
     }
 
     @ViewBuilder
-    private var archivesContent: AnyView {
-        AnyView(
-            VStack(alignment: .leading, spacing: 16) {
+    private var archivesContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("❌ 过去失败的项目")
                         .font(.system(size: 16, weight: .semibold))
@@ -280,8 +277,7 @@ public struct AboutMeView: View {
                         .font(.system(size: 14))
                         .foregroundColor(.primary)
                 }
-            }
-        )
+        }
     }
 
     // MARK: - Insight Item
