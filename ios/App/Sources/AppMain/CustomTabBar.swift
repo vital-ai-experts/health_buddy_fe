@@ -13,7 +13,7 @@ struct CustomTabBar: View {
     @Binding var selectedTab: RouteManager.Tab
     let onChatTapped: () -> Void
 
-    @State private var dragLocation: CGPoint = .zero
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isDragging: Bool = false
     @Namespace private var animation
 
@@ -23,15 +23,14 @@ struct CustomTabBar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 12) {
             // TabBar容器
             HStack(spacing: 0) {
                 ForEach(Array(tabs.enumerated()), id: \.offset) { index, item in
                     TabBarItem(
                         icon: item.icon,
                         title: item.title,
-                        isSelected: selectedTab == item.tab,
-                        namespace: animation
+                        isSelected: selectedTab == item.tab
                     )
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
@@ -42,12 +41,12 @@ struct CustomTabBar: View {
                     }
                 }
             }
-            .frame(height: 50)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
                 ZStack {
-                    // 背景毛玻璃效果
-                    RoundedRectangle(cornerRadius: 25)
-                        .fill(.ultraThinMaterial)
+                    // 液态玻璃背景
+                    glassBackground
 
                     // 液态玻璃选中指示器
                     GeometryReader { geometry in
@@ -55,18 +54,19 @@ struct CustomTabBar: View {
                         let selectedIndex = tabs.firstIndex(where: { $0.tab == selectedTab }) ?? 0
 
                         Capsule()
-                            .fill(Color.white.opacity(0.2))
-                            .frame(width: tabWidth - 8, height: 40)
-                            .offset(x: CGFloat(selectedIndex) * tabWidth + 4, y: 5)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                            .fill(Color.white.opacity(colorScheme == .dark ? 0.15 : 0.25))
+                            .frame(width: tabWidth - 16, height: 44)
+                            .offset(x: CGFloat(selectedIndex) * tabWidth + 8, y: 0)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedTab)
                     }
                 }
             )
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         isDragging = true
-                        dragLocation = value.location
                         updateSelectionFromDrag(location: value.location)
                     }
                     .onEnded { _ in
@@ -74,16 +74,13 @@ struct CustomTabBar: View {
                     }
             )
 
-            Spacer()
-                .frame(width: 12)
-
             // 圆形对话按钮
             Button(action: onChatTapped) {
                 ZStack {
                     Circle()
                         .fill(Color.blue)
                         .frame(width: 56, height: 56)
-                        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                        .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
 
                     Image(systemName: "message.fill")
                         .font(.system(size: 24))
@@ -92,14 +89,20 @@ struct CustomTabBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .padding(.bottom, 12)
         .padding(.top, 8)
     }
 
+    @ViewBuilder
+    private var glassBackground: some View {
+        Capsule()
+            .fill(.ultraThinMaterial)
+            .opacity(colorScheme == .dark ? 0.95 : 0.85)
+    }
+
     private func updateSelectionFromDrag(location: CGPoint) {
-        // 获取TabBar容器的总宽度（需要考虑实际布局）
-        // 这里简化处理：根据x位置判断选中哪个tab
-        let screenWidth = UIScreen.main.bounds.width - 32 - 56 - 12 // 减去padding和按钮
+        // 获取TabBar容器的总宽度
+        let screenWidth = UIScreen.main.bounds.width - 32 - 56 - 12 - 24 // 减去所有padding
         let tabWidth = screenWidth / CGFloat(tabs.count)
         let index = Int(location.x / tabWidth)
 
@@ -119,19 +122,18 @@ private struct TabBarItem: View {
     let icon: String
     let title: String
     let isSelected: Bool
-    let namespace: Namespace.ID
 
     var body: some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(isSelected ? .white : .gray)
+                .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
+                .foregroundColor(isSelected ? .primary : .secondary)
 
             Text(title)
-                .font(.system(size: 11))
-                .foregroundColor(isSelected ? .white : .gray)
+                .font(.system(size: 11, weight: isSelected ? .medium : .regular))
+                .foregroundColor(isSelected ? .primary : .secondary)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 44)
     }
 }
 
@@ -144,4 +146,5 @@ private struct TabBarItem: View {
         )
         .preferredColorScheme(.dark)
     }
+    .background(Color.black)
 }
