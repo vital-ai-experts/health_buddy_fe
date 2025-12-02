@@ -18,7 +18,7 @@ public enum ChatModule {
 
     private static func registerRoutes(on router: RouteRegistering) {
         // /chat - 打开对话页面
-        router.register(path: "/chat", defaultSurface: .fullscreen) { _ in
+        router.register(path: "/chat", defaultSurface: .sheet) { _ in
             AnyView(
                 NavigationStack {
                     PersistentChatView()

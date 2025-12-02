@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// 简单聊天视图 - 专为 AI 对话场景优化
 public struct SimpleChatView: View {
@@ -59,6 +60,7 @@ public struct SimpleChatView: View {
             }
 
             Divider()
+                .background(Color.Palette.borderSubtle)
 
             // 输入框
             ChatInputView(
@@ -68,7 +70,7 @@ public struct SimpleChatView: View {
                 onSend: handleSend
             )
         }
-        .background(Color(.systemBackground))
+        .background(Color.Palette.bgBase)
         .onChange(of: isLoading) { oldValue, newValue in
             // When loading starts, generate a new unique ID for the loading indicator
             if !oldValue && newValue {

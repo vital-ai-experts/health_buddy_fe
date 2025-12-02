@@ -354,7 +354,7 @@ struct RootView: View {
             if !cleaned.isEmpty {
                 router.enqueueChatMessage(cleaned)
                 // 打开对话页面
-                if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
+                if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "sheet"]) {
                     router.open(url: chatURL)
                 }
             }

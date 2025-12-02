@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// SwiftUI view for displaying user messages
 public struct UserMessageView: View {
@@ -40,33 +41,6 @@ public struct UserMessageView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
-            }
-
-            if let avatarURL = configuration.userAvatarURL {
-                AsyncImage(url: avatarURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color.blue)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.white)
-                                .font(.system(size: 14))
-                        )
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.white)
-                            .font(.system(size: 14))
-                    )
             }
         }
         .padding(.horizontal, 16)

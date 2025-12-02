@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import ThemeKit
 
 /// 特殊消息类型
 public enum SpecialMessageType: String, Codable, Equatable, Hashable {
@@ -123,15 +124,15 @@ public struct ChatConfiguration {
     public var botMessageTextColor: Color { botTextColor }
 
     public init(
-        showAvatar: Bool = true,
-        showTimestamp: Bool = true,
+        showAvatar: Bool = false,
+        showTimestamp: Bool = false,
         userAvatarURL: URL? = nil,
         botAvatarURL: URL? = nil,
         messageFont: Font = .body,
-        userMessageColor: Color = .blue,
-        botMessageColor: Color = Color(.systemGray5),
-        userTextColor: Color = .white,
-        botTextColor: Color = .primary,
+        userMessageColor: Color = Color.Palette.infoMain,
+        botMessageColor: Color = Color.Palette.surfaceElevated,
+        userTextColor: Color = Color.Palette.textOnAccent,
+        botTextColor: Color = Color.Palette.textPrimary,
         cornerRadius: CGFloat = 16,
         messagePadding: CGFloat = 12,
         autoFocusAfterBotMessage: Bool = false,

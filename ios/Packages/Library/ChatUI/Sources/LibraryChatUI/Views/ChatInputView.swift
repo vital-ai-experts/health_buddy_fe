@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// 聊天输入框视图
 public struct ChatInputView: View {
@@ -25,7 +26,7 @@ public struct ChatInputView: View {
             TextField("Type a message...", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .padding(12)
-                .background(Color(.systemGray6))
+                .background(Color.Palette.bgMuted)
                 .cornerRadius(20)
                 .lineLimit(1...5)
                 .focused($isFocused)
@@ -35,13 +36,13 @@ public struct ChatInputView: View {
             Button(action: onSend) {
                 Image(systemName: isLoading ? "stop.circle.fill" : "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundColor(canSend ? .blue : .gray)
+                    .foregroundColor(canSend ? Color.Palette.infoMain : Color.Palette.textDisabled)
             }
             .disabled(!canSend && !isLoading)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground))
+        .background(Color.Palette.bgBase)
     }
 
     private var canSend: Bool {

@@ -1,4 +1,5 @@
 import SwiftUI
+import ThemeKit
 
 /// SwiftUI view for displaying completed system/AI messages
 public struct SystemMessageView: View {
@@ -21,9 +22,6 @@ public struct SystemMessageView: View {
 
     public var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar
-            BotAvatarView(configuration: configuration)
-
             // Content
             VStack(alignment: .leading, spacing: 8) {
                 // Thinking content
