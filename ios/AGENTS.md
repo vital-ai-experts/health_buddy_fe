@@ -109,6 +109,9 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 
 ## Coding Conventions
 
+**UI 规范**:
+- 新增 UI/组件时，先参考 `Packages/Library/ThemeKit/DesignGuidelines.md`，沿用既有色板与 token，缺口再补充资产。
+
 **Package Naming** (Directory = Package = Product = Target):
 - Feature: `Feature[Name]Api`, `Feature[Name]Impl`
 - Domain: `Domain[Name]`
