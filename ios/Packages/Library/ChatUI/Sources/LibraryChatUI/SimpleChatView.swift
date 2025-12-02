@@ -69,18 +69,19 @@ public struct SimpleChatView: View {
                     // 点击消息列表区域，收起键盘
                     isInputFocused = false
                 }
-                .padding(.bottom, 100)  // 为悬浮输入框留出空间
+                
+                // 悬浮输入框 - 毛玻璃效果
+                ChatInputView(
+                    text: $inputText,
+                    isFocused: $isInputFocused,
+                    isLoading: isLoading,
+                    onSend: handleSend
+                )
+                .background(.ultraThinMaterial)
+                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: -4)
             }
 
-            // 悬浮输入框 - 毛玻璃效果
-            ChatInputView(
-                text: $inputText,
-                isFocused: $isInputFocused,
-                isLoading: isLoading,
-                onSend: handleSend
-            )
-            .background(.ultraThinMaterial)
-            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: -4)
+            
         }
         .onChange(of: isLoading) { oldValue, newValue in
             // When loading starts, generate a new unique ID for the loading indicator
@@ -159,37 +160,33 @@ public struct SimpleChatView: View {
             ChatMessage(text: "Hello! How can I help you today?", isFromUser: false, timestamp: Date().addingTimeInterval(-3600)),
             ChatMessage(text: "Let me know if you have any questions.", isFromUser: false, timestamp: Date().addingTimeInterval(-3550)),
             ChatMessage(text: "I need help with my health data", isFromUser: true, timestamp: Date().addingTimeInterval(-3500)),
-            ChatMessage(text: "Also, can you explain the charts?", isFromUser: true, timestamp: Date().addingTimeInterval(-3450)),
-            ChatMessage(text: "I'd be happy to help you with that.", isFromUser: false, timestamp: Date().addingTimeInterval(-3400)),
+            ChatMessage(text: "Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?", isFromUser: true, timestamp: Date().addingTimeInterval(-3450)),
+            ChatMessage(text: "I'd be happy to help you with that.Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?Also, can you explain the charts?", isFromUser: false, timestamp: Date().addingTimeInterval(-3400)),
         ]
         @State private var inputText = ""
         @State private var isLoading = false
 
         var body: some View {
-            NavigationView {
-                SimpleChatView(
-                    messages: $messages,
-                    inputText: $inputText,
-                    isLoading: isLoading,
-                    configuration: .default,
-                    onSendMessage: { text in
-                        // 添加用户消息
-                        messages.append(ChatMessage(text: text, isFromUser: true))
+            SimpleChatView(
+                messages: $messages,
+                inputText: $inputText,
+                isLoading: isLoading,
+                configuration: .default,
+                onSendMessage: { text in
+                    // 添加用户消息
+                    messages.append(ChatMessage(text: text, isFromUser: true))
 
-                        // 模拟 AI 响应
-                        isLoading = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            isLoading = false
-                            messages.append(ChatMessage(
-                                text: "I understand. Let me help you with that.",
-                                isFromUser: false
-                            ))
-                        }
+                    // 模拟 AI 响应
+                    isLoading = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        isLoading = false
+                        messages.append(ChatMessage(
+                            text: "I understand. Let me help you with that.",
+                            isFromUser: false
+                        ))
                     }
-                )
-                .navigationTitle("Chat")
-                .navigationBarTitleDisplayMode(.inline)
-            }
+                }
+            )
         }
     }
 

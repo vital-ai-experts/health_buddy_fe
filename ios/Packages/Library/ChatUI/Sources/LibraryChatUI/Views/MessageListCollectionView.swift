@@ -55,6 +55,7 @@ public final class MessageListCollectionView: UICollectionView {
         delegate = self
         alwaysBounceVertical = true
         keyboardDismissMode = .interactive
+        contentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
 
         // Enable automatic height calculation but limit invalidation scope
         if #available(iOS 16.0, *) {
