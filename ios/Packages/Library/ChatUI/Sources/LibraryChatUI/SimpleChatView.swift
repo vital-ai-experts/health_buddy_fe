@@ -63,6 +63,7 @@ public struct SimpleChatView: View {
                     },
                     onRetry: onRetry
                 )
+                .frame(maxHeight: .infinity)  // 填充所有可用空间
                 .contentShape(Rectangle())
                 .onTapGesture {
                     // 点击消息列表区域，收起键盘
