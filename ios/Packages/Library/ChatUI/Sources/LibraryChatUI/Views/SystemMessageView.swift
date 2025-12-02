@@ -53,6 +53,13 @@ public struct SystemMessageView: View {
                     )
                 }
 
+                // Special message (Digest Report)
+                if message.specialMessageType == .digestReport {
+                    DigestReportView(
+                        reportData: message.specialMessageData.flatMap { DigestReportData.from(jsonString: $0) }
+                    )
+                }
+
                 // Timestamp
                 if configuration.showTimestamp {
                     Text(timeString(from: message.timestamp))

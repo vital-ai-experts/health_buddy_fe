@@ -334,6 +334,12 @@ final class PersistentChatViewModel: ObservableObject {
 
                 // 添加所有缺失的消息
                 for message in missingMessages {
+                    // 解析特殊消息类型
+                    let specialType: SpecialMessageType? = {
+                        guard let typeString = message.specialMessageType else { return nil }
+                        return SpecialMessageType(rawValue: typeString)
+                    }()
+
                     let chatMessage = ChatMessage(
                         id: message.id,
                         text: message.content,
@@ -347,7 +353,9 @@ final class PersistentChatViewModel: ObservableObject {
                             args: $0.toolCallArgs,
                             status: $0.toolCallStatus?.description,
                             result: $0.toolCallResult
-                        )}
+                        )},
+                        specialMessageType: specialType,
+                        specialMessageData: message.specialMessageData
                     )
 
                     displayMessages.append(chatMessage)

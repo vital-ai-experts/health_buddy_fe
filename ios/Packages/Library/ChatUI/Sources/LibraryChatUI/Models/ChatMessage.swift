@@ -6,6 +6,7 @@ import ThemeKit
 public enum SpecialMessageType: String, Codable, Equatable, Hashable {
     case userHealthProfile = "user_health_profile"  // 用户健康档案确认
     case waitingForPhotoUpload = "waiting_for_photo_upload"  // 等待用户上传照片
+    case digestReport = "digest_report"  // 副本简报卡片
 }
 
 /// 聊天消息协议

@@ -217,6 +217,8 @@ public struct Message: Identifiable {
     public let createdAt: String
     public let thinkingContent: String?
     public let toolCalls: [ToolCall]?
+    public let specialMessageType: String?  // 特殊消息类型（如 "digest_report"）
+    public let specialMessageData: String?  // 特殊消息数据（JSON字符串）
 
     public init(
         id: String,
@@ -225,7 +227,9 @@ public struct Message: Identifiable {
         content: String,
         createdAt: String,
         thinkingContent: String? = nil,
-        toolCalls: [ToolCall]? = nil
+        toolCalls: [ToolCall]? = nil,
+        specialMessageType: String? = nil,
+        specialMessageData: String? = nil
     ) {
         self.id = id
         self.conversationId = conversationId
@@ -234,6 +238,8 @@ public struct Message: Identifiable {
         self.createdAt = createdAt
         self.thinkingContent = thinkingContent
         self.toolCalls = toolCalls
+        self.specialMessageType = specialMessageType
+        self.specialMessageData = specialMessageData
     }
 
     public init(from response: ConversationMessage, conversationId: String) {
@@ -246,10 +252,14 @@ public struct Message: Identifiable {
             self.content = response.userData?.userInput ?? ""
             self.thinkingContent = nil
             self.toolCalls = nil
+            self.specialMessageType = nil
+            self.specialMessageData = nil
         } else {
             self.content = response.data?.content ?? ""
             self.thinkingContent = response.data?.thinkingContent
             self.toolCalls = response.data?.toolCalls
+            self.specialMessageType = nil  // TODO: 从服务器响应中获取
+            self.specialMessageData = nil  // TODO: 从服务器响应中获取
         }
 
         self.createdAt = response.createdAt
