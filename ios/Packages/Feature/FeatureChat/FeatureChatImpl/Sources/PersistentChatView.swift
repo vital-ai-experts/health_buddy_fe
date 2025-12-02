@@ -25,32 +25,41 @@ struct PersistentChatView: View {
     }
 
     var body: some View {
-        SimpleChatView(
-            messages: $viewModel.displayMessages,
-            inputText: $viewModel.inputText,
-            isLoading: viewModel.isSending,
-            tags: viewModel.chatTags,
-            selectedTagId: $viewModel.selectedGoalId,
-            onSendMessage: { text in
-                Task {
-                    await viewModel.sendMessage(text)
+        NavigationStack {
+            SimpleChatView(
+                messages: $viewModel.displayMessages,
+                inputText: $viewModel.inputText,
+                isLoading: viewModel.isSending,
+                tags: viewModel.chatTags,
+                selectedTagId: $viewModel.selectedGoalId,
+                onSendMessage: { text in
+                    Task {
+                        await viewModel.sendMessage(text)
+                    }
+                },
+                onLoadMoreHistory: {
+                    Task {
+                        await viewModel.loadMoreMessages()
+                    }
                 }
-            },
-            onLoadMoreHistory: {
-                Task {
-                    await viewModel.loadMoreMessages()
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.Palette.bgBase.ignoresSafeArea())
+            .navigationTitle("对话")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.Palette.textPrimary)
+                    }
                 }
             }
-        )
-        .alert("清除历史记录", isPresented: $viewModel.showClearHistoryAlert) {
-            Button("取消", role: .cancel) {}
-            Button("清除", role: .destructive) {
-                Task {
-                    await viewModel.clearHistory()
-                }
-            }
-        } message: {
-            Text("确定要清除所有对话历史吗？此操作不可撤销。")
+            .toolbarBackground(Color.Palette.bgBase, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
         .task {
             await viewModel.initialize(modelContext: modelContext)
@@ -85,7 +94,6 @@ final class PersistentChatViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var conversationId: String? // 长期持有的对话ID
     @Published var inputText = ""
-    @Published var showClearHistoryAlert = false
     @Published var isLoadingMore = false  // 正在加载更多消息
     @Published var selectedGoalId: String? {
         didSet {
@@ -944,26 +952,6 @@ final class PersistentChatViewModel: ObservableObject {
         }
     }
 
-    /// 清除所有历史记录
-    func clearHistory() async {
-        guard let storageService = storageService else { return }
-
-        do {
-            try storageService.deleteAllMessages()
-            displayMessages.removeAll()
-            conversationId = nil
-            conversationUpdatedAt = nil
-            messageMap.removeAll()
-            savedMessageIds.removeAll()
-            oldestLoadedMessageDate = nil
-            hasMoreMessagesToLoad = true
-            Log.i("✅ 历史记录已清除", category: "Chat")
-        } catch {
-            Log.e("❌ 清除历史记录失败: \(error.localizedDescription)", category: "Chat")
-            errorMessage = "清除历史记录失败"
-        }
-    }
-    
     /// 插入一条 mock 的副本简报消息（用于演示），如果还没有的话
     private func insertMockDigestIfNeeded() async {
         // 检查最近4条系统消息是否已有 digest_report

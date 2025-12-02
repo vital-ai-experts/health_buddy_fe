@@ -51,11 +51,6 @@ public struct SimpleChatView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 顶部拖动指示器
-                DragIndicator()
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
-
                 // 消息列表 - 使用新的 UICollectionView-based 组件
                 MessageListView(
                     messages: messageItems,
@@ -201,15 +196,4 @@ public struct SimpleChatView: View {
     }
 
     return PreviewWrapper()
-}
-
-// MARK: - Drag Indicator
-
-/// 拖动指示器 - 用于 sheet 展示
-private struct DragIndicator: View {
-    var body: some View {
-        RoundedRectangle(cornerRadius: 2.5)
-            .fill(Color.Palette.borderSubtle)
-            .frame(width: 36, height: 5)
-    }
 }

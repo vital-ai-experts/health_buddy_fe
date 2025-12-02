@@ -360,7 +360,7 @@ struct RootView: View {
             if !cleaned.isEmpty {
                 router.enqueueChatMessage(cleaned)
                 // 打开对话页面
-                var chatQuery: [String: String] = ["present": "sheet"]
+                var chatQuery: [String: String] = [:]
                 if let goalId = deepLinkGoalId, !goalId.isEmpty {
                     chatQuery["goalId"] = goalId
                 }
@@ -373,7 +373,6 @@ struct RootView: View {
             if let chatURL = router.buildURL(
                 path: "/chat",
                 queryItems: [
-                    "present": "sheet",
                     "goalId": goalId
                 ]
             ) {

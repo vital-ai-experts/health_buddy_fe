@@ -330,40 +330,6 @@ struct AgendaLiveActivityView: View {
     }
 }
 
-// 本地 Palette，保持与 ThemeKit 一致，避免 Widget 依赖缺失
-private enum Palette {
-    static let bgBase = Color(red: 0.961, green: 0.953, blue: 0.925)
-    static let bgMuted = Color(red: 0.945, green: 0.945, blue: 0.953)
-
-    static let borderSubtle = Color(red: 0.878, green: 0.878, blue: 0.902)
-    static let borderStrong = Color(red: 0.773, green: 0.780, blue: 0.816)
-
-    static let textPrimary = Color(red: 0.067, green: 0.141, blue: 0.224)
-    static let textSecondary = Color(red: 0.424, green: 0.447, blue: 0.502)
-    static let textDisabled = Color(red: 0.612, green: 0.639, blue: 0.686)
-    static let textOnAccent = Color(red: 1.0, green: 1.0, blue: 1.0)
-
-    static let warningMain = Color(red: 1.0, green: 0.478, blue: 0.102)
-    static let warningBgSoft = Color(red: 1.0, green: 0.961, blue: 0.914)
-    static let warningBorder = Color(red: 1.0, green: 0.816, blue: 0.639)
-    static let warningText = Color(red: 0.604, green: 0.235, blue: 0.0)
-    static let warningHover = Color(red: 1.0, green: 0.549, blue: 0.2)
-    static let warningActive = Color(red: 0.91, green: 0.392, blue: 0.0)
-
-    static let successMain = Color(red: 0.133, green: 0.773, blue: 0.545)
-    static let successBgSoft = Color(red: 0.906, green: 0.984, blue: 0.957)
-    static let successBorder = Color(red: 0.659, green: 0.941, blue: 0.824)
-    static let successText = Color(red: 0.016, green: 0.424, blue: 0.306)
-    static let successHover = Color(red: 0.102, green: 0.686, blue: 0.478)
-    static let successActive = Color(red: 0.059, green: 0.588, blue: 0.404)
-
-    static let dangerMain = Color(red: 0.937, green: 0.267, blue: 0.267)
-    static let dangerBgSoft = Color(red: 0.996, green: 0.886, blue: 0.886)
-
-    static let infoMain = Color(red: 0.141, green: 0.388, blue: 0.922)
-    static let infoBgSoft = Color(red: 0.898, green: 0.929, blue: 1.0)
-}
-
 
 // MARK: - Preview
 

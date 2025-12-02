@@ -56,7 +56,7 @@ struct MainTabView: View {
     }
 
     private func handleChatButtonTapped() {
-        var queryItems: [String: String] = ["present": "sheet"]
+        var queryItems: [String: String] = [:]
         if let goalManager = ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
            let defaultGoalId = goalManager.defaultSelectedGoalId {
             queryItems["goalId"] = defaultGoalId
