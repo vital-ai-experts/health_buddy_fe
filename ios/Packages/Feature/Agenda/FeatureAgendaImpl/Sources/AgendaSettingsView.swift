@@ -67,21 +67,6 @@ struct AgendaSettingsView: View {
                         .font(.caption)
                 }
             }
-
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Features:")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-
-                    FeatureRow(icon: "cloud.sun.fill", text: "Real-time weather updates")
-                    FeatureRow(icon: "figure.run", text: "Personalized health tasks")
-                    FeatureRow(icon: "arrow.clockwise", text: "Auto-refresh every 5 minutes")
-                    FeatureRow(icon: "lock.shield.fill", text: "Works even when app is closed")
-                }
-            } header: {
-                Text("About")
-            }
         }
         .navigationTitle("Agenda Settings")
         .navigationBarTitleDisplayMode(.inline)

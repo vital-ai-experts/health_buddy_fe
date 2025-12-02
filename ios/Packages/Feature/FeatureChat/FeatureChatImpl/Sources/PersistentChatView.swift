@@ -176,6 +176,9 @@ final class PersistentChatViewModel: ObservableObject {
                     isFromUser: localMsg.isFromUser,
                     timestamp: localMsg.createdAt,
                     isStreaming: false,
+                    specialMessageType: nil,
+                    specialMessageData: localMsg.specialMessageData,
+                    specialMessageTypeRaw: localMsg.specialMessageTypeRaw,
                     goalId: localMsg.goalId,
                     goalTitle: localMsg.goalTitle
                 )
@@ -431,7 +434,9 @@ final class PersistentChatViewModel: ObservableObject {
                         id: message.id,
                         content: message.content,
                         isFromUser: false,
-                        createdAt: chatMessage.timestamp
+                        createdAt: chatMessage.timestamp,
+                        specialMessageTypeRaw: message.specialMessageType,
+                        specialMessageData: message.specialMessageData
                     )
                 }
 
@@ -897,7 +902,9 @@ final class PersistentChatViewModel: ObservableObject {
                 content: message.text,
                 isFromUser: false,
                 createdAt: message.timestamp,
-                conversationId: self.conversationId
+                conversationId: self.conversationId,
+                specialMessageTypeRaw: message.specialMessageTypeRaw,
+                specialMessageData: message.specialMessageData
             )
         }
     }
@@ -910,7 +917,9 @@ final class PersistentChatViewModel: ObservableObject {
         createdAt: Date,
         conversationId: String? = nil,
         goalId: String? = nil,
-        goalTitle: String? = nil
+        goalTitle: String? = nil,
+        specialMessageTypeRaw: String? = nil,
+        specialMessageData: String? = nil
     ) async {
         guard let storageService = storageService else { return }
 
@@ -921,7 +930,9 @@ final class PersistentChatViewModel: ObservableObject {
             createdAt: createdAt,
             conversationId: conversationId ?? self.conversationId,
             goalId: goalId,
-            goalTitle: goalTitle
+            goalTitle: goalTitle,
+            specialMessageTypeRaw: specialMessageTypeRaw,
+            specialMessageData: specialMessageData
         )
 
         do {
@@ -955,16 +966,20 @@ final class PersistentChatViewModel: ObservableObject {
     
     /// 插入一条 mock 的副本简报消息（用于演示），如果还没有的话
     private func insertMockDigestIfNeeded() async {
-        // 检查是否已经有 digest_report 消息
-        let hasDigestReport = displayMessages.contains { message in
-            message.specialMessageType == .digestReport
+        // 检查最近4条系统消息是否已有 digest_report
+        let recentSystemMessages = displayMessages
+            .filter { !$0.isFromUser }
+            .suffix(4)
+
+        let hasRecentDigest = recentSystemMessages.contains {
+            $0.specialMessageTypeRaw == "digest_report"
         }
-        
-        if hasDigestReport {
-            Log.i("ℹ️ 已存在 digest report，跳过插入", category: "Chat")
+
+        if hasRecentDigest {
+            Log.i("ℹ️ 最近系统消息已有 digest report，跳过插入", category: "Chat")
             return
         }
-        
+
         // 使用统一的 mock 数据
         let jsonString = DigestReportData.mock.toJSONString() ?? ""
         
@@ -974,8 +989,8 @@ final class PersistentChatViewModel: ObservableObject {
             isFromUser: false,
             timestamp: Date(),
             isStreaming: false,
-            specialMessageType: .digestReport,
-            specialMessageData: jsonString
+            specialMessageData: jsonString,
+            specialMessageTypeRaw: "digest_report"
         )
         
         displayMessages.append(digestMessage)

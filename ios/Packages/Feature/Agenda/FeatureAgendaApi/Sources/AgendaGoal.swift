@@ -24,9 +24,9 @@ public protocol AgendaGoalManaging: AnyObject {
 public extension AgendaGoal {
     /// 预置的 mock 目标
     static let mockGoals: [AgendaGoal] = [
-        AgendaGoal(id: "yoga_master", icon: "🧘", title: "观呼吸菩萨"),
-        AgendaGoal(id: "sleep_master", icon: "😴", title: "自催眠大师"),
         AgendaGoal(id: "strong_me", icon: "💪", title: "强壮的我"),
+        AgendaGoal(id: "sleep_master", icon: "😴", title: "自催眠大师"),
+        AgendaGoal(id: "yoga_master", icon: "🧘", title: "观呼吸菩萨"),
         AgendaGoal(id: "wall_street_wolf", icon: "💰", title: "华尔街之狼")
     ]
 }

@@ -1,20 +1,28 @@
 import Foundation
 import SwiftUI
 import LibraryChatUI
+import FeatureAgendaApi
+import ThemeKit
 
 enum AgendaChatMessageRegistrar {
     static let agendaTaskType = "agenda_task_card"
+    static let digestReportType = "digest_report"
 
     static func registerRenderers() {
-        ChatMessageRendererRegistry.shared.register(type: agendaTaskType) { message in
-            let task = decodeTask(from: message.data) ?? AgendaTask.sampleTasks.first ?? fallbackTask
+        ChatMessageRendererRegistry.shared.register(type: agendaTaskType, renderer: renderAgendaTask)
+        ChatMessageRendererRegistry.shared.register(type: digestReportType, renderer: renderDigestReport)
+    }
 
-            return AnyView(
-                AgendaCardView(task: task)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-            )
-        }
+    // MARK: - Agenda Task
+
+    private static func renderAgendaTask(message: CustomRenderedMessage) -> AnyView {
+        let task = decodeTask(from: message.data) ?? AgendaTask.sampleTasks.first ?? fallbackTask
+
+        return AnyView(
+            AgendaCardView(task: task)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+        )
     }
 
     private static func decodeTask(from data: String?) -> AgendaTask? {
@@ -39,6 +47,21 @@ enum AgendaChatMessageRegistrar {
             timeWindow: "窗口期：20 分钟内完成",
             progress: 0.5,
             actionType: .play("立刻行动")
+        )
+    }
+
+    // MARK: - Digest Report
+
+    private static func renderDigestReport(message: CustomRenderedMessage) -> AnyView {
+        let data = DigestReportData.from(jsonString: message.data ?? "") ?? .mock
+        let digestMessage = DigestReportMessage(
+            id: message.id,
+            timestamp: message.timestamp,
+            reportData: data
+        )
+
+        return AnyView(
+            DigestReportMessageView(message: digestMessage)
         )
     }
 }

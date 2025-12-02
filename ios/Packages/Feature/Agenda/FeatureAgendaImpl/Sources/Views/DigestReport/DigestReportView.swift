@@ -1,16 +1,18 @@
 import SwiftUI
 import Charts
 import ThemeKit
+import FeatureAgendaApi
+import LibraryChatUI
 
 /// 副本简报卡片视图
-public struct DigestReportView: View {
+struct DigestReportView: View {
     let reportData: DigestReportData?
 
-    public init(reportData: DigestReportData?) {
+    init(reportData: DigestReportData?) {
         self.reportData = reportData
     }
 
-    public var body: some View {
+    var body: some View {
         if let data = reportData {
             VStack(alignment: .leading, spacing: 16) {
                 // 顶部：日期和进度状态
@@ -143,4 +145,3 @@ private struct ChartView: View {
         .padding()
     }
 }
-

@@ -6,7 +6,6 @@ import Foundation
 public enum MessageItem: Hashable, Identifiable {
     case user(UserMessage)
     case system(SystemMessage)
-    case digestReport(DigestReportMessage)
     case custom(CustomRenderedMessage)
     case loading(SystemLoading)
     case error(SystemError)
@@ -17,8 +16,6 @@ public enum MessageItem: Hashable, Identifiable {
             return "user_\(message.id)"
         case .system(let message):
             return "system_\(message.id)"
-        case .digestReport(let message):
-            return "digestReport_\(message.id)"
         case .custom(let message):
             return "custom_\(message.id)"
         case .loading(let loading):
@@ -99,25 +96,6 @@ public struct SystemLoading: Hashable, Identifiable {
     }
 }
 
-// MARK: - DigestReportMessage
-
-/// Represents a digest report card message
-public struct DigestReportMessage: Hashable, Identifiable {
-    public let id: String
-    public let timestamp: Date
-    public let reportData: DigestReportData?
-
-    public init(
-        id: String = UUID().uuidString,
-        timestamp: Date = Date(),
-        reportData: DigestReportData? = nil
-    ) {
-        self.id = id
-        self.timestamp = timestamp
-        self.reportData = reportData
-    }
-}
-
 // MARK: - SystemError
 
 /// Represents an error message with retry capability
@@ -168,19 +146,6 @@ extension MessageItem {
                 goalTitle: chatMessage.goalTitle
             ))
         } else {
-            // Check if this is a digest report message
-            if let specialType = chatMessage.specialMessageType,
-               specialType == .digestReport {
-                let reportData = chatMessage.specialMessageData.flatMap { 
-                    DigestReportData.from(jsonString: $0) 
-                }
-                return .digestReport(DigestReportMessage(
-                    id: chatMessage.id,
-                    timestamp: chatMessage.timestamp,
-                    reportData: reportData
-                ))
-            }
-
             // 自定义特殊消息，交给外部注册的渲染器
             if let rawType = chatMessage.specialMessageTypeRaw,
                ChatMessageRendererRegistry.shared.hasRenderer(for: rawType) {

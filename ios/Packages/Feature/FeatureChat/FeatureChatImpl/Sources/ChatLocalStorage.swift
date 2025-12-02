@@ -10,6 +10,8 @@ public final class LocalChatMessage {
     public var isFromUser: Bool
     public var goalId: String?
     public var goalTitle: String?
+    public var specialMessageTypeRaw: String?
+    public var specialMessageData: String?
 
     // 使用 originalName 告诉 SwiftData 这个字段之前叫 "timestamp"
     // 这样可以自动迁移旧数据
@@ -25,7 +27,9 @@ public final class LocalChatMessage {
         createdAt: Date,
         conversationId: String? = nil,
         goalId: String? = nil,
-        goalTitle: String? = nil
+        goalTitle: String? = nil,
+        specialMessageTypeRaw: String? = nil,
+        specialMessageData: String? = nil
     ) {
         self.id = id
         self.content = content
@@ -34,6 +38,8 @@ public final class LocalChatMessage {
         self.conversationId = conversationId
         self.goalId = goalId
         self.goalTitle = goalTitle
+        self.specialMessageTypeRaw = specialMessageTypeRaw
+        self.specialMessageData = specialMessageData
     }
 }
 
@@ -64,6 +70,8 @@ public final class ChatStorageService {
             existing.conversationId = message.conversationId
             existing.goalId = message.goalId
             existing.goalTitle = message.goalTitle
+            existing.specialMessageTypeRaw = message.specialMessageTypeRaw
+            existing.specialMessageData = message.specialMessageData
         } else {
             // 插入新消息
             modelContext.insert(message)
@@ -90,6 +98,8 @@ public final class ChatStorageService {
                 existing.conversationId = message.conversationId
                 existing.goalId = message.goalId
                 existing.goalTitle = message.goalTitle
+                existing.specialMessageTypeRaw = message.specialMessageTypeRaw
+                existing.specialMessageData = message.specialMessageData
             } else {
                 // 插入新消息
                 modelContext.insert(message)

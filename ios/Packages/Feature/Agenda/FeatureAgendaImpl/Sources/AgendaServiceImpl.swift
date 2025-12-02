@@ -5,7 +5,6 @@ import LibraryBase
 
 /// Implementation of AgendaService
 public final class AgendaServiceImpl: AgendaService {
-    private let weatherService = WeatherService()
 
     // UserDefaults key for persisting agenda state
     private let agendaStateKey = "com.thrivebody.agenda.isActive"
