@@ -37,34 +37,6 @@ struct PersistentChatView: View {
                 }
             }
         )
-        .navigationTitle("对话")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.Palette.textSecondary)
-                }
-            }
-
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        viewModel.showClearHistoryAlert = true
-                    } label: {
-                        Label("清除历史记录", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(Color.Palette.textSecondary)
-                }
-            }
-        }
-        .toolbarBackground(Color.Palette.bgBase, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .alert("清除历史记录", isPresented: $viewModel.showClearHistoryAlert) {
             Button("取消", role: .cancel) {}
             Button("清除", role: .destructive) {

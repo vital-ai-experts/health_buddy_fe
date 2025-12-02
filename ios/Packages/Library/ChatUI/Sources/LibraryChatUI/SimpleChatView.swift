@@ -39,38 +39,56 @@ public struct SimpleChatView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // 消息列表 - 使用新的 UICollectionView-based 组件
-            MessageListView(
-                messages: messageItems,
-                configuration: configuration,
-                onLoadMoreHistory: onLoadMoreHistory,
-                onHealthProfileConfirm: {
-                    onSpecialMessageAction?("userHealthProfile", "confirm")
-                },
-                onHealthProfileReject: {
-                    onSpecialMessageAction?("userHealthProfile", "reject")
-                },
-                onRetry: onRetry
-            )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // 点击消息列表区域，收起键盘
-                isInputFocused = false
+        ZStack(alignment: .bottom) {
+            // 背景色
+            Color.Palette.bgBase
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // 顶部拖动指示器
+                DragIndicator()
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                // 消息列表 - 使用新的 UICollectionView-based 组件
+                MessageListView(
+                    messages: messageItems,
+                    configuration: configuration,
+                    onLoadMoreHistory: onLoadMoreHistory,
+                    onHealthProfileConfirm: {
+                        onSpecialMessageAction?("userHealthProfile", "confirm")
+                    },
+                    onHealthProfileReject: {
+                        onSpecialMessageAction?("userHealthProfile", "reject")
+                    },
+                    onRetry: onRetry
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // 点击消息列表区域，收起键盘
+                    isInputFocused = false
+                }
+
+                // 底部留出空间给悬浮输入框
+                Spacer()
+                    .frame(height: 80)
             }
 
-            Divider()
-                .background(Color.Palette.borderSubtle)
+            // 悬浮输入框 - 毛玻璃效果
+            VStack(spacing: 0) {
+                Divider()
+                    .background(Color.Palette.borderSubtle)
 
-            // 输入框
-            ChatInputView(
-                text: $inputText,
-                isFocused: $isInputFocused,
-                isLoading: isLoading,
-                onSend: handleSend
-            )
+                ChatInputView(
+                    text: $inputText,
+                    isFocused: $isInputFocused,
+                    isLoading: isLoading,
+                    onSend: handleSend
+                )
+            }
+            .background(.ultraThinMaterial)
+            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
         }
-        .background(Color.Palette.bgBase)
         .onChange(of: isLoading) { oldValue, newValue in
             // When loading starts, generate a new unique ID for the loading indicator
             if !oldValue && newValue {
@@ -183,5 +201,16 @@ public struct SimpleChatView: View {
     }
 
     return PreviewWrapper()
+}
+
+// MARK: - Drag Indicator
+
+/// 拖动指示器 - 用于 sheet 展示
+private struct DragIndicator: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(Color.Palette.borderSubtle)
+            .frame(width: 36, height: 5)
+    }
 }
 

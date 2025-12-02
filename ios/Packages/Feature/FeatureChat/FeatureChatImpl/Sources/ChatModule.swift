@@ -20,9 +20,7 @@ public enum ChatModule {
         // /chat - 打开对话页面
         router.register(path: "/chat", defaultSurface: .sheet) { _ in
             AnyView(
-                NavigationStack {
-                    PersistentChatView()
-                }
+                PersistentChatView()
             )
         }
     }
