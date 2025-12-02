@@ -5,6 +5,7 @@ import LibraryServiceLoader
 import LibraryChatUI
 import LibraryBase
 import ResourceKit
+import ThemeKit
 
 /// 单一长期对话视图，对话历史保存在本地
 struct PersistentChatView: View {
@@ -36,31 +37,6 @@ struct PersistentChatView: View {
                 }
             }
         )
-        .navigationTitle("对话")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        viewModel.showClearHistoryAlert = true
-                    } label: {
-                        Label("清除历史记录", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
         .alert("清除历史记录", isPresented: $viewModel.showClearHistoryAlert) {
             Button("取消", role: .cancel) {}
             Button("清除", role: .destructive) {

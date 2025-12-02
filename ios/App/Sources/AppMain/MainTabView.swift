@@ -56,7 +56,7 @@ struct MainTabView: View {
     }
 
     private func handleChatButtonTapped() {
-        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
+        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "sheet"]) {
             router.open(url: chatURL)
         }
     }

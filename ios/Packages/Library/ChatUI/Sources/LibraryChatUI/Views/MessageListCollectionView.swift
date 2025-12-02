@@ -51,10 +51,11 @@ public final class MessageListCollectionView: UICollectionView {
     // MARK: - Setup
 
     private func setupCollectionView() {
-        backgroundColor = .systemBackground
+        backgroundColor = .clear  // 改为透明，使用外层背景色
         delegate = self
         alwaysBounceVertical = true
         keyboardDismissMode = .interactive
+        contentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
 
         // Enable automatic height calculation but limit invalidation scope
         if #available(iOS 16.0, *) {
