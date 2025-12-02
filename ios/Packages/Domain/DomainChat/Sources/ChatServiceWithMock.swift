@@ -87,7 +87,7 @@ public final class ChatServiceWithMock: ChatService {
                 ["id": UUID().uuidString, "day": 11, "value": 72.0],
                 ["id": UUID().uuidString, "day": 12, "value": 75.0]
             ],
-            "message": "得益于你连续 5 天完成了"数字日落"任务，你的入睡潜伏期（Latency）缩短了 40%。大脑现在已经学会了关灯即睡的条件反射，我们正在赢得这场战役！"
+            "message": "得益于你连续 5 天完成了\"数字日落\"任务，你的入睡潜伏期（Latency）缩短了 40%。大脑现在已经学会了关灯即睡的条件反射，我们正在赢得这场战役！"
         ]
 
         // 转换为 JSON 字符串

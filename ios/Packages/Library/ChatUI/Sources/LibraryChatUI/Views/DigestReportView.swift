@@ -192,7 +192,7 @@ private struct ChartView: View {
                     .init(day: 11, value: 72),
                     .init(day: 12, value: 75)
                 ],
-                message: "得益于你连续 5 天完成了"数字日落"任务，你的入睡潜伏期（Latency）缩短了 40%。大脑现在已经学会了关灯即睡的条件反射，我们正在赢得这场战役！"
+                message: "得益于你连续 5 天完成了\"数字日落\"任务，你的入睡潜伏期（Latency）缩短了 40%。大脑现在已经学会了关灯即睡的条件反射，我们正在赢得这场战役！"
             )
         )
         .padding()
