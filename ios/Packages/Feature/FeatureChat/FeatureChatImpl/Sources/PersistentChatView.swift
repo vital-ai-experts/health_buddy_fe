@@ -114,6 +114,11 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 从本地加载历史消息
         await loadLocalHistory()
+        
+        // 如果没有任何消息，插入一条 mock 的 digest report 卡片
+        if displayMessages.isEmpty {
+            await insertMockDigestIfNeeded()
+        }
 
         // 检查是否需要恢复streaming
         // TODO 先不恢复
@@ -264,6 +269,8 @@ final class PersistentChatViewModel: ObservableObject {
             // 按createdAt降序排列，确保获取最新的对话
             guard let latestConversation = conversations.sorted(by: { $0.createdAt > $1.createdAt }).first else {
                 Log.i("📝 [PersistentChat] 服务端没有对话记录", category: "Chat")
+                // 即使没有对话记录，也继续执行，可能会插入 mock digest
+                await insertMockDigestIfNeeded()
                 return
             }
 
@@ -285,6 +292,8 @@ final class PersistentChatViewModel: ObservableObject {
         // 2. 如果有conversationId，同步消息
         guard let conversationId = conversationId else {
             Log.i("📝 [PersistentChat] 没有conversationId，跳过同步", category: "Chat")
+            // 即使没有同步，也尝试插入 mock digest
+            await insertMockDigestIfNeeded()
             return
         }
 
@@ -296,10 +305,14 @@ final class PersistentChatViewModel: ObservableObject {
             let serverAssistantCount = allServerMessages.filter { $0.role == .assistant }.count
             Log.i("   用户消息: \(serverUserCount) 条, 系统消息: \(serverAssistantCount) 条", category: "Chat")
 
-            // 只保留系统消息(assistant messages)，过滤掉用户消息和空内容的消息
+            // 只保留系统消息(assistant messages)，过滤掉用户消息
             // 因为从服务端拉到的用户消息没有msg_id，所以我们不要了
-            // 同时过滤掉content为空的系统消息
-            let serverMessages = allServerMessages.filter { $0.role == .assistant && !$0.content.isEmpty }
+            // 注意：保留有 specialMessageType 的消息，即使 content 为空（如 digest_report）
+            let serverMessages = allServerMessages.filter { message in
+                guard message.role == .assistant else { return false }
+                // 保留有内容的消息，或者有特殊类型的消息（如 digest_report 卡片）
+                return !message.content.isEmpty || message.specialMessageType != nil
+            }
 
             Log.i("📥 过滤后保留 \(serverMessages.count) 条系统消息", category: "Chat")
 
@@ -395,6 +408,9 @@ final class PersistentChatViewModel: ObservableObject {
             conversationUpdatedAt = latestMessage.timestamp
             Log.i("📝 [PersistentChat] 更新对话时间为最新消息时间: \(latestMessage.timestamp)", category: "Chat")
         }
+        
+        // 4. 无论同步成功还是失败，都尝试插入 mock digest（如果还没有的话）
+        await insertMockDigestIfNeeded()
     }
 
     /// 检查是否需要恢复streaming
@@ -845,6 +861,35 @@ final class PersistentChatViewModel: ObservableObject {
             Log.e("❌ 清除历史记录失败: \(error.localizedDescription)", category: "Chat")
             errorMessage = "清除历史记录失败"
         }
+    }
+    
+    /// 插入一条 mock 的副本简报消息（用于演示），如果还没有的话
+    private func insertMockDigestIfNeeded() async {
+        // 检查是否已经有 digest_report 消息
+        let hasDigestReport = displayMessages.contains { message in
+            message.specialMessageType == .digestReport
+        }
+        
+        if hasDigestReport {
+            Log.i("ℹ️ 已存在 digest report，跳过插入", category: "Chat")
+            return
+        }
+        
+        // 使用统一的 mock 数据
+        let jsonString = DigestReportData.mock.toJSONString() ?? ""
+        
+        let digestMessage = ChatMessage(
+            id: UUID().uuidString,
+            text: "",  // 副本简报卡片不需要文本内容
+            isFromUser: false,
+            timestamp: Date(),
+            isStreaming: false,
+            specialMessageType: .digestReport,
+            specialMessageData: jsonString
+        )
+        
+        displayMessages.append(digestMessage)
+        Log.i("✨ 插入了 mock digest report 卡片", category: "Chat")
     }
 
     private func rebuildMessageMap() {

@@ -30,7 +30,7 @@ This monorepo hosts every client surface for the Health AI experience. The root 
 
 ## CI Status Monitoring (for AI Agents in Sandboxed Environments)
 
-**IMPORTANT**: If you are running in a sandboxed environment (Codex, Claude Code web sandbox, or similar CI/CD environment), you MUST follow this workflow after creating a Pull Request:
+**IMPORTANT**: If you are running in a sandboxed environment (Codex, Claude Code web sandbox, or similar CI/CD environment), you MUST follow this workflow after creating a Pull Request, skim `.github/GITHUB_CI.md` first:
 
 ### Required Post-PR Workflow
 
