@@ -68,17 +68,11 @@ public struct SimpleChatView: View {
                     // 点击消息列表区域，收起键盘
                     isInputFocused = false
                 }
-
-                // 底部留出空间给悬浮输入框
-                Spacer()
-                    .frame(height: 80)
+                .padding(.bottom, 100)  // 为悬浮输入框留出空间
             }
 
             // 悬浮输入框 - 毛玻璃效果
             VStack(spacing: 0) {
-                Divider()
-                    .background(Color.Palette.borderSubtle)
-
                 ChatInputView(
                     text: $inputText,
                     isFocused: $isInputFocused,
@@ -87,7 +81,7 @@ public struct SimpleChatView: View {
                 )
             }
             .background(.ultraThinMaterial)
-            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
+            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: -4)
         }
         .onChange(of: isLoading) { oldValue, newValue in
             // When loading starts, generate a new unique ID for the loading indicator

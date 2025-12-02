@@ -51,7 +51,7 @@ public final class MessageListCollectionView: UICollectionView {
     // MARK: - Setup
 
     private func setupCollectionView() {
-        backgroundColor = .systemBackground
+        backgroundColor = .clear  // 改为透明，使用外层背景色
         delegate = self
         alwaysBounceVertical = true
         keyboardDismissMode = .interactive

@@ -249,8 +249,15 @@ private struct MessageContentView: View {
             }
         }
         .padding(12)
-        .background(configuration.botMessageBackgroundColor)
-        .cornerRadius(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(configuration.botMessageBackgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
+        )
+        .shadow(color: Color.Palette.textPrimary.opacity(0.08), radius: 4, x: 0, y: 2)
     }
 }
 
