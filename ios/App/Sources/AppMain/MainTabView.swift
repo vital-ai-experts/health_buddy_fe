@@ -56,7 +56,13 @@ struct MainTabView: View {
     }
 
     private func handleChatButtonTapped() {
-        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "sheet"]) {
+        var queryItems: [String: String] = ["present": "sheet"]
+        if let goalManager = ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
+           let defaultGoalId = goalManager.defaultSelectedGoalId {
+            queryItems["goalId"] = defaultGoalId
+        }
+
+        if let chatURL = router.buildURL(path: "/chat", queryItems: queryItems) {
             router.open(url: chatURL)
         }
     }

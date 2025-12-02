@@ -18,9 +18,10 @@ public enum ChatModule {
 
     private static func registerRoutes(on router: RouteRegistering) {
         // /chat - 打开对话页面
-        router.register(path: "/chat", defaultSurface: .sheet) { _ in
-            AnyView(
-                PersistentChatView()
+        router.register(path: "/chat", defaultSurface: .sheet) { context in
+            let defaultGoalId = context.queryItems["goalId"]
+            return AnyView(
+                PersistentChatView(defaultSelectedGoalId: defaultGoalId)
             )
         }
     }

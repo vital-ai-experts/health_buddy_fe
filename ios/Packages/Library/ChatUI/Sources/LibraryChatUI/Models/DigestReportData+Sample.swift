@@ -2,7 +2,7 @@ import Foundation
 
 extension DigestReportData {
     public static let mock = DigestReportData(
-        title: "观呼吸大师",
+        title: "观呼吸菩萨",
         currentDay: 12,
         totalDays: 30,
         progressStatus: "超前",

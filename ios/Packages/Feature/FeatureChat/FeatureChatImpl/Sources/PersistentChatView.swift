@@ -5,6 +5,7 @@ import LibraryServiceLoader
 import LibraryChatUI
 import LibraryBase
 import ResourceKit
+import FeatureAgendaApi
 import ThemeKit
 
 /// 单一长期对话视图，对话历史保存在本地
@@ -14,10 +15,12 @@ struct PersistentChatView: View {
     @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
 
-    init() {
+    init(defaultSelectedGoalId: String? = nil) {
         let chatService = ServiceManager.shared.resolve(ChatService.self)
         _viewModel = StateObject(wrappedValue: PersistentChatViewModel(
-            chatService: chatService
+            chatService: chatService,
+            goalManager: ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
+            defaultSelectedGoalId: defaultSelectedGoalId
         ))
     }
 
@@ -26,6 +29,8 @@ struct PersistentChatView: View {
             messages: $viewModel.displayMessages,
             inputText: $viewModel.inputText,
             isLoading: viewModel.isSending,
+            tags: viewModel.chatTags,
+            selectedTagId: $viewModel.selectedGoalId,
             onSendMessage: { text in
                 Task {
                     await viewModel.sendMessage(text)
@@ -82,8 +87,15 @@ final class PersistentChatViewModel: ObservableObject {
     @Published var inputText = ""
     @Published var showClearHistoryAlert = false
     @Published var isLoadingMore = false  // 正在加载更多消息
+    @Published var selectedGoalId: String? {
+        didSet {
+            goalManager?.defaultSelectedGoalId = selectedGoalId
+        }
+    }
+    @Published var availableGoals: [AgendaGoal] = []
 
     private let chatService: ChatService
+    private let goalManager: AgendaGoalManaging?
     private var storageService: ChatStorageService?
     private var hasInitialized = false
     private var lastDataId: String?  // 用于断线重连
@@ -98,8 +110,24 @@ final class PersistentChatViewModel: ObservableObject {
     private let loadMoreLimit = 20  // 每次加载更多的消息数量
     private let conversationTimeoutHours: TimeInterval = 4 * 3600  // 4小时超时
 
-    init(chatService: ChatService) {
+    init(
+        chatService: ChatService,
+        goalManager: AgendaGoalManaging? = nil,
+        defaultSelectedGoalId: String? = nil
+    ) {
         self.chatService = chatService
+        self.goalManager = goalManager
+
+        let initialGoalId = Self.resolveInitialGoalId(
+            providedGoalId: defaultSelectedGoalId,
+            manager: goalManager
+        )
+        self.availableGoals = goalManager?.goals ?? []
+        self.selectedGoalId = initialGoalId
+
+        if let initialGoalId {
+            self.goalManager?.defaultSelectedGoalId = initialGoalId
+        }
     }
 
     var hasMoreMessages: Bool {
@@ -147,7 +175,9 @@ final class PersistentChatViewModel: ObservableObject {
                     text: localMsg.content,
                     isFromUser: localMsg.isFromUser,
                     timestamp: localMsg.createdAt,
-                    isStreaming: false
+                    isStreaming: false,
+                    goalId: localMsg.goalId,
+                    goalTitle: localMsg.goalTitle
                 )
             }
 
@@ -183,6 +213,28 @@ final class PersistentChatViewModel: ObservableObject {
             Log.e("❌ 加载本地消息失败: \(error.localizedDescription)", category: "Chat")
             errorMessage = "加载历史消息失败"
         }
+    }
+
+    var chatTags: [ChatTag] {
+        availableGoals.map { ChatTag(id: $0.id, title: $0.title) }
+    }
+
+    private static func resolveInitialGoalId(
+        providedGoalId: String?,
+        manager: AgendaGoalManaging?
+    ) -> String? {
+        let goals = manager?.goals ?? []
+
+        if let providedGoalId, goals.contains(where: { $0.id == providedGoalId }) {
+            return providedGoalId
+        }
+
+        if let defaultId = manager?.defaultSelectedGoalId,
+           goals.contains(where: { $0.id == defaultId }) {
+            return defaultId
+        }
+
+        return nil
     }
 
     /// 加载更多历史消息（用户往上滑动时调用）
@@ -503,12 +555,15 @@ final class PersistentChatViewModel: ObservableObject {
 
         // 2. 创建用户消息
         let userMessageId = UUID().uuidString
+        let goalTitle = goalTitle(for: selectedGoalId)
         let userMessage = ChatMessage(
             id: userMessageId,
             text: displayText,
             isFromUser: true,
             timestamp: Date(),
-            isStreaming: false
+            isStreaming: false,
+            goalId: selectedGoalId,
+            goalTitle: goalTitle
         )
         displayMessages.append(userMessage)
 
@@ -517,7 +572,9 @@ final class PersistentChatViewModel: ObservableObject {
             id: userMessageId,
             content: displayText,
             isFromUser: true,
-            createdAt: userMessage.timestamp
+            createdAt: userMessage.timestamp,
+            goalId: selectedGoalId,
+            goalTitle: goalTitle
         )
 
         // 4. 发送到服务器
@@ -645,7 +702,9 @@ final class PersistentChatViewModel: ObservableObject {
             isFromUser: true,
             timestamp: Date(),
             isStreaming: false,
-            images: [mockImage]
+            images: [mockImage],
+            goalId: selectedGoalId,
+            goalTitle: goalTitle(for: selectedGoalId)
         )
         displayMessages.append(userMessage)
 
@@ -654,7 +713,9 @@ final class PersistentChatViewModel: ObservableObject {
             id: userMessageId,
             content: "[图片]",
             isFromUser: true,
-            createdAt: userMessage.timestamp
+            createdAt: userMessage.timestamp,
+            goalId: selectedGoalId,
+            goalTitle: goalTitle(for: selectedGoalId)
         )
 
         // 4. 发送图片上传消息到服务器（mock）
@@ -686,6 +747,16 @@ final class PersistentChatViewModel: ObservableObject {
             imageName: "MockPhoto",
             bundle: ResourceManager.bundle
         )
+    }
+
+    private func goalTitle(for goalId: String?) -> String? {
+        guard let goalId else { return nil }
+
+        if let goal = availableGoals.first(where: { $0.id == goalId }) {
+            return goal.title
+        }
+
+        return goalManager?.goal(withId: goalId)?.title
     }
 
     /// 处理Agent消息
@@ -822,7 +893,9 @@ final class PersistentChatViewModel: ObservableObject {
         content: String,
         isFromUser: Bool,
         createdAt: Date,
-        conversationId: String? = nil
+        conversationId: String? = nil,
+        goalId: String? = nil,
+        goalTitle: String? = nil
     ) async {
         guard let storageService = storageService else { return }
 
@@ -831,7 +904,9 @@ final class PersistentChatViewModel: ObservableObject {
             content: content,
             isFromUser: isFromUser,
             createdAt: createdAt,
-            conversationId: conversationId ?? self.conversationId
+            conversationId: conversationId ?? self.conversationId,
+            goalId: goalId,
+            goalTitle: goalTitle
         )
 
         do {

@@ -1,5 +1,6 @@
 import SwiftUI
 import LibraryServiceLoader
+import FeatureAgendaApi
 import ThemeKit
 
 /// Agenda 主 Tab 视图，展示健康管理任务清单
@@ -11,8 +12,12 @@ struct AgendaTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                // 顶部话题列表
-                TopicBarView(topics: viewModel.topics)
+                // 顶部目标列表
+                TopicBarView(
+                    goals: viewModel.goals,
+                    onGoalSelected: handleGoalSelection,
+                    onAddTapped: handleAddGoalTapped
+                )
 
                 // 今天 - 全局状态区
                 TodayStatusView(healthStatus: viewModel.healthStatus)
@@ -44,6 +49,23 @@ struct AgendaTabView: View {
             router.currentTab = .agenda
         }
     }
+
+    private func handleGoalSelection(_ goal: AgendaGoal) {
+        viewModel.setDefaultGoal(goal.id)
+        if let chatURL = router.buildURL(
+            path: "/chat",
+            queryItems: [
+                "present": "sheet",
+                "goalId": goal.id
+            ]
+        ) {
+            router.open(url: chatURL)
+        }
+    }
+
+    private func handleAddGoalTapped() {
+        // 预留：未来可跳转到新增目标页面
+    }
 }
 
 #Preview {
@@ -54,7 +76,20 @@ struct AgendaTabView: View {
 // MARK: - View Model
 
 private final class AgendaTabViewModel {
-    let topics: [AgendaTopic] = AgendaTopic.sampleTopics
+    private let goalManager: AgendaGoalManaging
+
+    init(goalManager: AgendaGoalManaging = ServiceManager.shared.resolve(AgendaGoalManaging.self)) {
+        self.goalManager = goalManager
+    }
+
+    var goals: [AgendaGoal] {
+        goalManager.goals
+    }
+
+    func setDefaultGoal(_ goalId: String) {
+        goalManager.defaultSelectedGoalId = goalId
+    }
+
     let healthStatus: HealthStatus = HealthStatus.randomSample()
     let tasks: [AgendaTask] = AgendaTask.sampleTasks
 }

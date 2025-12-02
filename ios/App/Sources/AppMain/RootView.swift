@@ -346,6 +346,12 @@ struct RootView: View {
             }
         }
 
+        let deepLinkGoalId = queryItems["goalId"]
+        if let goalId = deepLinkGoalId,
+           let goalManager = ServiceManager.shared.resolveOptional(AgendaGoalManaging.self) {
+            goalManager.defaultSelectedGoalId = goalId
+        }
+
         // 预置要发送的消息（如果需要发送消息，则打开对话页面）
         if let rawMessage = queryItems["sendmsg"], !rawMessage.isEmpty {
             let cleaned = rawMessage
@@ -354,9 +360,24 @@ struct RootView: View {
             if !cleaned.isEmpty {
                 router.enqueueChatMessage(cleaned)
                 // 打开对话页面
-                if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "sheet"]) {
+                var chatQuery: [String: String] = ["present": "sheet"]
+                if let goalId = deepLinkGoalId, !goalId.isEmpty {
+                    chatQuery["goalId"] = goalId
+                }
+
+                if let chatURL = router.buildURL(path: "/chat", queryItems: chatQuery) {
                     router.open(url: chatURL)
                 }
+            }
+        } else if let goalId = deepLinkGoalId, !goalId.isEmpty {
+            if let chatURL = router.buildURL(
+                path: "/chat",
+                queryItems: [
+                    "present": "sheet",
+                    "goalId": goalId
+                ]
+            ) {
+                router.open(url: chatURL)
             }
         }
 

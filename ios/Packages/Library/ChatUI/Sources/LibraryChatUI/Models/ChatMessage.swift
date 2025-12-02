@@ -67,6 +67,10 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let specialMessageType: SpecialMessageType?  // 特殊消息类型
     public let specialMessageData: String?  // 特殊消息的数据（例如：健康档案的JSON）
 
+    // Goal 关联
+    public let goalId: String?
+    public let goalTitle: String?
+
     // 错误相关
     public let hasError: Bool  // 消息是否有错误
     public let errorMessage: String?  // 错误信息
@@ -82,6 +86,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         toolCalls: [ToolCallInfo]? = nil,
         specialMessageType: SpecialMessageType? = nil,
         specialMessageData: String? = nil,
+        goalId: String? = nil,
+        goalTitle: String? = nil,
         hasError: Bool = false,
         errorMessage: String? = nil
     ) {
@@ -95,6 +101,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.goalId = goalId
+        self.goalTitle = goalTitle
         self.hasError = hasError
         self.errorMessage = errorMessage
     }

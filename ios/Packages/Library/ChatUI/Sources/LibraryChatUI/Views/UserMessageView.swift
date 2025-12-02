@@ -36,6 +36,18 @@ public struct UserMessageView: View {
                         .textSelection(.enabled)
                 }
 
+                if let goalTitle = message.goalTitle {
+                    Text("副本：\(goalTitle)")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(Color.Palette.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.Palette.bgMuted)
+                        )
+                }
+
                 if configuration.showTimestamp {
                     Text(timeString(from: message.timestamp))
                         .font(.caption2)
@@ -147,7 +159,8 @@ private struct MessageImageView: View {
         UserMessageView(
             message: UserMessage(
                 text: "Hello, how are you?",
-                timestamp: Date()
+                timestamp: Date(),
+                goalTitle: "睡眠大师"
             )
         )
 
