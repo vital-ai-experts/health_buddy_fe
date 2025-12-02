@@ -72,14 +72,12 @@ public struct SimpleChatView: View {
             }
 
             // 悬浮输入框 - 毛玻璃效果
-            VStack(spacing: 0) {
-                ChatInputView(
-                    text: $inputText,
-                    isFocused: $isInputFocused,
-                    isLoading: isLoading,
-                    onSend: handleSend
-                )
-            }
+            ChatInputView(
+                text: $inputText,
+                isFocused: $isInputFocused,
+                isLoading: isLoading,
+                onSend: handleSend
+            )
             .background(.ultraThinMaterial)
             .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: -4)
         }
