@@ -37,7 +37,6 @@ struct AgendaCardView: View {
                     .foregroundColor(.Palette.textSecondary)
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(3)
 
                 Spacer()
                 
@@ -110,6 +109,7 @@ private struct TaskActionButton: View {
         case .check: return "checkmark.circle.fill"
         case .play: return "play.circle.fill"
         case .sync: return "arrow.triangle.2.circlepath"
+        case .walk: return "figure.walk"
         }
     }
 
@@ -119,6 +119,7 @@ private struct TaskActionButton: View {
         case .check(let text): return text
         case .play(let text): return text
         case .sync(let text): return text
+        case .walk(let text): return text
         }
     }
 

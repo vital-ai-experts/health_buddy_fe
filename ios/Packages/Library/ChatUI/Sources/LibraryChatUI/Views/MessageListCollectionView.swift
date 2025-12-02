@@ -97,6 +97,7 @@ public final class MessageListCollectionView: UICollectionView {
         let userCellRegistration = createUserCellRegistration()
         let systemCellRegistration = createSystemCellRegistration()
         let digestReportCellRegistration = createDigestReportCellRegistration()
+        let customCellRegistration = createCustomCellRegistration()
         let loadingCellRegistration = createLoadingCellRegistration()
         let errorCellRegistration = createErrorCellRegistration()
 
@@ -112,6 +113,12 @@ public final class MessageListCollectionView: UICollectionView {
             case .system:
                 return collectionView.dequeueConfiguredReusableCell(
                     using: systemCellRegistration,
+                    for: indexPath,
+                    item: item
+                )
+            case .custom:
+                return collectionView.dequeueConfiguredReusableCell(
+                    using: customCellRegistration,
                     for: indexPath,
                     item: item
                 )
@@ -188,6 +195,26 @@ public final class MessageListCollectionView: UICollectionView {
 
             cell.contentConfiguration = UIHostingConfiguration {
                 DigestReportMessageView(message: message, configuration: self.configuration)
+            }
+            .margins(.all, 0)
+
+            cell.backgroundColor = .clear
+        }
+    }
+
+    private func createCustomCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
+        UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { cell, indexPath, item in
+            guard case .custom(let message) = item else { return }
+
+            let content: AnyView
+            if let renderer = ChatMessageRendererRegistry.shared.renderer(for: message.type) {
+                content = renderer(message)
+            } else {
+                content = AnyView(CustomMessageFallbackView(message: message))
+            }
+
+            cell.contentConfiguration = UIHostingConfiguration {
+                content
             }
             .margins(.all, 0)
 
@@ -337,6 +364,35 @@ public final class MessageListCollectionView: UICollectionView {
                 self.contentOffset.y += adjustment
             }
         }
+    }
+}
+
+private struct CustomMessageFallbackView: View {
+    let message: CustomRenderedMessage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("未注册的卡片类型：\(message.type)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if !message.text.isEmpty {
+                Text(message.text)
+                    .font(.body)
+                    .foregroundColor(.primary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.gray.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
     }
 }
 

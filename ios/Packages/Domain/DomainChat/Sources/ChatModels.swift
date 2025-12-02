@@ -76,6 +76,8 @@ public struct StreamMessageData: Codable {
     public let thinkingContent: String?
     public let content: String?
     public let toolCalls: [ToolCall]?
+    public let specialMessageType: String?
+    public let specialMessageData: String?
 
     public init(
         conversationId: String? = nil,
@@ -87,7 +89,9 @@ public struct StreamMessageData: Codable {
         messageType: MessageType? = nil,
         thinkingContent: String? = nil,
         content: String? = nil,
-        toolCalls: [ToolCall]? = nil
+        toolCalls: [ToolCall]? = nil,
+        specialMessageType: String? = nil,
+        specialMessageData: String? = nil
     ) {
         self.conversationId = conversationId
         self.onboardingId = onboardingId
@@ -99,6 +103,8 @@ public struct StreamMessageData: Codable {
         self.thinkingContent = thinkingContent
         self.content = content
         self.toolCalls = toolCalls
+        self.specialMessageType = specialMessageType
+        self.specialMessageData = specialMessageData
     }
 }
 

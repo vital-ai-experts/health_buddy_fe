@@ -15,6 +15,9 @@ public enum AgendaModule {
         manager.register(AgendaService.self) { AgendaServiceImpl() }
         manager.register(AgendaGoalManaging.self) { goalManager }
 
+        // 注册聊天中的 Agenda 卡片渲染
+        AgendaChatMessageRegistrar.registerRenderers()
+
         // 注册副本详情路由，供调试入口或深链使用
         if let router {
             router.register(path: "/dungeon_detail", defaultSurface: .sheet) { _ in

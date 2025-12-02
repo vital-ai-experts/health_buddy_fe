@@ -20,6 +20,7 @@ struct AgendaTask: Identifiable {
         case check(String) // 勾选确认，参数为提示文本
         case play(String) // 播放音频，参数为提示文本
         case sync(String) // 同步数据，参数为提示文本
+        case walk(String) // 运动/步行，参数为提示文本
     }
 }
 

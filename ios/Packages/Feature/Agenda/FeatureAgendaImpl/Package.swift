@@ -9,6 +9,7 @@ let package = Package(
         .package(name: "FeatureAgendaApi", path: "../FeatureAgendaApi"),
         .package(name: "LibraryBase", path: "../../../Library/Base"),
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
+        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI"),
         .package(name: "LibraryNotification", path: "../../../Library/Notification"),
         .package(name: "ThemeKit", path: "../../../Library/ThemeKit")
     ],
@@ -19,6 +20,7 @@ let package = Package(
                 .product(name: "FeatureAgendaApi", package: "FeatureAgendaApi"),
                 .product(name: "LibraryBase", package: "LibraryBase"),
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
+                .product(name: "LibraryChatUI", package: "LibraryChatUI"),
                 .product(name: "LibraryNotification", package: "LibraryNotification"),
                 .product(name: "ThemeKit", package: "ThemeKit")
             ],

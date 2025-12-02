@@ -18,7 +18,9 @@ public final class ChatServiceWithMock: ChatService {
         conversationId: String?,
         eventHandler: @escaping (ConversationStreamEvent) -> Void
     ) async throws {
-        if let userInput, ChatMocking.hasMockPrefix(in: userInput) {
+        let isMilkTea = userInput?.contains("奶茶") == true
+
+        if let userInput, ChatMocking.hasMockPrefix(in: userInput) || isMilkTea {
             try await mockService.sendMessage(
                 userInput: userInput,
                 conversationId: conversationId,
@@ -128,6 +130,16 @@ public final class MockChatService: ChatService {
         let cleanText = ChatMocking.stripMockPrefix(from: rawText)
         let cid = conversationId ?? UUID().uuidString
         let msgId = UUID().uuidString
+
+        // 奶茶彩蛋：返回任务卡片
+        if cleanText.contains("奶茶") {
+            try await respondWithMilkTea(
+                conversationId: cid,
+                statusMessageId: msgId,
+                eventHandler: eventHandler
+            )
+            return
+        }
 
         // 检查是否是图片上传消息
         if ChatMocking.isPhotoUploadMessage(cleanText) {
@@ -347,4 +359,119 @@ public final class MockChatService: ChatService {
 
         return ""
     }
+
+    // MARK: - 奶茶任务彩蛋
+
+    private func respondWithMilkTea(
+        conversationId: String,
+        statusMessageId: String,
+        eventHandler: @escaping (ConversationStreamEvent) -> Void
+    ) async throws {
+        let taskMessageId = UUID().uuidString
+        let cardMessageId = UUID().uuidString
+
+        // 开始生成
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: statusMessageId,
+                dataType: .agentStatus,
+                agentStatus: .generating
+            )
+        )))
+
+        // 开始打字前稍等，模拟思考延迟
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        // 文字分片回复
+        let chunks: [String] = [
+            "啊，我就知道。你的意志力这就“欠费”了？😉",
+            """
+
+不过，看在你今天被工作折磨得够惨的份上，这杯“毒药”我准了。在我的算法里，心情崩溃比发胖更危险。
+""",
+            """
+
+我会给你增加一个任务，帮你把这杯奶茶的糖分快速代谢掉：
+"""
+        ]
+
+        for (index, chunk) in chunks.enumerated() {
+            // 模拟打字延迟
+            try? await Task.sleep(nanoseconds: UInt64(700_000_000 + index * 200_000_000))
+
+            let messageType: MessageType = (index == chunks.count - 1) ? .whole : .chunk
+
+            eventHandler(.streamMessage(StreamMessage(
+                id: UUID().uuidString,
+                data: StreamMessageData(
+                    conversationId: conversationId,
+                    msgId: taskMessageId,
+                    dataType: .agentMessage,
+                    messageType: messageType,
+                    content: chunks.prefix(index + 1).joined()
+                )
+            )))
+        }
+
+        // 在文字完成后稍等再推送卡片，增强拟真感
+        try? await Task.sleep(nanoseconds: 600_000_000)
+
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: cardMessageId,
+                dataType: .agentMessage,
+                messageType: .whole,
+                content: "",
+                specialMessageType: "agenda_task_card",
+                specialMessageData: makeMilkTeaTaskPayload()
+            )
+        )))
+
+        // 结束
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: statusMessageId,
+                dataType: .agentStatus,
+                agentStatus: .finished
+            )
+        )))
+    }
+
+    private func makeMilkTeaTaskPayload() -> String {
+        let payload = AgendaTaskCardPayload(
+            emoji: "⚡️",
+            title: "糖分阻断",
+            description: "喝完立刻去快走 15 分钟。激活大腿肌肉作为海绵，赶在胰岛素飙升前，把血液里的游离糖分直接吃掉。",
+            reward: "+10 快乐",
+            timeWindow: "窗口期：血糖峰值到达前（剩余 20 分钟）",
+            progress: 0.99,
+            actionType: "walk",
+            actionLabel: "压制胰岛素"
+        )
+
+        guard let data = try? JSONEncoder().encode(payload),
+              let jsonString = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+
+        return jsonString
+    }
+}
+
+private struct AgendaTaskCardPayload: Codable {
+    let emoji: String
+    let title: String
+    let description: String
+    let reward: String
+    let timeWindow: String
+    let progress: Double
+    let actionType: String
+    let actionLabel: String
 }

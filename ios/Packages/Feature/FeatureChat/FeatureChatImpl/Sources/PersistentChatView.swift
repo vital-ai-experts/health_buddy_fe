@@ -420,7 +420,8 @@ final class PersistentChatViewModel: ObservableObject {
                             result: $0.toolCallResult
                         )},
                         specialMessageType: specialType,
-                        specialMessageData: message.specialMessageData
+                        specialMessageData: message.specialMessageData,
+                        specialMessageTypeRaw: message.specialMessageType
                     )
 
                     displayMessages.append(chatMessage)
@@ -771,12 +772,14 @@ final class PersistentChatViewModel: ObservableObject {
         let hasContent = data.content != nil && !data.content!.isEmpty
         let hasThinking = data.thinkingContent != nil && !data.thinkingContent!.isEmpty
         let hasToolCalls = data.toolCalls != nil && !data.toolCalls!.isEmpty
+        let hasSpecial = data.specialMessageType != nil || data.specialMessageData != nil
 
-        guard hasContent || hasThinking || hasToolCalls else {
+        guard hasContent || hasThinking || hasToolCalls || hasSpecial else {
             return
         }
 
         let content = data.content ?? ""
+        let specialType = data.specialMessageType.flatMap { SpecialMessageType(rawValue: $0) }
 
         // 转换工具调用
         let toolCallInfos: [ToolCallInfo]? = data.toolCalls?.map { toolCall in
@@ -801,7 +804,10 @@ final class PersistentChatViewModel: ObservableObject {
                 timestamp: existingMessage.timestamp,
                 isStreaming: true,
                 thinkingContent: data.thinkingContent ?? existingMessage.thinkingContent,
-                toolCalls: toolCallInfos ?? existingMessage.toolCalls
+                toolCalls: toolCallInfos ?? existingMessage.toolCalls,
+                specialMessageType: specialType ?? existingMessage.specialMessageType,
+                specialMessageData: data.specialMessageData ?? existingMessage.specialMessageData,
+                specialMessageTypeRaw: data.specialMessageType ?? existingMessage.specialMessageTypeRaw
             )
             displayMessages[index] = message
 
@@ -819,7 +825,10 @@ final class PersistentChatViewModel: ObservableObject {
                 timestamp: Date(),
                 isStreaming: true,
                 thinkingContent: data.thinkingContent,
-                toolCalls: toolCallInfos
+                toolCalls: toolCallInfos,
+                specialMessageType: specialType,
+                specialMessageData: data.specialMessageData,
+                specialMessageTypeRaw: data.specialMessageType
             )
             displayMessages.append(newMessage)
             messageMap[msgId] = displayMessages.count - 1
@@ -845,7 +854,10 @@ final class PersistentChatViewModel: ObservableObject {
                 timestamp: message.timestamp,
                 isStreaming: false,
                 thinkingContent: message.thinkingContent,
-                toolCalls: message.toolCalls
+                toolCalls: message.toolCalls,
+                specialMessageType: message.specialMessageType,
+                specialMessageData: message.specialMessageData,
+                specialMessageTypeRaw: message.specialMessageTypeRaw
             )
             displayMessages[index] = finalMessage
 
@@ -864,6 +876,9 @@ final class PersistentChatViewModel: ObservableObject {
                 isFromUser: false,
                 timestamp: failedMessage.timestamp,
                 isStreaming: false,
+                specialMessageType: failedMessage.specialMessageType,
+                specialMessageData: failedMessage.specialMessageData,
+                specialMessageTypeRaw: failedMessage.specialMessageTypeRaw,
                 hasError: true,
                 errorMessage: message
             )

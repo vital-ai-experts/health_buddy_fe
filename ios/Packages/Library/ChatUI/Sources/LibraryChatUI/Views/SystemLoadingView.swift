@@ -12,34 +12,6 @@ public struct SystemLoadingView: View {
 
     public var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar
-            if let avatarURL = configuration.botAvatarURL {
-                AsyncImage(url: avatarURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color.green)
-                        .overlay(
-                            Image(systemName: "brain.head.profile")
-                                .foregroundColor(.white)
-                                .font(.system(size: 14))
-                        )
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "brain.head.profile")
-                            .foregroundColor(.white)
-                            .font(.system(size: 14))
-                    )
-            }
-
             // Typing indicator
             TypingIndicatorView()
                 .padding(16)

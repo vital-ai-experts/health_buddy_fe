@@ -139,6 +139,8 @@ public struct SimpleChatView: View {
             return message.timestamp
         case .digestReport(let message):
             return message.timestamp
+        case .custom(let message):
+            return message.timestamp
         case .error(let error):
             return error.timestamp
         case .loading:
