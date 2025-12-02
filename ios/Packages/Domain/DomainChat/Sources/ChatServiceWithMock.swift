@@ -51,7 +51,63 @@ public final class ChatServiceWithMock: ChatService {
     }
 
     public func getConversationHistory(id: String) async throws -> [Message] {
-        try await realService.getConversationHistory(id: id)
+        var messages = try await realService.getConversationHistory(id: id)
+
+        // 检查最新的系统消息是否是副本简报卡片
+        let latestSystemMessage = messages.last(where: { $0.role == .assistant })
+
+        // 如果最新的系统消息不是副本简报卡片，插入一条 mock 的副本简报卡片
+        if latestSystemMessage?.specialMessageType != "digest_report" {
+            let digestReportMessage = createMockDigestReportMessage(conversationId: id)
+            messages.append(digestReportMessage)
+        }
+
+        return messages
+    }
+
+    /// 创建一条 mock 的副本简报消息
+    private func createMockDigestReportMessage(conversationId: String) -> Message {
+        // 创建副本简报数据
+        let reportData: [String: Any] = [
+            "currentDay": 12,
+            "totalDays": 30,
+            "progressStatus": "超前",
+            "targetValue": 65.0,
+            "dataPoints": [
+                ["id": UUID().uuidString, "day": 1, "value": 45.0],
+                ["id": UUID().uuidString, "day": 2, "value": 55.0],
+                ["id": UUID().uuidString, "day": 3, "value": 52.0],
+                ["id": UUID().uuidString, "day": 4, "value": 58.0],
+                ["id": UUID().uuidString, "day": 5, "value": 50.0],
+                ["id": UUID().uuidString, "day": 6, "value": 48.0],
+                ["id": UUID().uuidString, "day": 7, "value": 62.0],
+                ["id": UUID().uuidString, "day": 8, "value": 60.0],
+                ["id": UUID().uuidString, "day": 9, "value": 70.0],
+                ["id": UUID().uuidString, "day": 10, "value": 68.0],
+                ["id": UUID().uuidString, "day": 11, "value": 72.0],
+                ["id": UUID().uuidString, "day": 12, "value": 75.0]
+            ],
+            "message": "得益于你连续 5 天完成了\"数字日落\"任务，你的入睡潜伏期（Latency）缩短了 40%。大脑现在已经学会了关灯即睡的条件反射，我们正在赢得这场战役！"
+        ]
+
+        // 转换为 JSON 字符串
+        let jsonData = try? JSONSerialization.data(withJSONObject: reportData, options: [])
+        let jsonString = jsonData.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+
+        // 创建当前时间戳（毫秒）
+        let currentTimestamp = String(Int(Date().timeIntervalSince1970 * 1000))
+
+        return Message(
+            id: UUID().uuidString,
+            conversationId: conversationId,
+            role: .assistant,
+            content: "",  // 副本简报卡片不需要文本内容
+            createdAt: currentTimestamp,
+            thinkingContent: nil,
+            toolCalls: nil,
+            specialMessageType: "digest_report",
+            specialMessageData: jsonString
+        )
     }
 
     public func deleteConversation(id: String) async throws {

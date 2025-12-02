@@ -9,7 +9,7 @@ public struct ChatInputView: View {
     let onSend: () -> Void
 
     // Mock Tags
-    private let mockTags = ["深度思考", "AI 创作", "豆包 P 图", "拍照搜题"]
+    private let mockTags = ["睡眠大师", "强壮之路", "大富翁"]
     @State private var selectedTag: String?
 
     public init(
@@ -59,7 +59,7 @@ public struct ChatInputView: View {
 
             // Input Area
             ZStack(alignment: .bottomTrailing) {
-                TextField("Type a message...", text: $text, axis: .vertical)
+                TextField("在这里输入...", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -101,7 +101,7 @@ public struct ChatInputView: View {
 
 #Preview {
     struct PreviewWrapper: View {
-        @State private var text = "Hello"
+        @State private var text = ""
         @FocusState private var isFocused: Bool
         
         var body: some View {

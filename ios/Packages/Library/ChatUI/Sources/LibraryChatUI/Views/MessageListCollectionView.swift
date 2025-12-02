@@ -96,6 +96,7 @@ public final class MessageListCollectionView: UICollectionView {
         // Cell registrations
         let userCellRegistration = createUserCellRegistration()
         let systemCellRegistration = createSystemCellRegistration()
+        let digestReportCellRegistration = createDigestReportCellRegistration()
         let loadingCellRegistration = createLoadingCellRegistration()
         let errorCellRegistration = createErrorCellRegistration()
 
@@ -111,6 +112,12 @@ public final class MessageListCollectionView: UICollectionView {
             case .system:
                 return collectionView.dequeueConfiguredReusableCell(
                     using: systemCellRegistration,
+                    for: indexPath,
+                    item: item
+                )
+            case .digestReport:
+                return collectionView.dequeueConfiguredReusableCell(
+                    using: digestReportCellRegistration,
                     for: indexPath,
                     item: item
                 )
@@ -167,6 +174,20 @@ public final class MessageListCollectionView: UICollectionView {
                     onHealthProfileConfirm: self.onHealthProfileConfirm,
                     onHealthProfileReject: self.onHealthProfileReject
                 )
+            }
+            .margins(.all, 0)
+
+            cell.backgroundColor = .clear
+        }
+    }
+
+    private func createDigestReportCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
+        UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { [weak self] cell, indexPath, item in
+            guard case .digestReport(let message) = item,
+                  let self = self else { return }
+
+            cell.contentConfiguration = UIHostingConfiguration {
+                DigestReportMessageView(message: message, configuration: self.configuration)
             }
             .margins(.all, 0)
 
