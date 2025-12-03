@@ -12,28 +12,28 @@ struct OnboardingCallCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(payload?.headline ?? "预约回电")
                     .font(.headline.weight(.bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.Palette.textPrimary)
                 Text(payload?.note ?? "填写手机号，健康顾问会主动来电确认你的定制方案。")
                     .font(.footnote)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(.Palette.textSecondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("手机号")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.Palette.textSecondary)
                 TextField("请输入手机号", text: $phoneNumber)
                     .keyboardType(.phonePad)
                     .textInputAutocapitalization(.none)
                     .disableAutocorrection(true)
                     .padding(12)
-                    .background(Color.white.opacity(0.06))
+                    .background(Color.Palette.bgMuted)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .foregroundColor(.white)
+                    .foregroundColor(.Palette.textPrimary)
             }
 
             Button {
@@ -46,17 +46,17 @@ struct OnboardingCallCardView: View {
                     Spacer()
                 }
                 .padding(.vertical, 10)
-                .background(Color.Palette.successMain)
-                .foregroundColor(.white)
+                .background(Color.Palette.infoMain)
+                .foregroundColor(.Palette.textOnAccent)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04))
+        .background(Color.Palette.surfaceElevated)
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onAppear {

@@ -11,5 +11,9 @@ enum OnboardingChatMocking {
         static let startDungeon = "#mock#onboarding_start_dungeon"
     }
 
-    static let onboardingConversationId = "onboarding-conversation"
+    static let onboardingConversationPrefix = "onboarding_"
+
+    static func makeConversationId() -> String {
+        "\(onboardingConversationPrefix)\(Int(Date().timeIntervalSince1970))"
+    }
 }

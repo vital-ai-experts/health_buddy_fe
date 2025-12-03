@@ -13,7 +13,7 @@ public struct SimpleChatView: View {
     public let onSpecialMessageAction: ((String, String) -> Void)?
     public let onRetry: ((String) -> Void)?
     public let onLoadMoreHistory: (() -> Void)?
-    public let chatContext: ChatContext
+    public let chatSession: ChatSessionControlling?
 
     @FocusState private var isInputFocused: Bool
     @Binding private var selectedTopicId: String?
@@ -31,7 +31,7 @@ public struct SimpleChatView: View {
         onSpecialMessageAction: ((String, String) -> Void)? = nil,
         onRetry: ((String) -> Void)? = nil,
         onLoadMoreHistory: (() -> Void)? = nil,
-        chatContext: ChatContext = .noop
+        chatSession: ChatSessionControlling? = nil
     ) {
         self._messages = messages
         self._inputText = inputText
@@ -44,7 +44,7 @@ public struct SimpleChatView: View {
         self.onRetry = onRetry
         self.onLoadMoreHistory = onLoadMoreHistory
         self._selectedTopicId = selectedTopicId
-        self.chatContext = chatContext
+        self.chatSession = chatSession
     }
 
     public var body: some View {
@@ -66,7 +66,7 @@ public struct SimpleChatView: View {
                         onSpecialMessageAction?("userHealthProfile", "reject")
                     },
                     onRetry: onRetry,
-                    chatContext: chatContext
+                    chatSession: chatSession
                 )
                 .frame(maxHeight: .infinity)  // 填充所有可用空间
                 .contentShape(Rectangle())

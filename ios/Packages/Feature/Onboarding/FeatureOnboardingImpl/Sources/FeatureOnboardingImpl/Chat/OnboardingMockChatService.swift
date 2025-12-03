@@ -1,9 +1,11 @@
 import Foundation
 import FeatureChatApi
+import LibraryChatUI
 
 /// Onboarding 阶段专用的 Mock Chat Service，完全在本地生成对话流与卡片
 public final class OnboardingMockChatService: ChatService {
     private var states: [String: OnboardingConversationState] = [:]
+    private let stateManager = OnboardingStateManager.shared
 
     public init() {}
 
@@ -14,7 +16,7 @@ public final class OnboardingMockChatService: ChatService {
     ) async throws {
         let rawText = userInput ?? ""
         let cleanText = ChatMocking.stripMockPrefix(from: rawText)
-        let cid = conversationId ?? OnboardingChatMocking.onboardingConversationId
+        let cid = resolveConversationId(from: conversationId)
         var state = states[cid] ?? OnboardingConversationState()
 
         let responses = await handleMessage(
@@ -23,8 +25,12 @@ public final class OnboardingMockChatService: ChatService {
             state: &state
         )
         states[cid] = state
+        if !responses.isEmpty {
+            stateManager.saveOnboardingID(cid)
+        }
 
         for (index, event) in responses.enumerated() {
+            try? await Task.sleep(nanoseconds: 500_000_000)
             eventHandler(.streamMessage(event))
             if index < responses.count - 1 {
                 try? await Task.sleep(nanoseconds: 200_000_000)
@@ -49,15 +55,16 @@ public final class OnboardingMockChatService: ChatService {
     }
 
     public func getConversations(limit: Int?, offset: Int?) async throws -> [Conversation] {
-        [
+        let cid = stateManager.getOnboardingID() ?? OnboardingChatMocking.makeConversationId()
+        return [
             Conversation(
-                id: OnboardingChatMocking.onboardingConversationId,
+                id: cid,
                 createdAt: currentTimestamp()
             )
         ]
     }
 
-    public func getConversationHistory(id: String) async throws -> [Message] {
+    public func getConversationHistory(id: String, chatSession: ChatSessionControlling?) async throws -> [Message] {
         []
     }
 
@@ -106,6 +113,8 @@ private extension OnboardingMockChatService {
 
     enum IncomingCommand {
         case start
+        case clear
+        case skip
         case confirmProfile
         case selectIssue(String)
         case updateProfile(ProfileUpdate)
@@ -157,6 +166,12 @@ private extension OnboardingMockChatService {
         case .start:
             return respondProfileIntro(conversationId: conversationId, state: &state)
 
+        case .clear:
+            return respondClear(conversationId: conversationId, state: &state)
+
+        case .skip:
+            return respondSkip(conversationId: conversationId)
+
         case .confirmProfile:
             return respondConfirmProfile(conversationId: conversationId, state: &state)
 
@@ -185,32 +200,47 @@ private extension OnboardingMockChatService {
             return .start
         }
 
-        if text == "onboarding_start" || text == OnboardingChatMocking.Command.start {
+        let normalized = text.replacingOccurrences(of: "#mock#", with: "")
+        let lowercased = normalized.lowercased()
+        if lowercased == "clear" {
+            return .clear
+        }
+        if lowercased == "skip" {
+            return .skip
+        }
+
+        if normalized == "onboarding_start" || text == OnboardingChatMocking.Command.start {
             return .start
         }
-        if text == OnboardingChatMocking.Command.confirmProfile {
+        if normalized == "onboarding_confirm_profile" || text == OnboardingChatMocking.Command.confirmProfile {
             return .confirmProfile
         }
-        if text == OnboardingChatMocking.Command.viewDungeon {
+        if normalized == "onboarding_view_dungeon" || text == OnboardingChatMocking.Command.viewDungeon {
             return .viewDungeon
         }
-        if text == OnboardingChatMocking.Command.startDungeon {
+        if normalized == "onboarding_start_dungeon" || text == OnboardingChatMocking.Command.startDungeon {
             return .startDungeon
         }
 
-        if text.hasPrefix(OnboardingChatMocking.Command.selectIssuePrefix) {
-            let id = String(text.dropFirst(OnboardingChatMocking.Command.selectIssuePrefix.count))
+        if normalized.hasPrefix("onboarding_select_issue:") || text.hasPrefix(OnboardingChatMocking.Command.selectIssuePrefix) {
+            let id = normalized.hasPrefix("onboarding_select_issue:")
+            ? String(normalized.dropFirst("onboarding_select_issue:".count))
+            : String(text.dropFirst(OnboardingChatMocking.Command.selectIssuePrefix.count))
             return .selectIssue(id)
         }
 
-        if text.hasPrefix(OnboardingChatMocking.Command.updateProfilePrefix) {
-            let content = String(text.dropFirst(OnboardingChatMocking.Command.updateProfilePrefix.count))
+        if normalized.hasPrefix("onboarding_update_profile:") || text.hasPrefix(OnboardingChatMocking.Command.updateProfilePrefix) {
+            let content = normalized.hasPrefix("onboarding_update_profile:")
+            ? String(normalized.dropFirst("onboarding_update_profile:".count))
+            : String(text.dropFirst(OnboardingChatMocking.Command.updateProfilePrefix.count))
             let update = parseProfileUpdate(from: content)
             return .updateProfile(update)
         }
 
-        if text.hasPrefix(OnboardingChatMocking.Command.bookCallPrefix) {
-            let phone = String(text.dropFirst(OnboardingChatMocking.Command.bookCallPrefix.count))
+        if normalized.hasPrefix("onboarding_book_call:") || text.hasPrefix(OnboardingChatMocking.Command.bookCallPrefix) {
+            let phone = normalized.hasPrefix("onboarding_book_call:")
+            ? String(normalized.dropFirst("onboarding_book_call:".count))
+            : String(text.dropFirst(OnboardingChatMocking.Command.bookCallPrefix.count))
             return .bookCall(phone)
         }
 
@@ -270,6 +300,47 @@ private extension OnboardingMockChatService {
                 content: "",
                 specialType: "onboarding_profile_card",
                 specialData: encodeProfilePayload(from: state)
+            ),
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
+        ]
+    }
+
+    func respondClear(
+        conversationId: String,
+        state: inout OnboardingConversationState
+    ) -> [StreamMessage] {
+        // 重置本地状态
+        state = OnboardingConversationState()
+
+        let resetMsgId = UUID().uuidString
+        var events: [StreamMessage] = [
+            makeSpecialEvent(
+                conversationId: conversationId,
+                msgId: resetMsgId,
+                specialType: "reset_conversation",
+                specialData: nil
+            )
+        ]
+
+        events.append(contentsOf: respondProfileIntro(conversationId: conversationId, state: &state))
+        return events
+    }
+
+    func respondSkip(conversationId: String) -> [StreamMessage] {
+        stateManager.saveOnboardingID(conversationId)
+        stateManager.markOnboardingAsCompleted()
+
+        let statusId = UUID().uuidString
+        let msgId = UUID().uuidString
+
+        return [
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msgId,
+                content: "好的，已为你跳过引导，直接进入首页。",
+                specialType: "onboarding_skip",
+                specialData: nil
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
         ]
@@ -649,7 +720,37 @@ private extension OnboardingMockChatService {
         )
     }
 
+    func makeSpecialEvent(
+        conversationId: String,
+        msgId: String,
+        specialType: String,
+        specialData: String?
+    ) -> StreamMessage {
+        StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: msgId,
+                dataType: .agentMessage,
+                messageType: .whole,
+                specialMessageType: specialType,
+                specialMessageData: specialData
+            )
+        )
+    }
+
     func currentTimestamp() -> String {
         String(Int(Date().timeIntervalSince1970 * 1000))
+    }
+
+    func resolveConversationId(from incoming: String?) -> String {
+        if let incoming {
+            return incoming
+        }
+        if let saved = stateManager.getOnboardingID(),
+           saved.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) {
+            return saved
+        }
+        return OnboardingChatMocking.makeConversationId()
     }
 }

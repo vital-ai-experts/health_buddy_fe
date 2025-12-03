@@ -1,5 +1,6 @@
 import Foundation
 import FeatureChatApi
+import LibraryChatUI
 import LibraryNetworking
 import LibraryBase
 
@@ -78,7 +79,7 @@ public final class ChatServiceImpl: ChatService {
         return response.conversations.map { Conversation(from: $0) }
     }
 
-    public func getConversationHistory(id: String) async throws -> [Message] {
+    public func getConversationHistory(id: String, chatSession: ChatSessionControlling?) async throws -> [Message] {
         let endpoint = APIEndpoint(
             path: "/conversations/history",
             method: .get,

@@ -14,10 +14,10 @@ struct OnboardingProfileCardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("确认信息")
                         .font(.headline.weight(.bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.Palette.textPrimary)
                     Text("确认后我会按此生成策略")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(.Palette.textSecondary)
                 }
                 Spacer()
             }
@@ -27,7 +27,7 @@ struct OnboardingProfileCardView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("关键问题", systemImage: "sparkles")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.Palette.successMain)
+                    .foregroundColor(.Palette.infoMain)
 
                 VStack(spacing: 10) {
                     ForEach(payload?.issues ?? []) { issue in
@@ -37,23 +37,23 @@ struct OnboardingProfileCardView: View {
                         } label: {
                             HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: selectedIssueId == issue.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(.Palette.successMain)
+                                    .foregroundColor(.Palette.infoMain)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(issue.title)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(.Palette.textPrimary)
                                         .font(.callout.weight(.semibold))
                                     Text(issue.detail)
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .foregroundColor(.Palette.textSecondary)
                                         .font(.footnote)
                                 }
                                 Spacer()
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.white.opacity(0.05))
+                            .background(Color.Palette.bgMuted)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(selectedIssueId == issue.id ? Color.Palette.successMain.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
+                                    .stroke(selectedIssueId == issue.id ? Color.Palette.infoMain.opacity(0.6) : Color.Palette.surfaceElevatedBorder, lineWidth: 1)
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
@@ -69,17 +69,17 @@ struct OnboardingProfileCardView: View {
                     Spacer()
                 }
                 .padding(.vertical, 10)
-                .background(Color.Palette.successMain)
-                .foregroundColor(.white)
+                .background(Color.Palette.infoMain)
+                .foregroundColor(.Palette.textOnAccent)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04))
+        .background(Color.Palette.surfaceElevated)
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onAppear {
@@ -101,7 +101,7 @@ struct OnboardingProfileCardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("基础信息", systemImage: "person.crop.rectangle")
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(.Palette.successMain)
+                .foregroundColor(.Palette.infoMain)
             Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                 GridRow {
                     infoTile(title: "姓名", value: name)
@@ -127,14 +127,14 @@ struct OnboardingProfileCardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.footnote)
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(.Palette.textSecondary)
             Text(value)
                 .font(.headline.weight(.semibold))
-                .foregroundColor(.white)
+                .foregroundColor(.Palette.textPrimary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.06))
+        .background(Color.Palette.bgMuted)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

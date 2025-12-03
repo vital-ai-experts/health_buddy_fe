@@ -12,6 +12,7 @@ final class OnboardingViewModel: ObservableObject {
     private let stateManager: OnboardingStateManaging
     private let onComplete: () -> Void
     private var scanTask: Task<Void, Never>?
+    private var hasRestoredChat = false
 
     init(
         stateManager: OnboardingStateManaging,
@@ -81,14 +82,30 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func finishOnboarding() {
-        stateManager.saveOnboardingID(OnboardingStateManager.mockOnboardingID)
+        let id = stateManager.getOnboardingID() ?? OnboardingChatMocking.makeConversationId()
+        stateManager.saveOnboardingID(id)
         stateManager.markOnboardingAsCompleted()
-        Log.i("✅ Onboarding 完成，使用 mock ID: \(OnboardingStateManager.mockOnboardingID)", category: "Onboarding")
+        Log.i("✅ Onboarding 完成，使用 ID: \(id)", category: "Onboarding")
         onComplete()
     }
 
     func completeAfterDungeonStart() {
         finishOnboarding()
+    }
+
+    func shouldRestoreChatDirectly() -> Bool {
+        guard !hasRestoredChat else { return false }
+        guard !stateManager.hasCompletedOnboarding else { return false }
+        if let id = stateManager.getOnboardingID(),
+           id.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) {
+            hasRestoredChat = true
+            return true
+        }
+        return false
+    }
+
+    var onboardingConversationId: String {
+        stateManager.getOnboardingID() ?? OnboardingChatMocking.makeConversationId()
     }
 
     deinit {

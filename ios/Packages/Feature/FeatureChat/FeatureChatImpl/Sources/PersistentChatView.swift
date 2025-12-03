@@ -14,31 +14,42 @@ public struct PersistentChatView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
-    private let chatContextBuilder: ((PersistentChatViewModel) -> ChatContext)?
+    private let chatSessionBuilder: ((PersistentChatViewModel) -> ChatSessionControlling)?
     private let showsCloseButton: Bool
     private let navigationTitle: String
     private let onReady: ((ChatSessionControlling) -> Void)?
+    private let sessionController: ChatSessionController
+    private let topics: [ChatTopic]?
+    private let shouldAttachTopicTitle: Bool
 
     public init(
         defaultSelectedGoalId: String? = nil,
         initialConversationId: String? = nil,
         chatService: ChatService? = nil,
-        chatContextBuilder: ((PersistentChatViewModel) -> ChatContext)? = nil,
+        chatSessionBuilder: ((PersistentChatViewModel) -> ChatSessionControlling)? = nil,
         showsCloseButton: Bool = true,
         navigationTitle: String = "对话",
+        topics: [ChatTopic]? = nil,
         onReady: ((ChatSessionControlling) -> Void)? = nil
     ) {
         let chatService = chatService ?? ServiceManager.shared.resolve(ChatService.self)
-        _viewModel = StateObject(wrappedValue: PersistentChatViewModel(
+        let resolvedTopics = topics ?? []
+
+        let viewModel = PersistentChatViewModel(
             chatService: chatService,
             goalManager: ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
             defaultSelectedGoalId: defaultSelectedGoalId,
-            initialConversationId: initialConversationId
-        ))
-        self.chatContextBuilder = chatContextBuilder
+            initialConversationId: initialConversationId,
+            shouldAttachTopicTitle: !resolvedTopics.isEmpty
+        )
+        _viewModel = StateObject(wrappedValue: viewModel)
+        self.sessionController = ChatSessionController(viewModel: viewModel)
+        self.chatSessionBuilder = chatSessionBuilder
         self.showsCloseButton = showsCloseButton
         self.navigationTitle = navigationTitle
         self.onReady = onReady
+        self.topics = topics
+        self.shouldAttachTopicTitle = !resolvedTopics.isEmpty
     }
 
     public var body: some View {
@@ -47,7 +58,7 @@ public struct PersistentChatView: View {
                 messages: $viewModel.displayMessages,
                 inputText: $viewModel.inputText,
                 isLoading: viewModel.isSending,
-                topics: viewModel.chatTopics,
+                topics: topics ?? [],
                 selectedTopicId: $viewModel.selectedGoalId,
                 onSendMessage: { text in
                     Task {
@@ -61,7 +72,7 @@ public struct PersistentChatView: View {
                         await viewModel.loadMoreMessages()
                     }
                 },
-                chatContext: chatContext
+                chatSession: sessionForRender
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.Palette.bgBase.ignoresSafeArea())
@@ -85,12 +96,11 @@ public struct PersistentChatView: View {
         }
         .task {
             await viewModel.initialize(modelContext: modelContext)
-            let controller = ChatSessionController(viewModel: viewModel)
-            onReady?(controller)
+            onReady?(sessionController)
         }
         .onAppear {
             Task {
-                await viewModel.syncWithServer()
+                await viewModel.syncWithServer(chatSession: sessionForRender)
             }
             Task {
                 await handlePendingChatMessageIfNeeded()
@@ -111,16 +121,15 @@ public struct PersistentChatView: View {
         router.clearPendingChatMessage(message)
     }
 
-    private var chatContext: ChatContext {
-        if let chatContextBuilder {
-            return chatContextBuilder(viewModel)
+    private var sessionForRender: ChatSessionControlling? {
+        if let chatSessionBuilder {
+            return chatSessionBuilder(viewModel)
         }
+        return sessionController
+    }
 
-        return ChatContext { text in
-            Task { @MainActor in
-                await viewModel.sendMessage(text)
-            }
-        }
+    private var resolvedTopics: [ChatTopic] {
+        topics ?? []
     }
 }
 
@@ -154,16 +163,19 @@ public final class PersistentChatViewModel: ObservableObject {
     private let initialLoadLimit = 10  // 初次加载消息数量
     private let loadMoreLimit = 20  // 每次加载更多的消息数量
     private let conversationTimeoutHours: TimeInterval = 4 * 3600  // 4小时超时
+    private let shouldAttachTopicTitle: Bool
 
     public init(
         chatService: ChatService,
         goalManager: AgendaGoalManaging? = nil,
         defaultSelectedGoalId: String? = nil,
-        initialConversationId: String? = nil
+        initialConversationId: String? = nil,
+        shouldAttachTopicTitle: Bool = true
     ) {
         self.chatService = chatService
         self.goalManager = goalManager
         self.conversationId = initialConversationId
+        self.shouldAttachTopicTitle = shouldAttachTopicTitle
 
         let initialGoalId = Self.resolveInitialGoalId(
             providedGoalId: defaultSelectedGoalId,
@@ -190,11 +202,6 @@ public final class PersistentChatViewModel: ObservableObject {
         // 从本地加载历史消息
         await loadLocalHistory()
         
-        // 如果没有任何消息，插入一条 mock 的 digest report 卡片
-        if displayMessages.isEmpty {
-            await insertMockDigestIfNeeded()
-        }
-
         // 检查是否需要恢复streaming
         // TODO 先不恢复
 //        await checkAndResumeIfNeeded()
@@ -364,15 +371,13 @@ public final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 从服务端同步消息
-    public func syncWithServer() async {
+    public func syncWithServer(chatSession: ChatSessionControlling?) async {
         // 1. 首先检查是否有最新的conversation
         do {
             let conversations = try await chatService.getConversations(limit: 1, offset: nil)
             // 按createdAt降序排列，确保获取最新的对话
             guard let latestConversation = conversations.sorted(by: { $0.createdAt > $1.createdAt }).first else {
                 Log.i("📝 [PersistentChat] 服务端没有对话记录", category: "Chat")
-                // 即使没有对话记录，也继续执行，可能会插入 mock digest
-                await insertMockDigestIfNeeded()
                 return
             }
 
@@ -394,13 +399,14 @@ public final class PersistentChatViewModel: ObservableObject {
         // 2. 如果有conversationId，同步消息
         guard let conversationId = conversationId else {
             Log.i("📝 [PersistentChat] 没有conversationId，跳过同步", category: "Chat")
-            // 即使没有同步，也尝试插入 mock digest
-            await insertMockDigestIfNeeded()
             return
         }
 
         do {
-            let allServerMessages = try await chatService.getConversationHistory(id: conversationId)
+            let allServerMessages = try await chatService.getConversationHistory(
+                id: conversationId,
+                chatSession: chatSession
+            )
 
             Log.i("📡 服务端返回 \(allServerMessages.count) 条消息", category: "Chat")
             let serverUserCount = allServerMessages.filter { $0.role == .user }.count
@@ -514,8 +520,6 @@ public final class PersistentChatViewModel: ObservableObject {
             Log.i("📝 [PersistentChat] 更新对话时间为最新消息时间: \(latestMessage.timestamp)", category: "Chat")
         }
         
-        // 4. 无论同步成功还是失败，都尝试插入 mock digest（如果还没有的话）
-        await insertMockDigestIfNeeded()
     }
 
     /// 检查是否需要恢复streaming
@@ -608,7 +612,7 @@ public final class PersistentChatViewModel: ObservableObject {
 
         // 2. 创建用户消息
         let userMessageId = UUID().uuidString
-        let goalTitle = goalTitle(for: selectedGoalId)
+        let goalTitle = shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
         let userMessage = ChatMessage(
             id: userMessageId,
             text: displayText,
@@ -789,7 +793,7 @@ public final class PersistentChatViewModel: ObservableObject {
             isStreaming: false,
             images: [mockImage],
             goalId: selectedGoalId,
-            goalTitle: goalTitle(for: selectedGoalId)
+            goalTitle: shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
         )
         displayMessages.append(userMessage)
 
@@ -800,7 +804,7 @@ public final class PersistentChatViewModel: ObservableObject {
             isFromUser: true,
             createdAt: userMessage.timestamp,
             goalId: selectedGoalId,
-            goalTitle: goalTitle(for: selectedGoalId)
+            goalTitle: shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
         )
 
         // 4. 发送图片上传消息到服务器（mock）
@@ -851,6 +855,14 @@ public final class PersistentChatViewModel: ObservableObject {
         Log.i("💭 [PersistentChat] handleAgentMessage", category: "Chat")
         Log.i("  msgId: \(msgId)", category: "Chat")
         Log.i("  messageType: \(String(describing: data.messageType))", category: "Chat")
+
+        // 特殊指令：重置当前会话历史
+        if data.specialMessageType == "reset_conversation" {
+            Task {
+                await resetConversationHistory(conversationId: data.conversationId ?? conversationId)
+            }
+            return
+        }
 
         // 检查是否有内容
         let hasContent = data.content != nil && !data.content!.isEmpty
@@ -1023,43 +1035,36 @@ public final class PersistentChatViewModel: ObservableObject {
         }
     }
 
-    /// 插入一条 mock 的副本简报消息（用于演示），如果还没有的话
-    private func insertMockDigestIfNeeded() async {
-        // 检查最近4条系统消息是否已有 digest_report
-        let recentSystemMessages = displayMessages
-            .filter { !$0.isFromUser }
-            .suffix(4)
-
-        let hasRecentDigest = recentSystemMessages.contains {
-            $0.specialMessageTypeRaw == "digest_report"
-        }
-
-        if hasRecentDigest {
-            Log.i("ℹ️ 最近系统消息已有 digest report，跳过插入", category: "Chat")
-            return
-        }
-
-        // 使用统一的 mock 数据
-        let jsonString = DigestReportData.mock.toJSONString() ?? ""
-        
-        let digestMessage = ChatMessage(
-            id: UUID().uuidString,
-            text: "",  // 副本简报卡片不需要文本内容
-            isFromUser: false,
-            timestamp: Date(),
-            isStreaming: false,
-            specialMessageData: jsonString,
-            specialMessageTypeRaw: "digest_report"
-        )
-        
-        displayMessages.append(digestMessage)
-        Log.i("✨ 插入了 mock digest report 卡片", category: "Chat")
-    }
-
     private func rebuildMessageMap() {
         messageMap = [:]
         for (index, message) in displayMessages.enumerated() where !message.isFromUser {
             messageMap[message.id] = index
+        }
+    }
+
+    /// 清空指定会话的历史记录并重置本地状态
+    private func resetConversationHistory(conversationId conversationIdParam: String?) async {
+        let targetId = conversationIdParam ?? self.conversationId
+
+        displayMessages.removeAll()
+        savedMessageIds.removeAll()
+        messageMap.removeAll()
+        oldestLoadedMessageDate = nil
+        hasMoreMessagesToLoad = true
+        lastDataId = nil
+        conversationUpdatedAt = nil
+
+        if let targetId, let storageService {
+            do {
+                try storageService.deleteMessages(conversationId: targetId)
+                Log.i("🧹 已清空会话 \(targetId) 的本地历史", category: "Chat")
+            } catch {
+                Log.e("❌ 清空会话历史失败: \(error.localizedDescription)", category: "Chat")
+            }
+        }
+
+        if let targetId {
+            self.conversationId = targetId
         }
     }
 }

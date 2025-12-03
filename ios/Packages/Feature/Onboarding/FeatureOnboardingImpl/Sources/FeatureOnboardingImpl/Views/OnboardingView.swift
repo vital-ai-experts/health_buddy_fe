@@ -10,7 +10,6 @@ struct OnboardingView: View {
     @State private var introLine2Started = false
     @State private var introLine3Started = false
     @State private var introTypingCompleted = false
-    @State private var hasOpenedChat = false
     @State private var showChat = false
     private let chatFeature: FeatureChatBuildable
 
@@ -19,11 +18,20 @@ struct OnboardingView: View {
         stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self),
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self)
     ) {
+        let storedId = stateManager.getOnboardingID()
+        let hasExistingOnboarding = (!stateManager.hasCompletedOnboarding) &&
+            (storedId?.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) == true)
+
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             stateManager: stateManager,
             onComplete: onComplete
         ))
         self.chatFeature = chatFeature
+        self._showChat = State(initialValue: hasExistingOnboarding)
+        if hasExistingOnboarding {
+            // 避免首屏闪过 Intro
+            _introLine1Started = State(initialValue: true)
+        }
     }
 
     var body: some View {
@@ -80,19 +88,23 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            if !introLine1Started {
+            if !introLine1Started && !showChat {
                 introLine1Started = true
             }
         }
         .animation(.easeInOut(duration: 0.35), value: viewModel.step)
         .fullScreenCover(isPresented: $showChat) {
-                    chatFeature.makeChatView(
-                        config: ChatConversationConfig(
-                    initialConversationId: OnboardingChatMocking.onboardingConversationId,
-                    navigationTitle: "与Pascal的对话",
-                    showsCloseButton: false,
-                    chatService: OnboardingMockChatService()
-                )
+            OnboardingChatContainer(
+                onFinish: {
+                    viewModel.completeAfterDungeonStart()
+                    RouteManager.shared.currentTab = .agenda
+                },
+                onViewDungeon: {
+                    if let url = RouteManager.shared.buildURL(path: "/dungeon_detail", queryItems: ["present": "sheet"]) {
+                        RouteManager.shared.open(url: url)
+                    }
+                },
+                chatFeature: chatFeature
             )
         }
     }
@@ -113,9 +125,6 @@ struct OnboardingView: View {
     }
 
     private func openChat() {
-        guard !hasOpenedChat else { return }
-        hasOpenedChat = true
-
         showChat = true
     }
 }

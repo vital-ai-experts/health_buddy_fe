@@ -1,6 +1,7 @@
 import Foundation
 import FeatureChatApi
 import LibraryBase
+import LibraryChatUI
 
 /// Mock Chat Service，必要时可回落到真实服务
 public final class MockChatService: ChatService {
@@ -119,17 +120,68 @@ public final class MockChatService: ChatService {
         return []
     }
 
-    public func getConversationHistory(id: String) async throws -> [Message] {
+    public func getConversationHistory(id: String, chatSession: ChatSessionControlling?) async throws -> [Message] {
+        var messages: [Message] = []
+
         if let realService {
-            return try await realService.getConversationHistory(id: id)
+            messages = try await realService.getConversationHistory(id: id, chatSession: chatSession)
         }
-        return []
+
+        if await !hasDigest(in: messages, chatSession: chatSession) {
+            messages.append(createMockDigestReportMessage(conversationId: id))
+        }
+
+        return messages
     }
 
     public func deleteConversation(id: String) async throws {
         if let realService {
             try await realService.deleteConversation(id: id)
         }
+    }
+
+    private func hasDigest(in messages: [Message], chatSession: ChatSessionControlling?) async -> Bool {
+        if messages.contains(where: { $0.specialMessageType == "digest_report" }) {
+            return true
+        }
+
+        let existing = await MainActor.run {
+            chatSession?.currentMessages() ?? []
+        }
+        return existing.contains { $0.specialMessageTypeRaw == "digest_report" }
+    }
+
+    private func createMockDigestReportMessage(conversationId: String) -> Message {
+        let reportData: [String: Any] = [
+            "currentDay": 12,
+            "totalDays": 30,
+            "progressStatus": "超前",
+            "targetValue": 65.0,
+            "dataPoints": (1...12).map { day in
+                [
+                    "id": UUID().uuidString,
+                    "day": day,
+                    "value": Double(40 + day * 3)
+                ]
+            },
+            "message": "得益于你连续 5 天完成了\"数字日落\"任务，你的入睡潜伏期缩短了 40%。"
+        ]
+
+        let jsonData = try? JSONSerialization.data(withJSONObject: reportData, options: [])
+        let jsonString = jsonData.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+        let currentTimestamp = String(Int(Date().timeIntervalSince1970 * 1000))
+
+        return Message(
+            id: UUID().uuidString,
+            conversationId: conversationId,
+            role: .assistant,
+            content: "",
+            createdAt: currentTimestamp,
+            thinkingContent: nil,
+            toolCalls: nil,
+            specialMessageType: "digest_report",
+            specialMessageData: jsonString
+        )
     }
 }
 

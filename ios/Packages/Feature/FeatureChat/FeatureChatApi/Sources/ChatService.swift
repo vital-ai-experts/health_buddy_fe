@@ -1,4 +1,5 @@
 import Foundation
+import LibraryChatUI
 
 /// Chat service protocol
 public protocol ChatService {
@@ -16,7 +17,7 @@ public protocol ChatService {
 
     func getConversations(limit: Int?, offset: Int?) async throws -> [Conversation]
 
-    func getConversationHistory(id: String) async throws -> [Message]
+    func getConversationHistory(id: String, chatSession: ChatSessionControlling?) async throws -> [Message]
 
     func deleteConversation(id: String) async throws
 }

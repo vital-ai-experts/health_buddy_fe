@@ -21,7 +21,8 @@ public struct ChatConversationConfig {
     public var initialConversationId: String?
     public var navigationTitle: String
     public var showsCloseButton: Bool
-    public var chatContext: ChatContext
+    /// topics 为 nil 时使用默认 topics；为空数组时不展示
+    public var topics: [ChatTopic]?
     public var onReady: ((ChatSessionControlling) -> Void)?
     public var chatService: ChatService?
 
@@ -29,22 +30,15 @@ public struct ChatConversationConfig {
         initialConversationId: String? = nil,
         navigationTitle: String = "对话",
         showsCloseButton: Bool = true,
-        chatContext: ChatContext = .noop,
+        topics: [ChatTopic]? = nil,
         onReady: ((ChatSessionControlling) -> Void)? = nil,
         chatService: ChatService? = nil
     ) {
         self.initialConversationId = initialConversationId
         self.navigationTitle = navigationTitle
         self.showsCloseButton = showsCloseButton
-        self.chatContext = chatContext
+        self.topics = topics
         self.onReady = onReady
         self.chatService = chatService
     }
-}
-
-/// 聊天会话控制接口，供外部触发消息发送
-@MainActor
-public protocol ChatSessionControlling {
-    func sendMessage(_ text: String) async
-    func sendSystemCommand(_ text: String, preferredConversationId: String?) async
 }

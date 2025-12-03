@@ -1,4 +1,5 @@
 import Foundation
+import LibraryChatUI
 
 // MARK: - Shared SSE Stream Models
 

@@ -4,7 +4,7 @@ import LibraryBase
 
 /// Onboarding 状态管理器实现
 final class OnboardingStateManager: OnboardingStateManaging {
-    static let mockOnboardingID = OnboardingChatMocking.onboardingConversationId
+    static let mockOnboardingID = "\(OnboardingChatMocking.onboardingConversationPrefix)legacy"
     static let shared = OnboardingStateManager()
 
     private let userDefaults = UserDefaults.standard
@@ -64,5 +64,15 @@ final class OnboardingStateManager: OnboardingStateManaging {
     func clearOnboardingID() {
         userDefaults.removeObject(forKey: onboardingIDKey)
         Log.i("✅ Onboarding ID 已清除", category: "Onboarding")
+    }
+
+    /// 获取现有 Onboarding ID，如不存在则生成一个带前缀的 ID
+    func ensureOnboardingID() -> String {
+        if let existing = getOnboardingID() {
+            return existing
+        }
+        let newId = OnboardingChatMocking.makeConversationId()
+        saveOnboardingID(newId)
+        return newId
     }
 }

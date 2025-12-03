@@ -7,36 +7,40 @@ struct OnboardingChatContainer: View {
     private let onFinish: () -> Void
     private let onViewDungeon: () -> Void
     private let chatFeature: FeatureChatBuildable
+    private let onboardingConversationId: String
+    private let chatService: ChatService
     @State private var hasTriggeredIntro = false
     @State private var controller: ChatSessionControlling?
 
     init(
         onFinish: @escaping () -> Void,
         onViewDungeon: @escaping () -> Void,
-        chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self)
+        chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self),
+        chatService: ChatService = OnboardingMockChatService()
     ) {
         self.onFinish = onFinish
         self.onViewDungeon = onViewDungeon
         self.chatFeature = chatFeature
+        self.chatService = chatService
+        let storedId = OnboardingStateManager.shared.getOnboardingID()
+        let validStoredId = storedId?.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) == true ? storedId : nil
+        self.onboardingConversationId = validStoredId ?? OnboardingChatMocking.makeConversationId()
     }
 
     var body: some View {
         chatFeature.makeChatView(
             config: ChatConversationConfig(
-                initialConversationId: OnboardingChatMocking.onboardingConversationId,
-                navigationTitle: "对话引导",
+                initialConversationId: onboardingConversationId,
+                navigationTitle: "Pascal",
                 showsCloseButton: false,
-                chatContext: ChatContext { text in
-                    Task { @MainActor in
-                        await sendMessage(text)
-                    }
-                },
+                topics: [],
                 onReady: { controller in
                     self.controller = controller
                     Task { @MainActor in
                         await triggerIntroIfNeeded(using: controller)
                     }
-                }
+                },
+                chatService: chatService
             )
         )
         .onAppear {
@@ -73,7 +77,10 @@ struct OnboardingChatContainer: View {
         guard !hasTriggeredIntro else { return }
         hasTriggeredIntro = true
 
-        await controller.sendSystemCommand(OnboardingChatMocking.Command.start, preferredConversationId: OnboardingChatMocking.onboardingConversationId)
+        // 没有任何消息时，推送引导消息
+        if controller.currentMessages().isEmpty {
+            await controller.sendSystemCommand(OnboardingChatMocking.Command.start, preferredConversationId: onboardingConversationId)
+        }
     }
 
     @MainActor

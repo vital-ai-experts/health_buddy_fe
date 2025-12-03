@@ -1,6 +1,7 @@
 import SwiftUI
 import FeatureChatApi
 import LibraryServiceLoader
+import LibraryChatUI
 
 /// Builder for Chat feature views
 public final class ChatBuilder: FeatureChatBuildable {
@@ -29,9 +30,12 @@ public final class ChatBuilder: FeatureChatBuildable {
             PersistentChatView(
                 initialConversationId: config.initialConversationId,
                 chatService: config.chatService ?? defaultChatService(),
-                chatContextBuilder: { _ in config.chatContext },
+                chatSessionBuilder: { viewModel in
+                    ChatSessionController(viewModel: viewModel)
+                },
                 showsCloseButton: config.showsCloseButton,
                 navigationTitle: config.navigationTitle,
+                topics: config.topics,
                 onReady: { controller in
                     config.onReady?(controller)
                 }
@@ -76,5 +80,10 @@ final class ChatSessionController: ChatSessionControlling {
     func sendSystemCommand(_ text: String, preferredConversationId: String?) async {
         guard let viewModel else { return }
         await viewModel.sendSystemCommand(text, preferredConversationId: preferredConversationId)
+    }
+
+    func currentMessages() -> [ChatMessage] {
+        guard let viewModel else { return [] }
+        return viewModel.displayMessages
     }
 }

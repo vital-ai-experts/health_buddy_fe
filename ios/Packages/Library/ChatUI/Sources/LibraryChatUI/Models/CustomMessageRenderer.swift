@@ -18,7 +18,7 @@ public struct CustomRenderedMessage: Hashable, Identifiable {
     }
 }
 
-public typealias CustomMessageRenderer = (CustomRenderedMessage, ChatContext) -> AnyView
+public typealias CustomMessageRenderer = (CustomRenderedMessage, ChatSessionControlling?) -> AnyView
 
 /// 自定义消息渲染注册表，允许外部模块按类型注册渲染逻辑
 public final class ChatMessageRendererRegistry {
