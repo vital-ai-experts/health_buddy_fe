@@ -268,3 +268,11 @@ git push
 # 4. 再次检查直到 CI 通过
 .github/check_ci_status.sh
 ```
+
+## 重要说明！！
+编译失败一定要找到失败的原因，不要靠猜！不要轻易放弃，你之前每次都成功通过日志找到了原因。
+脚本可以下载 Artifact 拿到编译日志。
+比如
+```
+bash .github/check_ci_status.sh 2>&1 | grep -A 50 "检查是否有编译日志"
+```

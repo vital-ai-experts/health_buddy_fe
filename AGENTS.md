@@ -46,6 +46,7 @@ This monorepo hosts every client surface for the Health AI experience. The root 
    - Print detailed failure logs if CI fails
 
 2. **Fix Compilation Issues if CI Fails**:
+   - READ THE DOC `.github/GITHUB_CI.md` first!!!
    - The script automatically fetches and displays failure logs
    - Analyze the compilation errors from the logs
    - Make necessary code fixes
