@@ -148,7 +148,7 @@ private struct MessageImageView: View {
             message: UserMessage(
                 text: "Hello, how are you?",
                 timestamp: Date(),
-                goalTitle: "睡眠大师"
+                topicTitle: "睡眠大师"
             )
         )
 
