@@ -6,38 +6,38 @@ public struct ChatInputView: View {
     @Binding var text: String
     @FocusState.Binding var isFocused: Bool
     let isLoading: Bool
-    let tags: [ChatTag]
-    @Binding var selectedTagId: String?
+    let topics: [ChatTopic]
+    @Binding var selectedTopicId: String?
     let onSend: () -> Void
 
     public init(
         text: Binding<String>,
         isFocused: FocusState<Bool>.Binding,
         isLoading: Bool,
-        tags: [ChatTag] = [],
-        selectedTagId: Binding<String?> = .constant(nil),
+        topics: [ChatTopic] = [],
+        selectedTopicId: Binding<String?> = .constant(nil),
         onSend: @escaping () -> Void
     ) {
         self._text = text
         self._isFocused = isFocused
         self.isLoading = isLoading
-        self.tags = tags
-        self._selectedTagId = selectedTagId
+        self.topics = topics
+        self._selectedTopicId = selectedTopicId
         self.onSend = onSend
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Tags View
-            if !tags.isEmpty {
+            // Topics View
+            if !topics.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(tags) { tag in
-                            let isSelected = selectedTagId == tag.id
+                        ForEach(topics) { topic in
+                            let isSelected = selectedTopicId == topic.id
                             Button(action: {
-                                selectedTagId = isSelected ? nil : tag.id
+                                selectedTopicId = isSelected ? nil : topic.id
                             }) {
-                                Text(tag.title)
+                                Text(topic.title)
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundColor(isSelected ? Color.Palette.infoMain : Color.Palette.textPrimary)
                                     .padding(.horizontal, 12)
@@ -101,8 +101,8 @@ public struct ChatInputView: View {
     struct PreviewWrapper: View {
         @State private var text = ""
         @FocusState private var isFocused: Bool
-        @State private var selectedTagId: String?
-        
+        @State private var selectedTopicId: String?
+
         var body: some View {
             VStack {
                 Spacer()
@@ -110,12 +110,12 @@ public struct ChatInputView: View {
                     text: $text,
                     isFocused: $isFocused,
                     isLoading: false,
-                    tags: [
-                        ChatTag(id: "sleep_master", title: "睡眠大师"),
-                        ChatTag(id: "strong_me", title: "强壮的我"),
-                        ChatTag(id: "wall_street_wolf", title: "华尔街之狼")
+                    topics: [
+                        ChatTopic(id: "sleep_master", title: "睡眠大师"),
+                        ChatTopic(id: "strong_me", title: "强壮的我"),
+                        ChatTopic(id: "wall_street_wolf", title: "华尔街之狼")
                     ],
-                    selectedTagId: $selectedTagId,
+                    selectedTopicId: $selectedTopicId,
                     onSend: {
                         print("Sent: \(text)")
                         text = ""
@@ -125,6 +125,6 @@ public struct ChatInputView: View {
             }
         }
     }
-    
+
     return PreviewWrapper()
 }

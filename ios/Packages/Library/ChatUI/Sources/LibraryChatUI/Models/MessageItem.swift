@@ -9,6 +9,7 @@ public enum MessageItem: Hashable, Identifiable {
     case custom(CustomRenderedMessage)
     case loading(SystemLoading)
     case error(SystemError)
+    case topicSeparator(TopicSeparator)
 
     public var id: String {
         switch self {
@@ -22,6 +23,8 @@ public enum MessageItem: Hashable, Identifiable {
             return "loading_\(loading.id)"
         case .error(let error):
             return "error_\(error.id)"
+        case .topicSeparator(let separator):
+            return "separator_\(separator.id)"
         }
     }
 }
@@ -34,20 +37,20 @@ public struct UserMessage: Hashable, Identifiable {
     public let text: String
     public let timestamp: Date
     public let images: [MessageImage]?  // 图片附件
-    public let goalTitle: String?
+    public let topicTitle: String?
 
     public init(
         id: String = UUID().uuidString,
         text: String,
         timestamp: Date = Date(),
         images: [MessageImage]? = nil,
-        goalTitle: String? = nil
+        topicTitle: String? = nil
     ) {
         self.id = id
         self.text = text
         self.timestamp = timestamp
         self.images = images
-        self.goalTitle = goalTitle
+        self.topicTitle = topicTitle
     }
 }
 
@@ -63,6 +66,7 @@ public struct SystemMessage: Hashable, Identifiable {
     public let toolCalls: [ToolCallInfo]
     public let specialMessageType: SpecialMessageType?
     public let specialMessageData: String?
+    public let topicTitle: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -72,7 +76,8 @@ public struct SystemMessage: Hashable, Identifiable {
         thinkingContent: String? = nil,
         toolCalls: [ToolCallInfo] = [],
         specialMessageType: SpecialMessageType? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        topicTitle: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -82,6 +87,7 @@ public struct SystemMessage: Hashable, Identifiable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.topicTitle = topicTitle
     }
 }
 
@@ -118,6 +124,22 @@ public struct SystemError: Hashable, Identifiable {
     }
 }
 
+// MARK: - TopicSeparator
+
+/// Represents a topic separator displayed between messages
+public struct TopicSeparator: Hashable, Identifiable {
+    public let id: String
+    public let topicTitle: String
+
+    public init(
+        id: String = UUID().uuidString,
+        topicTitle: String
+    ) {
+        self.id = id
+        self.topicTitle = topicTitle
+    }
+}
+
 // MARK: - Supporting Types
 
 // Note: ToolCallInfo and SpecialMessageType are defined in ChatMessage.swift
@@ -143,7 +165,7 @@ extension MessageItem {
                 text: chatMessage.text,
                 timestamp: chatMessage.timestamp,
                 images: chatMessage.images,
-                goalTitle: chatMessage.goalTitle
+                topicTitle: chatMessage.goalTitle
             ))
         } else {
             // 自定义特殊消息，交给外部注册的渲染器
@@ -168,8 +190,51 @@ extension MessageItem {
                 thinkingContent: chatMessage.thinkingContent,
                 toolCalls: chatMessage.toolCalls ?? [],
                 specialMessageType: chatMessage.specialMessageType,
-                specialMessageData: chatMessage.specialMessageData
+                specialMessageData: chatMessage.specialMessageData,
+                topicTitle: chatMessage.goalTitle
             ))
         }
+    }
+}
+
+// MARK: - Message Processing
+
+extension MessageItem {
+    /// Inserts topic separators into a message list based on topicTitle changes
+    public static func withTopicSeparators(_ messages: [MessageItem]) -> [MessageItem] {
+        var result: [MessageItem] = []
+        var currentTopicTitle: String?
+
+        for message in messages {
+            // Extract topic title from current message
+            let messageTopicTitle: String? = {
+                switch message {
+                case .user(let userMsg):
+                    return userMsg.topicTitle
+                case .system(let systemMsg):
+                    return systemMsg.topicTitle
+                default:
+                    return nil
+                }
+            }()
+
+            // Determine the effective topic title (inherit from previous if not specified)
+            let effectiveTopicTitle = messageTopicTitle ?? currentTopicTitle
+
+            // If topic title changed and is not nil, insert a separator
+            if let topicTitle = effectiveTopicTitle,
+               topicTitle != currentTopicTitle {
+                let separator = TopicSeparator(
+                    id: "separator_\(topicTitle)_\(result.count)",
+                    topicTitle: topicTitle
+                )
+                result.append(.topicSeparator(separator))
+                currentTopicTitle = topicTitle
+            }
+
+            result.append(message)
+        }
+
+        return result
     }
 }
