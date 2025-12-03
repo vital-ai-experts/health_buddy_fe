@@ -118,6 +118,9 @@ public struct SimpleChatView: View {
             return timestamp1 < timestamp2
         }
 
+        // 插入 topic separator
+        items = MessageItem.withTopicSeparators(items)
+
         // 如果正在加载且没有流式消息，添加一个 loading indicator
         if isLoading && !hasStreamingMessage {
             items.append(.loading(SystemLoading(id: loadingId)))
@@ -138,6 +141,8 @@ public struct SimpleChatView: View {
             return error.timestamp
         case .loading:
             return Date()  // loading always appears last
+        case .topicSeparator:
+            return Date()  // separator timestamp doesn't matter for sorting
         }
     }
 

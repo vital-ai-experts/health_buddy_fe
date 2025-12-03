@@ -99,6 +99,7 @@ public final class MessageListCollectionView: UICollectionView {
         let customCellRegistration = createCustomCellRegistration()
         let loadingCellRegistration = createLoadingCellRegistration()
         let errorCellRegistration = createErrorCellRegistration()
+        let separatorCellRegistration = createTopicSeparatorCellRegistration()
 
         // Create data source
         diffableDataSource = DataSource(collectionView: self) { collectionView, indexPath, item in
@@ -130,6 +131,12 @@ public final class MessageListCollectionView: UICollectionView {
             case .error:
                 return collectionView.dequeueConfiguredReusableCell(
                     using: errorCellRegistration,
+                    for: indexPath,
+                    item: item
+                )
+            case .topicSeparator:
+                return collectionView.dequeueConfiguredReusableCell(
+                    using: separatorCellRegistration,
                     for: indexPath,
                     item: item
                 )
@@ -227,6 +234,19 @@ public final class MessageListCollectionView: UICollectionView {
                         self.onRetry?(messageId)
                     }
                 }
+            }
+            .margins(.all, 0)
+
+            cell.backgroundColor = .clear
+        }
+    }
+
+    private func createTopicSeparatorCellRegistration() -> UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> {
+        UICollectionView.CellRegistration<UICollectionViewCell, MessageItem> { cell, indexPath, item in
+            guard case .topicSeparator(let separator) = item else { return }
+
+            cell.contentConfiguration = UIHostingConfiguration {
+                TopicSeparatorView(separator: separator)
             }
             .margins(.all, 0)
 

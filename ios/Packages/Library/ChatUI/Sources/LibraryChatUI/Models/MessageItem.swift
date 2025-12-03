@@ -9,6 +9,7 @@ public enum MessageItem: Hashable, Identifiable {
     case custom(CustomRenderedMessage)
     case loading(SystemLoading)
     case error(SystemError)
+    case topicSeparator(TopicSeparator)
 
     public var id: String {
         switch self {
@@ -22,6 +23,8 @@ public enum MessageItem: Hashable, Identifiable {
             return "loading_\(loading.id)"
         case .error(let error):
             return "error_\(error.id)"
+        case .topicSeparator(let separator):
+            return "separator_\(separator.id)"
         }
     }
 }
@@ -63,6 +66,7 @@ public struct SystemMessage: Hashable, Identifiable {
     public let toolCalls: [ToolCallInfo]
     public let specialMessageType: SpecialMessageType?
     public let specialMessageData: String?
+    public let goalTitle: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -72,7 +76,8 @@ public struct SystemMessage: Hashable, Identifiable {
         thinkingContent: String? = nil,
         toolCalls: [ToolCallInfo] = [],
         specialMessageType: SpecialMessageType? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        goalTitle: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -82,6 +87,7 @@ public struct SystemMessage: Hashable, Identifiable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.goalTitle = goalTitle
     }
 }
 
@@ -115,6 +121,22 @@ public struct SystemError: Hashable, Identifiable {
         self.errorMessage = errorMessage
         self.timestamp = timestamp
         self.failedMessageId = failedMessageId
+    }
+}
+
+// MARK: - TopicSeparator
+
+/// Represents a topic/goal separator displayed between messages
+public struct TopicSeparator: Hashable, Identifiable {
+    public let id: String
+    public let goalTitle: String
+
+    public init(
+        id: String = UUID().uuidString,
+        goalTitle: String
+    ) {
+        self.id = id
+        self.goalTitle = goalTitle
     }
 }
 
@@ -168,8 +190,51 @@ extension MessageItem {
                 thinkingContent: chatMessage.thinkingContent,
                 toolCalls: chatMessage.toolCalls ?? [],
                 specialMessageType: chatMessage.specialMessageType,
-                specialMessageData: chatMessage.specialMessageData
+                specialMessageData: chatMessage.specialMessageData,
+                goalTitle: chatMessage.goalTitle
             ))
         }
+    }
+}
+
+// MARK: - Message Processing
+
+extension MessageItem {
+    /// Inserts topic separators into a message list based on goalTitle changes
+    public static func withTopicSeparators(_ messages: [MessageItem]) -> [MessageItem] {
+        var result: [MessageItem] = []
+        var currentGoalTitle: String?
+
+        for message in messages {
+            // Extract goal title from current message
+            let messageGoalTitle: String? = {
+                switch message {
+                case .user(let userMsg):
+                    return userMsg.goalTitle
+                case .system(let systemMsg):
+                    return systemMsg.goalTitle
+                default:
+                    return nil
+                }
+            }()
+
+            // Determine the effective goal title (inherit from previous if not specified)
+            let effectiveGoalTitle = messageGoalTitle ?? currentGoalTitle
+
+            // If goal title changed and is not nil, insert a separator
+            if let goalTitle = effectiveGoalTitle,
+               goalTitle != currentGoalTitle {
+                let separator = TopicSeparator(
+                    id: "separator_\(goalTitle)_\(result.count)",
+                    goalTitle: goalTitle
+                )
+                result.append(.topicSeparator(separator))
+                currentGoalTitle = goalTitle
+            }
+
+            result.append(message)
+        }
+
+        return result
     }
 }
