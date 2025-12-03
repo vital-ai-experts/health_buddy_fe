@@ -41,7 +41,6 @@ App → Feature (Impl) → Feature (Api) → Domain → Library
 **当前模块**:
 - `DomainHealth`: 健康数据服务、HealthKit 管理器
 - `DomainAuth`: 用户认证服务、用户模型
-- `DomainChat`: AI 对话服务
 
 **规范**:
 - 包含业务核心逻辑和数据模型
@@ -256,7 +255,6 @@ public enum HealthDomainBootstrap {
 // Domain 层 - 使用 DomainXxx 前缀
 import DomainAuth
 import DomainHealth
-import DomainChat
 
 // Library 层 - 使用 LibraryXxx 前缀
 import LibraryServiceLoader

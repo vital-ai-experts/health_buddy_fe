@@ -12,12 +12,31 @@ public final class ChatBuilder: FeatureChatBuildable {
     }
 
     public func makeChatView(conversationId: String?) -> AnyView {
-        // 忽略conversationId参数，始终返回单一长期对话
-        AnyView(PersistentChatView())
+        AnyView(
+            PersistentChatView(
+                initialConversationId: conversationId,
+                chatService: defaultChatService()
+            )
+        )
     }
 
     public func makeChatTabView() -> AnyView {
         AnyView(ChatTabView())
+    }
+
+    public func makeChatView(config: ChatConversationConfig) -> AnyView {
+        AnyView(
+            PersistentChatView(
+                initialConversationId: config.initialConversationId,
+                chatService: config.chatService ?? defaultChatService(),
+                chatContextBuilder: { _ in config.chatContext },
+                showsCloseButton: config.showsCloseButton,
+                navigationTitle: config.navigationTitle,
+                onReady: { controller in
+                    config.onReady?(controller)
+                }
+            )
+        )
     }
 }
 
@@ -27,7 +46,35 @@ private struct ChatTabView: View {
 
     var body: some View {
         NavigationStack {
-            PersistentChatView()
+            PersistentChatView(chatService: defaultChatService())
         }
+    }
+}
+
+// MARK: - Helpers
+
+private func defaultChatService() -> ChatService {
+    // 默认使用带真实服务回落的 Mock，实现统一 mock 入口
+    let real = ServiceManager.shared.resolve(ChatService.self)
+    return MockChatService(realService: real)
+}
+
+/// 会话控制器实现，将外部调用转发给内部 ViewModel
+@MainActor
+final class ChatSessionController: ChatSessionControlling {
+    private weak var viewModel: PersistentChatViewModel?
+
+    init(viewModel: PersistentChatViewModel) {
+        self.viewModel = viewModel
+    }
+
+    func sendMessage(_ text: String) async {
+        guard let viewModel else { return }
+        await viewModel.sendMessage(text)
+    }
+
+    func sendSystemCommand(_ text: String, preferredConversationId: String?) async {
+        guard let viewModel else { return }
+        await viewModel.sendSystemCommand(text, preferredConversationId: preferredConversationId)
     }
 }

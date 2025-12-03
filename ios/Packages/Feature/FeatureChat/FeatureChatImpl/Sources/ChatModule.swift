@@ -9,6 +9,11 @@ public enum ChatModule {
         in manager: ServiceManager = .shared,
         router: RouteRegistering
     ) {
+        // Register chat service & mock-wrapped service to容器
+        manager.register(ChatService.self) {
+            ChatServiceImpl()
+        }
+
         // Register builder to ServiceManager
         manager.register(FeatureChatBuildable.self) { ChatBuilder() }
 
@@ -20,8 +25,16 @@ public enum ChatModule {
         // /chat - 打开对话页面
         router.register(path: "/chat", defaultSurface: .fullscreen) { context in
             let defaultGoalId = context.queryItems["goalId"]
+            let showsCloseButton = context.queryItems["closable"]?.lowercased() != "false"
+            let navigationTitle = context.queryItems["title"] ?? "对话"
+            let conversationId = context.queryItems["conversationId"]
             return AnyView(
-                PersistentChatView(defaultSelectedGoalId: defaultGoalId)
+                PersistentChatView(
+                    defaultSelectedGoalId: defaultGoalId,
+                    initialConversationId: conversationId,
+                    showsCloseButton: showsCloseButton,
+                    navigationTitle: navigationTitle
+                )
             )
         }
     }

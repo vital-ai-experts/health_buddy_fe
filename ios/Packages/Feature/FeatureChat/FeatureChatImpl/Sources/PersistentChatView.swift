@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import DomainChat
+import FeatureChatApi
 import LibraryServiceLoader
 import LibraryChatUI
 import LibraryBase
@@ -9,22 +9,39 @@ import FeatureAgendaApi
 import ThemeKit
 
 /// 单一长期对话视图，对话历史保存在本地
-struct PersistentChatView: View {
+public struct PersistentChatView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: PersistentChatViewModel
+    private let chatContextBuilder: ((PersistentChatViewModel) -> ChatContext)?
+    private let showsCloseButton: Bool
+    private let navigationTitle: String
+    private let onReady: ((ChatSessionControlling) -> Void)?
 
-    init(defaultSelectedGoalId: String? = nil) {
-        let chatService = ServiceManager.shared.resolve(ChatService.self)
+    public init(
+        defaultSelectedGoalId: String? = nil,
+        initialConversationId: String? = nil,
+        chatService: ChatService? = nil,
+        chatContextBuilder: ((PersistentChatViewModel) -> ChatContext)? = nil,
+        showsCloseButton: Bool = true,
+        navigationTitle: String = "对话",
+        onReady: ((ChatSessionControlling) -> Void)? = nil
+    ) {
+        let chatService = chatService ?? ServiceManager.shared.resolve(ChatService.self)
         _viewModel = StateObject(wrappedValue: PersistentChatViewModel(
             chatService: chatService,
             goalManager: ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
-            defaultSelectedGoalId: defaultSelectedGoalId
+            defaultSelectedGoalId: defaultSelectedGoalId,
+            initialConversationId: initialConversationId
         ))
+        self.chatContextBuilder = chatContextBuilder
+        self.showsCloseButton = showsCloseButton
+        self.navigationTitle = navigationTitle
+        self.onReady = onReady
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             SimpleChatView(
                 messages: $viewModel.displayMessages,
@@ -37,24 +54,29 @@ struct PersistentChatView: View {
                         await viewModel.sendMessage(text)
                     }
                 },
+                onSpecialMessageAction: nil,
+                onRetry: nil,
                 onLoadMoreHistory: {
                     Task {
                         await viewModel.loadMoreMessages()
                     }
-                }
+                },
+                chatContext: chatContext
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.Palette.bgBase.ignoresSafeArea())
-            .navigationTitle("对话")
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.Palette.textPrimary)
+                    if showsCloseButton {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.Palette.textPrimary)
+                        }
                     }
                 }
             }
@@ -63,6 +85,8 @@ struct PersistentChatView: View {
         }
         .task {
             await viewModel.initialize(modelContext: modelContext)
+            let controller = ChatSessionController(viewModel: viewModel)
+            onReady?(controller)
         }
         .onAppear {
             Task {
@@ -77,6 +101,7 @@ struct PersistentChatView: View {
                 await handlePendingChatMessageIfNeeded()
             }
         }
+        .interactiveDismissDisabled(!showsCloseButton)
     }
 
     @MainActor
@@ -85,22 +110,34 @@ struct PersistentChatView: View {
         await viewModel.sendMessage(message)
         router.clearPendingChatMessage(message)
     }
+
+    private var chatContext: ChatContext {
+        if let chatContextBuilder {
+            return chatContextBuilder(viewModel)
+        }
+
+        return ChatContext { text in
+            Task { @MainActor in
+                await viewModel.sendMessage(text)
+            }
+        }
+    }
 }
 
 @MainActor
-final class PersistentChatViewModel: ObservableObject {
-    @Published var displayMessages: [ChatMessage] = []
-    @Published var isSending = false
-    @Published var errorMessage: String?
-    @Published var conversationId: String? // 长期持有的对话ID
-    @Published var inputText = ""
-    @Published var isLoadingMore = false  // 正在加载更多消息
-    @Published var selectedGoalId: String? {
+public final class PersistentChatViewModel: ObservableObject {
+    @Published public var displayMessages: [ChatMessage] = []
+    @Published public var isSending = false
+    @Published public var errorMessage: String?
+    @Published public var conversationId: String? // 长期持有的对话ID
+    @Published public var inputText = ""
+    @Published public var isLoadingMore = false  // 正在加载更多消息
+    @Published public var selectedGoalId: String? {
         didSet {
             goalManager?.defaultSelectedGoalId = selectedGoalId
         }
     }
-    @Published var availableGoals: [AgendaGoal] = []
+    @Published public var availableGoals: [AgendaGoal] = []
 
     private let chatService: ChatService
     private let goalManager: AgendaGoalManaging?
@@ -118,13 +155,15 @@ final class PersistentChatViewModel: ObservableObject {
     private let loadMoreLimit = 20  // 每次加载更多的消息数量
     private let conversationTimeoutHours: TimeInterval = 4 * 3600  // 4小时超时
 
-    init(
+    public init(
         chatService: ChatService,
         goalManager: AgendaGoalManaging? = nil,
-        defaultSelectedGoalId: String? = nil
+        defaultSelectedGoalId: String? = nil,
+        initialConversationId: String? = nil
     ) {
         self.chatService = chatService
         self.goalManager = goalManager
+        self.conversationId = initialConversationId
 
         let initialGoalId = Self.resolveInitialGoalId(
             providedGoalId: defaultSelectedGoalId,
@@ -142,7 +181,7 @@ final class PersistentChatViewModel: ObservableObject {
         hasMoreMessagesToLoad
     }
 
-    func initialize(modelContext: ModelContext) async {
+    public func initialize(modelContext: ModelContext) async {
         guard !hasInitialized else { return }
         hasInitialized = true
 
@@ -249,7 +288,7 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 加载更多历史消息（用户往上滑动时调用）
-    func loadMoreMessages() async {
+    public func loadMoreMessages() async {
         // TODO 先不加载更多
         hasMoreMessagesToLoad = false
         return
@@ -325,7 +364,7 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 从服务端同步消息
-    func syncWithServer() async {
+    public func syncWithServer() async {
         // 1. 首先检查是否有最新的conversation
         do {
             let conversations = try await chatService.getConversations(limit: 1, offset: nil)
@@ -543,7 +582,7 @@ final class PersistentChatViewModel: ObservableObject {
     }
 
     /// 发送消息
-    func sendMessage(_ text: String) async {
+    public func sendMessage(_ text: String) async {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return }
 
@@ -592,6 +631,38 @@ final class PersistentChatViewModel: ObservableObject {
         )
 
         // 4. 发送到服务器
+        isSending = true
+        errorMessage = nil
+
+        do {
+            try await chatService.sendMessage(
+                userInput: trimmedText,
+                conversationId: effectiveConversationId
+            ) { [weak self] event in
+                Task { @MainActor in
+                    self?.handleStreamEvent(event)
+                }
+            }
+        } catch {
+            errorMessage = "发送消息失败: \(error.localizedDescription)"
+        }
+
+        isSending = false
+    }
+
+    /// 发送系统命令，不会生成用户消息气泡
+    public func sendSystemCommand(
+        _ text: String,
+        preferredConversationId: String? = nil
+    ) async {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return }
+
+        var effectiveConversationId = preferredConversationId ?? conversationId
+        if conversationId == nil {
+            conversationId = effectiveConversationId
+        }
+
         isSending = true
         errorMessage = nil
 

@@ -85,7 +85,6 @@ enum AppComposition {
         // 1. Configure domain services first
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
-        ChatDomainBootstrap.configure()
 
         // 2. Register features (buildable + routes)
         AccountModule.register(router: router)
@@ -118,7 +117,7 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 - Library: `Library[Name]`
 
 **Import Rules**:
-- Domain: `import DomainAuth`, `import DomainHealth`, `import DomainChat`
+- Domain: `import DomainAuth`, `import DomainHealth`
 - Library: `import LibraryServiceLoader`, `import LibraryNetworking`
 - Feature: `import FeatureAccountApi`, `import FeatureAccountImpl`
 
@@ -224,7 +223,6 @@ enum AppComposition {
         // Domain services...
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
-        ChatDomainBootstrap.configure()
 
         // Features...
         AccountModule.register(router: router)

@@ -12,8 +12,8 @@ let package = Package(
         .package(name: "LibraryServiceLoader", path: "../../../Library/ServiceLoader"),
         .package(name: "LibraryNotification", path: "../../../Library/Notification"),
         .package(name: "ResourceKit", path: "../../../Library/ResourceKit"),
-        .package(name: "DomainChat", path: "../../../Domain/DomainChat"),
-        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI")
+        .package(name: "LibraryChatUI", path: "../../../Library/ChatUI"),
+        .package(name: "LibraryNetworking", path: "../../../Library/Networking")
     ],
     targets: [
         .target(
@@ -25,8 +25,8 @@ let package = Package(
                 .product(name: "LibraryServiceLoader", package: "LibraryServiceLoader"),
                 .product(name: "LibraryNotification", package: "LibraryNotification"),
                 .product(name: "ResourceKit", package: "ResourceKit"),
-                .product(name: "DomainChat", package: "DomainChat"),
-                .product(name: "LibraryChatUI", package: "LibraryChatUI")
+                .product(name: "LibraryChatUI", package: "LibraryChatUI"),
+                .product(name: "LibraryNetworking", package: "LibraryNetworking")
             ],
             path: "Sources"
         )

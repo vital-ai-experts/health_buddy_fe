@@ -36,8 +36,6 @@ packages:
     path: Packages/Domain/Health
   DomainAuth:
     path: Packages/Domain/DomainAuth
-  DomainChat:
-    path: Packages/Domain/DomainChat
   FeatureAccountApi:
     path: Packages/Feature/FeatureAccount/FeatureAccountApi
   FeatureAccountImpl:
@@ -97,8 +95,6 @@ targets:
         product: DomainHealth
       - package: DomainAuth
         product: DomainAuth
-      - package: DomainChat
-        product: DomainChat
       - package: FeatureAccountApi
         product: FeatureAccountApi
       - package: FeatureAccountImpl

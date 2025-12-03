@@ -4,7 +4,7 @@ import LibraryBase
 
 /// Onboarding 状态管理器实现
 final class OnboardingStateManager: OnboardingStateManaging {
-    static let mockOnboardingID = "mock-onboarding-id"
+    static let mockOnboardingID = OnboardingChatMocking.onboardingConversationId
     static let shared = OnboardingStateManager()
 
     private let userDefaults = UserDefaults.standard

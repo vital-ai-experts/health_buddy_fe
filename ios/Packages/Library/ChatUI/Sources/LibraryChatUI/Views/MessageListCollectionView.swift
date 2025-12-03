@@ -31,6 +31,7 @@ public final class MessageListCollectionView: UICollectionView {
 
     // Configuration
     public var configuration: ChatConfiguration = .default
+    public var chatContext: ChatContext = .noop
 
     // MARK: - Initialization
 
@@ -194,7 +195,7 @@ public final class MessageListCollectionView: UICollectionView {
 
             let content: AnyView
             if let renderer = ChatMessageRendererRegistry.shared.renderer(for: message.type) {
-                content = renderer(message)
+                content = renderer(message, self.chatContext)
             } else {
                 content = AnyView(CustomMessageFallbackView(message: message))
             }

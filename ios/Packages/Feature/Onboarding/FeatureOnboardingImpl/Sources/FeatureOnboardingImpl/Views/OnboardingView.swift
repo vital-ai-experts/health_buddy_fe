@@ -1,35 +1,29 @@
 import SwiftUI
-import UIKit
 import FeatureOnboardingApi
-import FeatureAgendaApi
+import FeatureChatApi
 import LibraryServiceLoader
 import ThemeKit
 
 struct OnboardingView: View {
-    @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: OnboardingViewModel
     @State private var introLine1Started = false
     @State private var introLine2Started = false
     @State private var introLine3Started = false
     @State private var introTypingCompleted = false
-    @State private var showDungeonDetail = false
-
-    private let agendaFeature: FeatureAgendaBuildable
-
-    private var shouldShowProgressAndButton: Bool {
-        viewModel.step != .intro || introTypingCompleted
-    }
+    @State private var hasOpenedChat = false
+    @State private var showChat = false
+    private let chatFeature: FeatureChatBuildable
 
     init(
         onComplete: @escaping () -> Void,
         stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self),
-        agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolve(FeatureAgendaBuildable.self)
+        chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self)
     ) {
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             stateManager: stateManager,
             onComplete: onComplete
         ))
-        self.agendaFeature = agendaFeature
+        self.chatFeature = chatFeature
     }
 
     var body: some View {
@@ -56,22 +50,6 @@ struct OnboardingView: View {
                         isCompleted: viewModel.isScanCompleted,
                         lines: viewModel.visibleScanLines
                     )
-
-                case .profile:
-                    ProfileSectionView(
-                        snapshot: viewModel.profileSnapshot,
-                        issueOptions: viewModel.issueOptions,
-                        selectedIssueID: viewModel.selectedIssueID,
-                        selectedIssue: viewModel.selectedIssue,
-                        onIssueSelect: { viewModel.selectIssue($0) }
-                    )
-
-                case .call:
-                    CallSectionView(
-                        name: binding(\.name),
-                        phoneNumber: binding(\.phoneNumber),
-                        callState: viewModel.callState
-                    )
                 }
 
                 Spacer(minLength: 0)
@@ -80,42 +58,18 @@ struct OnboardingView: View {
             .padding(.top, 8)
             .padding(.bottom, 20)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if viewModel.step == .intro {
-                BreathingDotView()
-                    .padding(.trailing, -12)
-                    .padding(.bottom, 100)
-            }
-        }
-        .overlay(alignment: .top) {
-            if shouldShowProgressAndButton {
-                OnboardingProgressIndicator(step: viewModel.step)
-                    .padding(.top, 8)
-                    .padding(.horizontal, 24)
-                    .transition(.opacity)
-            }
-        }
         .overlay(alignment: .bottom) {
-            if shouldShowProgressAndButton {
-                OnboardingPrimaryButton(
-                    title: viewModel.primaryButtonTitle,
-                    isDisabled: viewModel.isPrimaryButtonDisabled,
-                    isLoading: viewModel.isPrimaryButtonLoading,
-                    action: {
-                        if viewModel.step == .call && viewModel.callState == .completed {
-                            showDungeonDetail = true
-                        } else {
-                            if viewModel.step == .call {
-                                dismissKeyboard()
-                            }
-                            viewModel.handlePrimaryAction()
-                        }
-                    }
-                )
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
-                .transition(.opacity)
-            }
+            OnboardingPrimaryButton(
+                title: viewModel.primaryButtonTitle,
+                isDisabled: viewModel.isPrimaryButtonDisabled,
+                isLoading: false,
+                action: {
+                    handlePrimaryAction()
+                }
+            )
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
+            .transition(.opacity)
         }
         .onChange(of: viewModel.step) { _, newValue in
             if newValue == .scan {
@@ -130,19 +84,17 @@ struct OnboardingView: View {
                 introLine1Started = true
             }
         }
-        .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
-        .sheet(isPresented: $showDungeonDetail) {
-            agendaFeature.makeDungeonDetailView {
-                startDungeonAndFinish()
-            }
+        .animation(.easeInOut(duration: 0.35), value: viewModel.step)
+        .fullScreenCover(isPresented: $showChat) {
+                    chatFeature.makeChatView(
+                        config: ChatConversationConfig(
+                    initialConversationId: OnboardingChatMocking.onboardingConversationId,
+                    navigationTitle: "与Pascal的对话",
+                    showsCloseButton: false,
+                    chatService: OnboardingMockChatService()
+                )
+            )
         }
-    }
-
-    private func binding<Value>(_ keyPath: ReferenceWritableKeyPath<OnboardingViewModel, Value>) -> Binding<Value> {
-        Binding(
-            get: { viewModel[keyPath: keyPath] },
-            set: { viewModel[keyPath: keyPath] = $0 }
-        )
     }
 
     @ViewBuilder
@@ -150,19 +102,21 @@ struct OnboardingView: View {
         Color.black
     }
 
-    private func startDungeonAndFinish() {
-        showDungeonDetail = false
-        router.enqueueChatMessage(viewModel.dungeonJoinMockMessage)
-        // 打开对话页面
-        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
-            router.open(url: chatURL)
+    private func handlePrimaryAction() {
+        switch viewModel.step {
+        case .intro:
+            viewModel.handlePrimaryAction()
+        case .scan:
+            guard viewModel.isScanCompleted else { return }
+            openChat()
         }
-        viewModel.completeAfterDungeonStart()
     }
 
-    /// 收起键盘，适用于预约回电按钮点击
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    private func openChat() {
+        guard !hasOpenedChat else { return }
+        hasOpenedChat = true
+
+        showChat = true
     }
 }
 
