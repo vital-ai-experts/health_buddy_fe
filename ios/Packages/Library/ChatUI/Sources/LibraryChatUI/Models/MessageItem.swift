@@ -37,20 +37,20 @@ public struct UserMessage: Hashable, Identifiable {
     public let text: String
     public let timestamp: Date
     public let images: [MessageImage]?  // 图片附件
-    public let goalTitle: String?
+    public let topicTitle: String?
 
     public init(
         id: String = UUID().uuidString,
         text: String,
         timestamp: Date = Date(),
         images: [MessageImage]? = nil,
-        goalTitle: String? = nil
+        topicTitle: String? = nil
     ) {
         self.id = id
         self.text = text
         self.timestamp = timestamp
         self.images = images
-        self.goalTitle = goalTitle
+        self.topicTitle = topicTitle
     }
 }
 
@@ -66,7 +66,7 @@ public struct SystemMessage: Hashable, Identifiable {
     public let toolCalls: [ToolCallInfo]
     public let specialMessageType: SpecialMessageType?
     public let specialMessageData: String?
-    public let goalTitle: String?
+    public let topicTitle: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -77,7 +77,7 @@ public struct SystemMessage: Hashable, Identifiable {
         toolCalls: [ToolCallInfo] = [],
         specialMessageType: SpecialMessageType? = nil,
         specialMessageData: String? = nil,
-        goalTitle: String? = nil
+        topicTitle: String? = nil
     ) {
         self.id = id
         self.text = text
@@ -87,7 +87,7 @@ public struct SystemMessage: Hashable, Identifiable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
-        self.goalTitle = goalTitle
+        self.topicTitle = topicTitle
     }
 }
 
@@ -126,17 +126,17 @@ public struct SystemError: Hashable, Identifiable {
 
 // MARK: - TopicSeparator
 
-/// Represents a topic/goal separator displayed between messages
+/// Represents a topic separator displayed between messages
 public struct TopicSeparator: Hashable, Identifiable {
     public let id: String
-    public let goalTitle: String
+    public let topicTitle: String
 
     public init(
         id: String = UUID().uuidString,
-        goalTitle: String
+        topicTitle: String
     ) {
         self.id = id
-        self.goalTitle = goalTitle
+        self.topicTitle = topicTitle
     }
 }
 
@@ -165,7 +165,7 @@ extension MessageItem {
                 text: chatMessage.text,
                 timestamp: chatMessage.timestamp,
                 images: chatMessage.images,
-                goalTitle: chatMessage.goalTitle
+                topicTitle: chatMessage.goalTitle
             ))
         } else {
             // 自定义特殊消息，交给外部注册的渲染器
@@ -191,7 +191,7 @@ extension MessageItem {
                 toolCalls: chatMessage.toolCalls ?? [],
                 specialMessageType: chatMessage.specialMessageType,
                 specialMessageData: chatMessage.specialMessageData,
-                goalTitle: chatMessage.goalTitle
+                topicTitle: chatMessage.goalTitle
             ))
         }
     }
@@ -200,36 +200,36 @@ extension MessageItem {
 // MARK: - Message Processing
 
 extension MessageItem {
-    /// Inserts topic separators into a message list based on goalTitle changes
+    /// Inserts topic separators into a message list based on topicTitle changes
     public static func withTopicSeparators(_ messages: [MessageItem]) -> [MessageItem] {
         var result: [MessageItem] = []
-        var currentGoalTitle: String?
+        var currentTopicTitle: String?
 
         for message in messages {
-            // Extract goal title from current message
-            let messageGoalTitle: String? = {
+            // Extract topic title from current message
+            let messageTopicTitle: String? = {
                 switch message {
                 case .user(let userMsg):
-                    return userMsg.goalTitle
+                    return userMsg.topicTitle
                 case .system(let systemMsg):
-                    return systemMsg.goalTitle
+                    return systemMsg.topicTitle
                 default:
                     return nil
                 }
             }()
 
-            // Determine the effective goal title (inherit from previous if not specified)
-            let effectiveGoalTitle = messageGoalTitle ?? currentGoalTitle
+            // Determine the effective topic title (inherit from previous if not specified)
+            let effectiveTopicTitle = messageTopicTitle ?? currentTopicTitle
 
-            // If goal title changed and is not nil, insert a separator
-            if let goalTitle = effectiveGoalTitle,
-               goalTitle != currentGoalTitle {
+            // If topic title changed and is not nil, insert a separator
+            if let topicTitle = effectiveTopicTitle,
+               topicTitle != currentTopicTitle {
                 let separator = TopicSeparator(
-                    id: "separator_\(goalTitle)_\(result.count)",
-                    goalTitle: goalTitle
+                    id: "separator_\(topicTitle)_\(result.count)",
+                    topicTitle: topicTitle
                 )
                 result.append(.topicSeparator(separator))
-                currentGoalTitle = goalTitle
+                currentTopicTitle = topicTitle
             }
 
             result.append(message)

@@ -1,7 +1,7 @@
 import Foundation
 
-/// 聊天气泡上方用于筛选的标签
-public struct ChatTag: Identifiable, Equatable, Hashable {
+/// 聊天输入框上方用于筛选的话题标签
+public struct ChatTopic: Identifiable, Equatable, Hashable {
     public let id: String
     public let title: String
 

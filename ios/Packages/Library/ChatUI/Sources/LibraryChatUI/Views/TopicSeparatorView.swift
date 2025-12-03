@@ -1,7 +1,7 @@
 import SwiftUI
 import ThemeKit
 
-/// SwiftUI view for displaying topic/goal separators between messages
+/// SwiftUI view for displaying topic separators between messages
 public struct TopicSeparatorView: View {
     let separator: TopicSeparator
 
@@ -17,7 +17,7 @@ public struct TopicSeparatorView: View {
                 .frame(height: 1)
 
             // Label
-            Text("副本：\(separator.goalTitle)")
+            Text("副本：\(separator.topicTitle)")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.Palette.textSecondary)
                 .padding(.horizontal, 12)
@@ -41,9 +41,9 @@ public struct TopicSeparatorView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        TopicSeparatorView(separator: TopicSeparator(goalTitle: "睡眠大师"))
-        TopicSeparatorView(separator: TopicSeparator(goalTitle: "健康饮食"))
-        TopicSeparatorView(separator: TopicSeparator(goalTitle: "运动计划"))
+        TopicSeparatorView(separator: TopicSeparator(topicTitle: "睡眠大师"))
+        TopicSeparatorView(separator: TopicSeparator(topicTitle: "健康饮食"))
+        TopicSeparatorView(separator: TopicSeparator(topicTitle: "运动计划"))
     }
     .padding()
 }

@@ -6,7 +6,7 @@ public struct SimpleChatView: View {
     @Binding public var messages: [ChatMessage]
     @Binding public var inputText: String
     public let isLoading: Bool
-    public let tags: [ChatTag]
+    public let topics: [ChatTopic]
     public let configuration: ChatConfiguration
     public let bottomPadding: CGFloat
     public let onSendMessage: (String) -> Void
@@ -15,17 +15,17 @@ public struct SimpleChatView: View {
     public let onLoadMoreHistory: (() -> Void)?
 
     @FocusState private var isInputFocused: Bool
-    @Binding private var selectedTagId: String?
+    @Binding private var selectedTopicId: String?
     @State private var loadingId = UUID().uuidString  // Stable ID for loading indicator
 
     public init(
         messages: Binding<[ChatMessage]>,
         inputText: Binding<String>,
         isLoading: Bool = false,
-        tags: [ChatTag] = [],
+        topics: [ChatTopic] = [],
         configuration: ChatConfiguration = .default,
         bottomPadding: CGFloat = 0,
-        selectedTagId: Binding<String?> = .constant(nil),
+        selectedTopicId: Binding<String?> = .constant(nil),
         onSendMessage: @escaping (String) -> Void,
         onSpecialMessageAction: ((String, String) -> Void)? = nil,
         onRetry: ((String) -> Void)? = nil,
@@ -34,14 +34,14 @@ public struct SimpleChatView: View {
         self._messages = messages
         self._inputText = inputText
         self.isLoading = isLoading
-        self.tags = tags
+        self.topics = topics
         self.configuration = configuration
         self.bottomPadding = bottomPadding
         self.onSendMessage = onSendMessage
         self.onSpecialMessageAction = onSpecialMessageAction
         self.onRetry = onRetry
         self.onLoadMoreHistory = onLoadMoreHistory
-        self._selectedTagId = selectedTagId
+        self._selectedTopicId = selectedTopicId
     }
 
     public var body: some View {
@@ -76,8 +76,8 @@ public struct SimpleChatView: View {
                     text: $inputText,
                     isFocused: $isInputFocused,
                     isLoading: isLoading,
-                    tags: tags,
-                    selectedTagId: $selectedTagId,
+                    topics: topics,
+                    selectedTopicId: $selectedTopicId,
                     onSend: handleSend
                 )
                 .background(.ultraThinMaterial)
