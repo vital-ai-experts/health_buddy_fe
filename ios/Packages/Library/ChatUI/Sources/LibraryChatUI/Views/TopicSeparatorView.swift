@@ -10,30 +10,11 @@ public struct TopicSeparatorView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
-            // Left line
-            Rectangle()
-                .fill(Color.Palette.textSecondary.opacity(0.3))
-                .frame(height: 1)
-
-            // Label
-            Text("副本：\(separator.topicTitle)")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.Palette.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(Color.Palette.bgMuted)
-                )
-
-            // Right line
-            Rectangle()
-                .fill(Color.Palette.textSecondary.opacity(0.3))
-                .frame(height: 1)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        Text(separator.topicTitle)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(Color.Palette.textDisabled)
+            .padding(.top, 32)
+            .padding(.bottom, 16)
     }
 }
 
