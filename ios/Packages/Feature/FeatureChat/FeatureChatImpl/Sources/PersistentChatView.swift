@@ -30,8 +30,8 @@ struct PersistentChatView: View {
                 messages: $viewModel.displayMessages,
                 inputText: $viewModel.inputText,
                 isLoading: viewModel.isSending,
-                tags: viewModel.chatTags,
-                selectedTagId: $viewModel.selectedGoalId,
+                topics: viewModel.chatTopics,
+                selectedTopicId: $viewModel.selectedGoalId,
                 onSendMessage: { text in
                     Task {
                         await viewModel.sendMessage(text)
@@ -226,8 +226,8 @@ final class PersistentChatViewModel: ObservableObject {
         }
     }
 
-    var chatTags: [ChatTag] {
-        availableGoals.map { ChatTag(id: $0.id, title: $0.title) }
+    var chatTopics: [ChatTopic] {
+        availableGoals.map { ChatTopic(id: $0.id, title: $0.title) }
     }
 
     private static func resolveInitialGoalId(
