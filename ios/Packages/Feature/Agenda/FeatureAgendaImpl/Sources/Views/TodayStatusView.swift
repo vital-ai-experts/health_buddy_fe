@@ -1,7 +1,7 @@
 import SwiftUI
 import ThemeKit
 
-/// 全局状态区 - "今天"模块
+/// 全局状态区 - "此刻"模块
 struct TodayStatusView: View {
     let healthStatus: HealthStatus
 
@@ -9,7 +9,7 @@ struct TodayStatusView: View {
         VStack(alignment: .leading, spacing: 24) {
             // 标题和天气
             HStack {
-                Text("今天")
+                Text("此刻")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundColor(.Palette.textPrimary)
 

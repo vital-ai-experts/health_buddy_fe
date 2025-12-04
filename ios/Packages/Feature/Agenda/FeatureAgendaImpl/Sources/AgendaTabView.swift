@@ -19,7 +19,7 @@ struct AgendaTabView: View {
                     onAddTapped: handleAddGoalTapped
                 )
 
-                // 今天 - 全局状态区
+                // 此刻 - 全局状态区
                 TodayStatusView(healthStatus: viewModel.healthStatus)
                     .padding(.bottom, 20)
 

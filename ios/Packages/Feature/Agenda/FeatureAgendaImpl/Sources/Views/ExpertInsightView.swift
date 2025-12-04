@@ -6,37 +6,19 @@ struct ExpertInsightView: View {
     let insight: ExpertInsight
 
     var body: some View {
-        let accentColor = Color.Palette.warningMain
+        VStack(alignment: .leading, spacing: 16) {
+            Text(insight.title)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.Palette.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
 
-        HStack(alignment: .top, spacing: 14) {
-            VStack(spacing: 0) {
-                Text("“")
-                    .font(.system(size: 22, weight: .bold, design: .serif))
-                    .foregroundColor(accentColor.opacity(0.9))
-
-                Rectangle()
-                    .fill(accentColor.opacity(0.4))
-                    .frame(width: 2)
-                    .frame(maxHeight: .infinity)
-                    .padding(.top, -6)
-            }
-            .frame(width: 18, alignment: .top)
-
-            VStack(alignment: .leading, spacing: 12) {
-                // 问候语
-                Text(insight.greeting)
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundColor(.Palette.textPrimary)
-
-                // 分析和建议
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(insight.analysis)
-                    Text(insight.recommendation)
-                }
-                .font(.system(size: 15, weight: .regular, design: .serif))
+            Text(insight.body)
+                .font(.system(size: 16))
                 .foregroundColor(.Palette.textSecondary)
-                .lineSpacing(5)
-            }
+                .lineSpacing(6)
+
+            ScienceNoteView(content: insight.science)
         }
         .padding(.horizontal, 20)
     }

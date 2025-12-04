@@ -43,7 +43,7 @@ struct HealthMetric: Identifiable {
 
 /// 专家简报
 struct ExpertInsight {
-    let greeting: String
-    let analysis: String
-    let recommendation: String
+    let title: String
+    let body: String
+    let science: String
 }
