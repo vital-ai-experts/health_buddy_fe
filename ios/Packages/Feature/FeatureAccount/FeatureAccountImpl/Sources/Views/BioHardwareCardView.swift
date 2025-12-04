@@ -29,7 +29,7 @@ struct BioHardwareCardView: View {
 
                 // Caffeine Metabolism section
                 VStack(alignment: .leading, spacing: 12) {
-                    sectionHeader(title: "咖啡因代谢——甚至可以说"拥堵"")
+                    sectionHeader(title: "咖啡因代谢——甚至可以说\"拥堵\"")
 
                     Text(data.caffeineMetabolism)
                         .font(.system(size: 15))

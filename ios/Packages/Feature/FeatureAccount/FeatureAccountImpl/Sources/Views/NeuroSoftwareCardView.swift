@@ -15,7 +15,7 @@ struct NeuroSoftwareCardView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Stress Response section
                 VStack(alignment: .leading, spacing: 12) {
-                    sectionHeader(title: "压力下的"碳水猎手"")
+                    sectionHeader(title: "压力下的\"碳水猎手\"")
 
                     Text(data.stressResponse)
                         .font(.system(size: 15))
