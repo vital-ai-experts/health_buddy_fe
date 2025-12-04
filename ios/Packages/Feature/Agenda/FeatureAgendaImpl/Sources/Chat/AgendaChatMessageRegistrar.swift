@@ -7,10 +7,12 @@ import ThemeKit
 enum AgendaChatMessageRegistrar {
     static let agendaTaskType = "agenda_task_card"
     static let digestReportType = "digest_report"
+    static let inquiryCardType = "inquiry_card"
 
     static func registerRenderers() {
         ChatMessageRendererRegistry.shared.register(type: agendaTaskType, renderer: renderAgendaTask)
         ChatMessageRendererRegistry.shared.register(type: digestReportType, renderer: renderDigestReport)
+        ChatMessageRendererRegistry.shared.register(type: inquiryCardType, renderer: renderInquiryCard)
     }
 
     // MARK: - Agenda Task
@@ -68,6 +70,41 @@ enum AgendaChatMessageRegistrar {
 
         return AnyView(
             DigestReportMessageView(message: digestMessage)
+        )
+    }
+
+    // MARK: - Inquiry Card
+
+    private static func renderInquiryCard(message: CustomRenderedMessage) -> AnyView {
+        let card = decodeInquiryCard(from: message.data) ?? InquiryCard.sampleCards.first ?? fallbackInquiryCard
+
+        return AnyView(
+            InquiryCardView(card: card) { actionId in
+                print("Inquiry option selected: \(actionId)")
+                // TODO: 处理用户选择的选项，例如发送消息给AI
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        )
+    }
+
+    private static func decodeInquiryCard(from data: String?) -> InquiryCard? {
+        guard let data, let jsonData = data.data(using: .utf8) else { return nil }
+        guard let payload = try? JSONDecoder().decode(InquiryCardPayload.self, from: jsonData) else {
+            return nil
+        }
+        return payload.toInquiryCard()
+    }
+
+    private static var fallbackInquiryCard: InquiryCard {
+        InquiryCard(
+            emoji: "👀",
+            question: "正在为你计算今晚的最佳入睡时间，在我运行模型前，有没有什么干扰项需要我手动录入的？",
+            options: [
+                InquiryOption(emoji: "🥗", text: "我很健康", actionId: "healthy"),
+                InquiryOption(emoji: "🍺", text: "喝了酒", actionId: "alcohol"),
+                InquiryOption(emoji: "🍔", text: "吃了夜宵", actionId: "late_snack")
+            ]
         )
     }
 }
