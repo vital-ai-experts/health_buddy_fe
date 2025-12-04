@@ -37,6 +37,7 @@ public struct UserMessage: Hashable, Identifiable {
     public let text: String
     public let timestamp: Date
     public let images: [MessageImage]?  // 图片附件
+    public let topicId: String?
     public let topicTitle: String?
 
     public init(
@@ -44,12 +45,14 @@ public struct UserMessage: Hashable, Identifiable {
         text: String,
         timestamp: Date = Date(),
         images: [MessageImage]? = nil,
+        topicId: String? = nil,
         topicTitle: String? = nil
     ) {
         self.id = id
         self.text = text
         self.timestamp = timestamp
         self.images = images
+        self.topicId = topicId
         self.topicTitle = topicTitle
     }
 }
@@ -67,6 +70,7 @@ public struct SystemMessage: Hashable, Identifiable {
     public let specialMessageType: SpecialMessageType?
     public let specialMessageData: String?
     public let scienceNote: String?
+    public let topicId: String?
     public let topicTitle: String?
 
     public init(
@@ -79,6 +83,7 @@ public struct SystemMessage: Hashable, Identifiable {
         specialMessageType: SpecialMessageType? = nil,
         specialMessageData: String? = nil,
         scienceNote: String? = nil,
+        topicId: String? = nil,
         topicTitle: String? = nil
     ) {
         self.id = id
@@ -90,6 +95,7 @@ public struct SystemMessage: Hashable, Identifiable {
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
         self.scienceNote = scienceNote
+        self.topicId = topicId
         self.topicTitle = topicTitle
     }
 }
@@ -168,7 +174,8 @@ extension MessageItem {
                 text: chatMessage.text,
                 timestamp: chatMessage.timestamp,
                 images: chatMessage.images,
-                topicTitle: chatMessage.goalTitle
+                topicId: chatMessage.topicId,
+                topicTitle: chatMessage.topicTitle
             ))
         } else {
             // 自定义特殊消息，交给外部注册的渲染器
@@ -179,7 +186,9 @@ extension MessageItem {
                     type: rawType,
                     text: chatMessage.text,
                     timestamp: chatMessage.timestamp,
-                    data: chatMessage.specialMessageData
+                    data: chatMessage.specialMessageData,
+                    topicId: chatMessage.topicId,
+                    topicTitle: chatMessage.topicTitle
                 )
                 return .custom(customMessage)
             }
@@ -195,7 +204,8 @@ extension MessageItem {
                 specialMessageType: chatMessage.specialMessageType,
                 specialMessageData: chatMessage.specialMessageData,
                 scienceNote: chatMessage.scienceNote,
-                topicTitle: chatMessage.goalTitle
+                topicId: chatMessage.topicId,
+                topicTitle: chatMessage.topicTitle
             ))
         }
     }
@@ -217,6 +227,8 @@ extension MessageItem {
                     return userMsg.topicTitle
                 case .system(let systemMsg):
                     return systemMsg.topicTitle
+                case .custom(let customMsg):
+                    return customMsg.topicTitle
                 default:
                     return nil
                 }

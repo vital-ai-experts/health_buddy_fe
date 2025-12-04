@@ -23,7 +23,7 @@ public struct PersistentChatView: View {
     private let shouldAttachTopicTitle: Bool
 
     public init(
-        defaultSelectedGoalId: String? = nil,
+        defaultSelectedTopicId: String? = nil,
         initialConversationId: String? = nil,
         chatService: ChatService? = nil,
         chatSessionBuilder: ((PersistentChatViewModel) -> ChatSessionControlling)? = nil,
@@ -38,7 +38,7 @@ public struct PersistentChatView: View {
         let viewModel = PersistentChatViewModel(
             chatService: chatService,
             goalManager: ServiceManager.shared.resolveOptional(AgendaGoalManaging.self),
-            defaultSelectedGoalId: defaultSelectedGoalId,
+            defaultSelectedTopicId: defaultSelectedTopicId,
             initialConversationId: initialConversationId,
             shouldAttachTopicTitle: !resolvedTopics.isEmpty
         )
@@ -59,7 +59,7 @@ public struct PersistentChatView: View {
                 inputText: $viewModel.inputText,
                 isLoading: viewModel.isSending,
                 topics: topics ?? [],
-                selectedTopicId: $viewModel.selectedGoalId,
+                selectedTopicId: $viewModel.selectedTopicId,
                 onSendMessage: { text in
                     Task {
                         await viewModel.sendMessage(text)
@@ -141,9 +141,9 @@ public final class PersistentChatViewModel: ObservableObject {
     @Published public var conversationId: String? // 长期持有的对话ID
     @Published public var inputText = ""
     @Published public var isLoadingMore = false  // 正在加载更多消息
-    @Published public var selectedGoalId: String? {
+    @Published public var selectedTopicId: String? {
         didSet {
-            goalManager?.defaultSelectedGoalId = selectedGoalId
+            goalManager?.defaultSelectedGoalId = selectedTopicId
         }
     }
     @Published public var availableGoals: [AgendaGoal] = []
@@ -168,7 +168,7 @@ public final class PersistentChatViewModel: ObservableObject {
     public init(
         chatService: ChatService,
         goalManager: AgendaGoalManaging? = nil,
-        defaultSelectedGoalId: String? = nil,
+        defaultSelectedTopicId: String? = nil,
         initialConversationId: String? = nil,
         shouldAttachTopicTitle: Bool = true
     ) {
@@ -177,15 +177,15 @@ public final class PersistentChatViewModel: ObservableObject {
         self.conversationId = initialConversationId
         self.shouldAttachTopicTitle = shouldAttachTopicTitle
 
-        let initialGoalId = Self.resolveInitialGoalId(
-            providedGoalId: defaultSelectedGoalId,
+        let initialTopicId = Self.resolveInitialTopicId(
+            providedTopicId: defaultSelectedTopicId,
             manager: goalManager
         )
         self.availableGoals = goalManager?.goals ?? []
-        self.selectedGoalId = initialGoalId
+        self.selectedTopicId = initialTopicId
 
-        if let initialGoalId {
-            self.goalManager?.defaultSelectedGoalId = initialGoalId
+        if let initialTopicId {
+            self.goalManager?.defaultSelectedGoalId = initialTopicId
         }
     }
 
@@ -234,8 +234,8 @@ public final class PersistentChatViewModel: ObservableObject {
                     specialMessageData: localMsg.specialMessageData,
                     scienceNote: localMsg.scienceNote,
                     specialMessageTypeRaw: localMsg.specialMessageTypeRaw,
-                    goalId: localMsg.goalId,
-                    goalTitle: localMsg.goalTitle
+                    topicId: localMsg.topicId,
+                    topicTitle: localMsg.topicTitle
                 )
             }
 
@@ -277,14 +277,14 @@ public final class PersistentChatViewModel: ObservableObject {
         availableGoals.map { ChatTopic(id: $0.id, title: $0.title) }
     }
 
-    private static func resolveInitialGoalId(
-        providedGoalId: String?,
+    private static func resolveInitialTopicId(
+        providedTopicId: String?,
         manager: AgendaGoalManaging?
     ) -> String? {
         let goals = manager?.goals ?? []
 
-        if let providedGoalId, goals.contains(where: { $0.id == providedGoalId }) {
-            return providedGoalId
+        if let providedTopicId, goals.contains(where: { $0.id == providedTopicId }) {
+            return providedTopicId
         }
 
         if let defaultId = manager?.defaultSelectedGoalId,
@@ -340,8 +340,8 @@ public final class PersistentChatViewModel: ObservableObject {
                         specialMessageData: localMsg.specialMessageData,
                         scienceNote: localMsg.scienceNote,
                         specialMessageTypeRaw: localMsg.specialMessageTypeRaw,
-                        goalId: localMsg.goalId,
-                        goalTitle: localMsg.goalTitle
+                        topicId: localMsg.topicId,
+                        topicTitle: localMsg.topicTitle
                     )
                 }
 
@@ -484,7 +484,9 @@ public final class PersistentChatViewModel: ObservableObject {
                         specialMessageType: specialType,
                         specialMessageData: message.specialMessageData,
                         scienceNote: message.scienceNote,
-                        specialMessageTypeRaw: message.specialMessageType
+                        specialMessageTypeRaw: message.specialMessageType,
+                        topicId: message.topicId,
+                        topicTitle: message.topicTitle
                     )
 
                     displayMessages.append(chatMessage)
@@ -495,11 +497,13 @@ public final class PersistentChatViewModel: ObservableObject {
                         content: message.content,
                         isFromUser: false,
                         createdAt: chatMessage.timestamp,
-                        specialMessageTypeRaw: message.specialMessageType,
-                        specialMessageData: message.specialMessageData,
-                        scienceNote: message.scienceNote
-                    )
-                }
+                        topicId: message.topicId,
+                        topicTitle: message.topicTitle,
+                specialMessageTypeRaw: message.specialMessageType,
+                specialMessageData: message.specialMessageData,
+                scienceNote: message.scienceNote
+            )
+        }
 
                 // 按时间戳排序所有消息(时间正序，最新的在最后)
                 displayMessages.sort { $0.timestamp < $1.timestamp }
@@ -620,15 +624,15 @@ public final class PersistentChatViewModel: ObservableObject {
 
         // 2. 创建用户消息
         let userMessageId = UUID().uuidString
-        let goalTitle = shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
+        let topicTitle = shouldAttachTopicTitle ? goalTitle(for: selectedTopicId) : nil
         let userMessage = ChatMessage(
             id: userMessageId,
             text: displayText,
             isFromUser: true,
             timestamp: Date(),
             isStreaming: false,
-            goalId: selectedGoalId,
-            goalTitle: goalTitle
+            topicId: selectedTopicId,
+            topicTitle: topicTitle
         )
         displayMessages.append(userMessage)
 
@@ -638,8 +642,8 @@ public final class PersistentChatViewModel: ObservableObject {
             content: displayText,
             isFromUser: true,
             createdAt: userMessage.timestamp,
-            goalId: selectedGoalId,
-            goalTitle: goalTitle
+            topicId: selectedTopicId,
+            topicTitle: topicTitle
         )
 
         // 4. 发送到服务器
@@ -800,8 +804,8 @@ public final class PersistentChatViewModel: ObservableObject {
             timestamp: Date(),
             isStreaming: false,
             images: [mockImage],
-            goalId: selectedGoalId,
-            goalTitle: shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
+            topicId: selectedTopicId,
+            topicTitle: shouldAttachTopicTitle ? goalTitle(for: selectedTopicId) : nil
         )
         displayMessages.append(userMessage)
 
@@ -811,8 +815,8 @@ public final class PersistentChatViewModel: ObservableObject {
             content: "[图片]",
             isFromUser: true,
             createdAt: userMessage.timestamp,
-            goalId: selectedGoalId,
-            goalTitle: shouldAttachTopicTitle ? goalTitle(for: selectedGoalId) : nil
+            topicId: selectedTopicId,
+            topicTitle: shouldAttachTopicTitle ? goalTitle(for: selectedTopicId) : nil
         )
 
         // 4. 发送图片上传消息到服务器（mock）
@@ -1021,8 +1025,8 @@ public final class PersistentChatViewModel: ObservableObject {
         isFromUser: Bool,
         createdAt: Date,
         conversationId: String? = nil,
-        goalId: String? = nil,
-        goalTitle: String? = nil,
+        topicId: String? = nil,
+        topicTitle: String? = nil,
         specialMessageTypeRaw: String? = nil,
         specialMessageData: String? = nil,
         scienceNote: String? = nil
@@ -1035,8 +1039,8 @@ public final class PersistentChatViewModel: ObservableObject {
             isFromUser: isFromUser,
             createdAt: createdAt,
             conversationId: conversationId ?? self.conversationId,
-            goalId: goalId,
-            goalTitle: goalTitle,
+            topicId: topicId,
+            topicTitle: topicTitle,
             specialMessageTypeRaw: specialMessageTypeRaw,
             specialMessageData: specialMessageData,
             scienceNote: scienceNote

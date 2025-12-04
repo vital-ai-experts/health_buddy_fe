@@ -192,6 +192,8 @@ public struct Message: Identifiable {
     public let role: Role
     public let content: String
     public let createdAt: String
+    public let topicId: String?
+    public let topicTitle: String?
     public let thinkingContent: String?
     public let toolCalls: [ToolCall]?
     public let specialMessageType: String?
@@ -204,6 +206,8 @@ public struct Message: Identifiable {
         role: Role,
         content: String,
         createdAt: String,
+        topicId: String? = nil,
+        topicTitle: String? = nil,
         thinkingContent: String? = nil,
         toolCalls: [ToolCall]? = nil,
         specialMessageType: String? = nil,
@@ -215,6 +219,8 @@ public struct Message: Identifiable {
         self.role = role
         self.content = content
         self.createdAt = createdAt
+        self.topicId = topicId
+        self.topicTitle = topicTitle
         self.thinkingContent = thinkingContent
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
@@ -229,6 +235,8 @@ public struct Message: Identifiable {
 
         if response.role == .user {
             self.content = response.userData?.userInput ?? ""
+            self.topicId = nil
+            self.topicTitle = nil
             self.thinkingContent = nil
             self.toolCalls = nil
             self.specialMessageType = nil
@@ -236,6 +244,8 @@ public struct Message: Identifiable {
             self.scienceNote = nil
         } else {
             self.content = response.data?.content ?? ""
+            self.topicId = nil
+            self.topicTitle = nil
             self.thinkingContent = response.data?.thinkingContent
             self.toolCalls = response.data?.toolCalls
             self.specialMessageType = nil

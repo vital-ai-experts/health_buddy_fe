@@ -8,13 +8,25 @@ public struct CustomRenderedMessage: Hashable, Identifiable {
     public let text: String
     public let timestamp: Date
     public let data: String?
+    public let topicId: String?
+    public let topicTitle: String?
 
-    public init(id: String, type: String, text: String, timestamp: Date, data: String? = nil) {
+    public init(
+        id: String,
+        type: String,
+        text: String,
+        timestamp: Date,
+        data: String? = nil,
+        topicId: String? = nil,
+        topicTitle: String? = nil
+    ) {
         self.id = id
         self.type = type
         self.text = text
         self.timestamp = timestamp
         self.data = data
+        self.topicId = topicId
+        self.topicTitle = topicTitle
     }
 }
 

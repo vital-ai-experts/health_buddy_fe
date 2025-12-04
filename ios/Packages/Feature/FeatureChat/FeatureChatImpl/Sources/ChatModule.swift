@@ -38,10 +38,10 @@ public enum ChatModule {
 
             let config = ChatConversationConfig(
                 initialConversationId: conversationId,
-                defaultSelectedGoalId: defaultGoalId,
+                defaultSelectedTopicId: defaultGoalId,
                 navigationTitle: navigationTitle,
                 showsCloseButton: showsCloseButton,
-                topics: topics,
+                topics: topics
             )
 
             return builder.makeChatView(config: config)

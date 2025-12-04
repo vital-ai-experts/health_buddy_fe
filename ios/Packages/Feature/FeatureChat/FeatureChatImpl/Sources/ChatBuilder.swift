@@ -10,7 +10,7 @@ public final class ChatBuilder: FeatureChatBuildable {
     public func makeChatView(config: ChatConversationConfig) -> AnyView {
         AnyView(
             PersistentChatView(
-                defaultSelectedGoalId: config.defaultSelectedGoalId,
+                defaultSelectedTopicId: config.defaultSelectedTopicId,
                 initialConversationId: config.initialConversationId,
                 chatService: config.chatService ?? defaultChatService(),
                 chatSessionBuilder: { viewModel in

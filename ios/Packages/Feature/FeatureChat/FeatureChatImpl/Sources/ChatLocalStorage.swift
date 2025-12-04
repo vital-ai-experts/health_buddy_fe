@@ -8,8 +8,10 @@ public final class LocalChatMessage {
     public var id: String
     public var content: String
     public var isFromUser: Bool
-    public var goalId: String?
-    public var goalTitle: String?
+    @Attribute(originalName: "goalId")
+    public var topicId: String?
+    @Attribute(originalName: "goalTitle")
+    public var topicTitle: String?
     public var specialMessageTypeRaw: String?
     public var specialMessageData: String?
     public var scienceNote: String?
@@ -27,8 +29,8 @@ public final class LocalChatMessage {
         isFromUser: Bool,
         createdAt: Date,
         conversationId: String? = nil,
-        goalId: String? = nil,
-        goalTitle: String? = nil,
+        topicId: String? = nil,
+        topicTitle: String? = nil,
         specialMessageTypeRaw: String? = nil,
         specialMessageData: String? = nil,
         scienceNote: String? = nil
@@ -38,8 +40,8 @@ public final class LocalChatMessage {
         self.isFromUser = isFromUser
         self.createdAt = createdAt
         self.conversationId = conversationId
-        self.goalId = goalId
-        self.goalTitle = goalTitle
+        self.topicId = topicId
+        self.topicTitle = topicTitle
         self.specialMessageTypeRaw = specialMessageTypeRaw
         self.specialMessageData = specialMessageData
         self.scienceNote = scienceNote
@@ -71,8 +73,8 @@ public final class ChatStorageService {
             existing.isFromUser = message.isFromUser
             existing.createdAt = message.createdAt
             existing.conversationId = message.conversationId
-            existing.goalId = message.goalId
-            existing.goalTitle = message.goalTitle
+            existing.topicId = message.topicId
+            existing.topicTitle = message.topicTitle
             existing.specialMessageTypeRaw = message.specialMessageTypeRaw
             existing.specialMessageData = message.specialMessageData
             existing.scienceNote = message.scienceNote
@@ -100,8 +102,8 @@ public final class ChatStorageService {
                 existing.isFromUser = message.isFromUser
                 existing.createdAt = message.createdAt
                 existing.conversationId = message.conversationId
-                existing.goalId = message.goalId
-                existing.goalTitle = message.goalTitle
+                existing.topicId = message.topicId
+                existing.topicTitle = message.topicTitle
                 existing.specialMessageTypeRaw = message.specialMessageTypeRaw
                 existing.specialMessageData = message.specialMessageData
                 existing.scienceNote = message.scienceNote

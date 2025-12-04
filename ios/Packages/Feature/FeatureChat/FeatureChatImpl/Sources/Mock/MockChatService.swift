@@ -124,7 +124,11 @@ public final class MockChatService: ChatService {
         var messages: [Message] = []
 
         if let realService {
-            messages = try await realService.getConversationHistory(id: id, chatSession: chatSession)
+            do {
+                messages = try await realService.getConversationHistory(id: id, chatSession: chatSession)
+            } catch {
+                Log.w("MockChatService getConversationHistory failed: \(error.localizedDescription)", category: "Chat")
+            }
         }
 
         if await !hasDigest(in: messages, chatSession: chatSession) {
@@ -177,6 +181,8 @@ public final class MockChatService: ChatService {
             role: .assistant,
             content: "",
             createdAt: currentTimestamp,
+            topicId: "yoga_master",
+            topicTitle: "观呼吸菩萨",
             thinkingContent: nil,
             toolCalls: nil,
             specialMessageType: "digest_report",

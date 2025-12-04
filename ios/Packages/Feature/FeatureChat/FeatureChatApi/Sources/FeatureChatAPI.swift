@@ -10,7 +10,7 @@ public protocol FeatureChatBuildable {
 /// 可对接外部定制的聊天会话配置
 public struct ChatConversationConfig {
     public var initialConversationId: String?
-    public var defaultSelectedGoalId: String?
+    public var defaultSelectedTopicId: String?
     public var navigationTitle: String
     public var showsCloseButton: Bool
     /// topics 为 nil 时使用默认 topics；为空数组时不展示
@@ -20,7 +20,7 @@ public struct ChatConversationConfig {
 
     public init(
         initialConversationId: String? = nil,
-        defaultSelectedGoalId: String? = nil,
+        defaultSelectedTopicId: String? = nil,
         navigationTitle: String = "对话",
         showsCloseButton: Bool = true,
         topics: [ChatTopic]? = nil,
@@ -28,7 +28,7 @@ public struct ChatConversationConfig {
         chatService: ChatService? = nil
     ) {
         self.initialConversationId = initialConversationId
-        self.defaultSelectedGoalId = defaultSelectedGoalId
+        self.defaultSelectedTopicId = defaultSelectedTopicId
         self.navigationTitle = navigationTitle
         self.showsCloseButton = showsCloseButton
         self.topics = topics

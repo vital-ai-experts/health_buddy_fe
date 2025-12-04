@@ -70,8 +70,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let specialMessageTypeRaw: String?
 
     // Goal 关联
-    public let goalId: String?
-    public let goalTitle: String?
+    public let topicId: String?
+    public let topicTitle: String?
 
     // 错误相关
     public let hasError: Bool  // 消息是否有错误
@@ -90,8 +90,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         specialMessageData: String? = nil,
         scienceNote: String? = nil,
         specialMessageTypeRaw: String? = nil,
-        goalId: String? = nil,
-        goalTitle: String? = nil,
+        topicId: String? = nil,
+        topicTitle: String? = nil,
         hasError: Bool = false,
         errorMessage: String? = nil
     ) {
@@ -107,8 +107,8 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.specialMessageData = specialMessageData
         self.scienceNote = scienceNote
         self.specialMessageTypeRaw = specialMessageTypeRaw ?? specialMessageType?.rawValue
-        self.goalId = goalId
-        self.goalTitle = goalTitle
+        self.topicId = topicId
+        self.topicTitle = topicTitle
         self.hasError = hasError
         self.errorMessage = errorMessage
     }
