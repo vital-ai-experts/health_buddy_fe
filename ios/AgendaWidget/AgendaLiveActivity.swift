@@ -110,7 +110,7 @@ private struct TaskCardView: View {
     let initialRemaining: Double
     let totalSeconds: Double
 
-    var body: some View {
+    var body: AnyView {
         guard let status = context.state.status,
               let task = context.state.task,
               let countdown = context.state.countdown else {
@@ -371,7 +371,7 @@ private struct TaskCardView: View {
 private struct InquiryCardView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
 
-    var body: some View {
+    var body: AnyView {
         guard let inquiry = context.state.inquiry else {
             return AnyView(EmptyView())
         }
