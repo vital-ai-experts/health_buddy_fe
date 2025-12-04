@@ -1,10 +1,13 @@
 import SwiftUI
 import ThemeKit
+import FeatureAgendaApi
+import LibraryServiceLoader
 
 struct OnboardingDungeonCardView: View {
     let payload: DungeonCardPayload?
-    let onViewDungeon: () -> Void
     let onStartDungeon: () -> Void
+    @State private var showDetail = false
+    private let agendaFeature: FeatureAgendaBuildable
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -25,7 +28,7 @@ struct OnboardingDungeonCardView: View {
             }
 
             HStack(spacing: 10) {
-                Button(action: onViewDungeon) {
+                Button(action: { showDetail = true }) {
                     HStack {
                         Image(systemName: "doc.text.magnifyingglass")
                         Text(payload?.secondaryAction ?? "查看详情")
@@ -33,8 +36,8 @@ struct OnboardingDungeonCardView: View {
                     .font(.callout.weight(.semibold))
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
-                    .background(Color.Palette.bgMuted)
-                    .foregroundColor(.Palette.textPrimary)
+                    .background(Color.Palette.warningBgSoft)
+                    .foregroundColor(.Palette.warningText)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
@@ -46,7 +49,7 @@ struct OnboardingDungeonCardView: View {
                     .font(.callout.weight(.semibold))
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
-                    .background(Color.Palette.infoMain)
+                    .background(Color.Palette.warningMain)
                     .foregroundColor(.Palette.textOnAccent)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
@@ -60,5 +63,53 @@ struct OnboardingDungeonCardView: View {
                 .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .sheet(isPresented: $showDetail) {
+            agendaFeature.makeDungeonDetailView {
+                showDetail = false
+                onStartDungeon()
+            }
+        }
+    }
+
+    init(
+        payload: DungeonCardPayload?,
+        onStartDungeon: @escaping () -> Void,
+        agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolveOptional(FeatureAgendaBuildable.self) ?? PreviewAgendaFeature()
+    ) {
+        self.payload = payload
+        self.onStartDungeon = onStartDungeon
+        self.agendaFeature = agendaFeature
+    }
+}
+
+#Preview {
+    let payload = DungeonCardPayload(
+        title: "已加入副本，查看今日任务吧！",
+        subtitle: "睡眠恢复计划",
+        detail: "我们已为你生成今日的优先任务。点击查看详情或直接开启副本，任务会同步到首页。",
+        primaryAction: "开启副本",
+        secondaryAction: "查看详情"
+    )
+    return OnboardingDungeonCardView(
+        payload: payload,
+        onStartDungeon: {},
+        agendaFeature: PreviewAgendaFeature()
+    )
+    .padding()
+    .background(Color.Palette.bgBase)
+    .preferredColorScheme(.dark)
+}
+
+private struct PreviewAgendaFeature: FeatureAgendaBuildable {
+    func makeAgendaTabView() -> AnyView { AnyView(Text("Agenda Tab")) }
+    func makeAgendaSettingsView() -> AnyView { AnyView(Text("Agenda Settings")) }
+    func makeDungeonDetailView() -> AnyView { AnyView(Text("Dungeon Detail")) }
+    func makeDungeonDetailView(onStart: @escaping () -> Void) -> AnyView {
+        AnyView(
+            VStack {
+                Text("Dungeon Detail Preview")
+                Button("Start", action: onStart)
+            }
+        )
     }
 }

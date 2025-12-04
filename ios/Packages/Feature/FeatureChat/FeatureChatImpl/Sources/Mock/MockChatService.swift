@@ -205,16 +205,14 @@ private extension MockChatService {
             )
         )))
 
-        eventHandler(.streamMessage(StreamMessage(
-            id: UUID().uuidString,
-            data: StreamMessageData(
-                conversationId: conversationId,
-                msgId: msgId,
-                dataType: .agentMessage,
-                messageType: .whole,
-                content: content
-            )
-        )))
+        let messageEvents = makeTextMessageEvents(
+            conversationId: conversationId,
+            msgId: msgId,
+            content: content
+        )
+        messageEvents.forEach { event in
+            eventHandler(.streamMessage(event))
+        }
 
         eventHandler(.streamMessage(StreamMessage(
             id: UUID().uuidString,
@@ -225,6 +223,54 @@ private extension MockChatService {
                 agentStatus: .finished
             )
         )))
+    }
+
+    func makeTextMessageEvents(
+        conversationId: String,
+        msgId: String,
+        content: String
+    ) -> [StreamMessage] {
+        guard !content.isEmpty else {
+            return [
+                StreamMessage(
+                    id: UUID().uuidString,
+                    data: StreamMessageData(
+                        conversationId: conversationId,
+                        msgId: msgId,
+                        dataType: .agentMessage,
+                        messageType: .whole,
+                        content: content
+                    )
+                )
+            ]
+        }
+
+        let chunkSize = 10
+        let totalCount = content.count
+        var boundaries: [Int] = []
+        var current = chunkSize
+
+        while current < totalCount {
+            boundaries.append(current)
+            current += chunkSize
+        }
+        boundaries.append(totalCount)
+
+        return boundaries.enumerated().map { index, boundary in
+            let messageType: MessageType = (index == boundaries.count - 1) ? .whole : .chunk
+            let chunkContent = String(content.prefix(boundary))
+
+            return StreamMessage(
+                id: UUID().uuidString,
+                data: StreamMessageData(
+                    conversationId: conversationId,
+                    msgId: msgId,
+                    dataType: .agentMessage,
+                    messageType: messageType,
+                    content: chunkContent
+                )
+            )
+        }
     }
 
     /// 需要图片验证的任务映射：任务关键词 -> (请求图片的消息, 验证后的回复)

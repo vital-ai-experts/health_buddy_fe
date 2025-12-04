@@ -110,6 +110,8 @@ let service = ServiceManager.shared.resolve(AuthenticationService.self)
 
 **UI 规范**:
 - 新增 UI/组件时，先参考 `Packages/Library/ThemeKit/DesignGuidelines.md`，沿用既有色板与 token，缺口再补充资产。
+- 为 UI 组件编写 Preview
+- 拆文件、按目录归类：不要把过多内容塞在单个文件里。模型放 `Models/`，视图放 `Views/`。数据模型文件命名为 `XxxModel.swift` 只放结构定义，mock/sample 数据放到 `XxxModel+Sample.swift`。
 
 **Package Naming** (Directory = Package = Product = Target):
 - Feature: `Feature[Name]Api`, `Feature[Name]Impl`

@@ -47,6 +47,12 @@ struct DebugToolsView: View {
                 } label: {
                     Label("打开副本详情页", systemImage: "gamecontroller")
                 }
+
+                NavigationLink {
+                    ThemePaletteDirectoryView()
+                } label: {
+                    Label("ThemeKit 目录", systemImage: "paintpalette")
+                }
             }
 
             // 推送通知

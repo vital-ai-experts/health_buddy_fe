@@ -95,17 +95,12 @@ struct OnboardingView: View {
         .animation(.easeInOut(duration: 0.35), value: viewModel.step)
         .fullScreenCover(isPresented: $showChat) {
             OnboardingChatContainer(
-                onFinish: {
-                    viewModel.completeAfterDungeonStart()
-                    RouteManager.shared.currentTab = .agenda
-                },
-                onViewDungeon: {
-                    if let url = RouteManager.shared.buildURL(path: "/dungeon_detail", queryItems: ["present": "sheet"]) {
-                        RouteManager.shared.open(url: url)
-                    }
-                },
                 chatFeature: chatFeature
             )
+            .environmentObject(OnboardingFlowController(finish: {
+                viewModel.completeAfterDungeonStart()
+                RouteManager.shared.currentTab = .agenda
+            }))
         }
     }
 

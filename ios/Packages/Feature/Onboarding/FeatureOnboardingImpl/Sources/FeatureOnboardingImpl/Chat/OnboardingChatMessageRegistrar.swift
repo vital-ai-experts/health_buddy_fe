@@ -3,23 +3,24 @@ import SwiftUI
 import LibraryChatUI
 import FeatureChatApi
 import ThemeKit
+import FeatureOnboardingApi
+import FeatureAgendaApi
+import LibraryServiceLoader
 
 enum OnboardingChatMessageRegistrar {
     private static var hasRegistered = false
-
-    private struct HandlerStore {
-        static var onViewDungeon: () -> Void = {}
-        static var onStartDungeon: () -> Void = {}
-        static var hasTriggeredSkip = false
-    }
 
     static func registerRenderers() {
         guard !hasRegistered else { return }
         hasRegistered = true
 
         ChatMessageRendererRegistry.shared.register(
-            type: "onboarding_profile_card",
-            renderer: renderProfileCard
+            type: "onboarding_profile_info_card",
+            renderer: renderProfileInfoCard
+        )
+        ChatMessageRendererRegistry.shared.register(
+            type: "onboarding_issue_card",
+            renderer: renderIssueCard
         )
         ChatMessageRendererRegistry.shared.register(
             type: "onboarding_call_card",
@@ -30,35 +31,42 @@ enum OnboardingChatMessageRegistrar {
             renderer: renderDungeonCard
         )
         ChatMessageRendererRegistry.shared.register(
-            type: "onboarding_skip",
-            renderer: renderSkipMessage
+            type: "onboarding_finish_card",
+            renderer: renderFinishCard
         )
-    }
-
-    static func updateHandlers(
-        onViewDungeon: @escaping () -> Void,
-        onStartDungeon: @escaping () -> Void
-    ) {
-        HandlerStore.onViewDungeon = onViewDungeon
-        HandlerStore.onStartDungeon = onStartDungeon
-        HandlerStore.hasTriggeredSkip = false
     }
 
     // MARK: - Renderers
 
-    private static func renderProfileCard(
+    private static func renderProfileInfoCard(
         message: CustomRenderedMessage,
         session: ChatSessionControlling?
     ) -> AnyView {
         let payload = decode(ProfileCardPayload.self, from: message.data)
         return AnyView(
-            OnboardingProfileCardView(
+            OnboardingProfileInfoCardView(
                 payload: payload,
-                onConfirm: {
+                onConfirm: { draft in
                     Task { @MainActor in
+                        let command = "\(OnboardingChatMocking.Command.updateProfilePrefix)gender=\(draft.gender);age=\(draft.age);height=\(draft.height);weight=\(draft.weight)"
+                        await session?.sendSystemCommand(command, preferredConversationId: nil)
                         await session?.sendSystemCommand(OnboardingChatMocking.Command.confirmProfile, preferredConversationId: nil)
                     }
-                },
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        )
+    }
+
+    private static func renderIssueCard(
+        message: CustomRenderedMessage,
+        session: ChatSessionControlling?
+    ) -> AnyView {
+        let payload = decode(ProfileCardPayload.self, from: message.data)
+        return AnyView(
+            OnboardingIssueCardView(
+                payload: payload,
                 onSelectIssue: { issueId in
                     let command = "\(OnboardingChatMocking.Command.selectIssuePrefix)\(issueId)"
                     Task { @MainActor in
@@ -98,17 +106,10 @@ enum OnboardingChatMessageRegistrar {
         return AnyView(
             OnboardingDungeonCardView(
                 payload: payload,
-                onViewDungeon: {
-                    Task { @MainActor in
-                        await session?.sendSystemCommand(OnboardingChatMocking.Command.viewDungeon, preferredConversationId: nil)
-                    }
-                    HandlerStore.onViewDungeon()
-                },
                 onStartDungeon: {
                     Task { @MainActor in
                         await session?.sendSystemCommand(OnboardingChatMocking.Command.startDungeon, preferredConversationId: nil)
                     }
-                    HandlerStore.onStartDungeon()
                 }
             )
             .padding(.horizontal, 16)
@@ -116,32 +117,15 @@ enum OnboardingChatMessageRegistrar {
         )
     }
 
-    private static func renderSkipMessage(
+    private static func renderFinishCard(
         message: CustomRenderedMessage,
         session: ChatSessionControlling?
     ) -> AnyView {
-        triggerSkipOnce()
-        return AnyView(
-            VStack(alignment: .leading, spacing: 8) {
-                Text("已跳过引导，正在返回首页")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.Palette.textPrimary)
-                Button("立即前往") {
-                    triggerSkipOnce()
-                }
-                .font(.system(size: 14, weight: .semibold))
-            }
+        AnyView(
+            OnboardingFinishCardView()
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
         )
-    }
-
-    private static func triggerSkipOnce() {
-        guard !HandlerStore.hasTriggeredSkip else { return }
-        HandlerStore.hasTriggeredSkip = true
-        Task { @MainActor in
-            HandlerStore.onStartDungeon()
-        }
     }
 
     // MARK: - Decode helper

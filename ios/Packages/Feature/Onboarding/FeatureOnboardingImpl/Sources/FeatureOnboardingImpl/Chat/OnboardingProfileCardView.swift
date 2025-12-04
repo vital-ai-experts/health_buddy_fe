@@ -1,75 +1,42 @@
 import SwiftUI
 import ThemeKit
 
-struct OnboardingProfileCardView: View {
+struct OnboardingProfileInfoCardView: View {
     let payload: ProfileCardPayload?
-    let onConfirm: () -> Void
-    let onSelectIssue: (String) -> Void
+    let onConfirm: (ProfileDraft) -> Void
 
-    @State private var selectedIssueId: String = ""
+    @State private var editingField: ProfileFieldUpdate?
+    @State private var gender: String = "-"
+    @State private var age: Int = 0
+    @State private var height: Int = 0
+    @State private var weight: Int = 0
+    @State private var tempGender: String = ""
+    @State private var tempNumber: Int = 0
+
+    init(payload: ProfileCardPayload?, onConfirm: @escaping (ProfileDraft) -> Void) {
+        self.payload = payload
+        self.onConfirm = onConfirm
+        _gender = State(initialValue: payload?.gender ?? "-")
+        _age = State(initialValue: payload?.age ?? 0)
+        _height = State(initialValue: payload?.height ?? 0)
+        _weight = State(initialValue: payload?.weight ?? 0)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("确认信息")
-                        .font(.headline.weight(.bold))
-                        .foregroundColor(.Palette.textPrimary)
-                    Text("确认后我会按此生成策略")
-                        .font(.subheadline)
-                        .foregroundColor(.Palette.textSecondary)
-                }
-                Spacer()
-            }
-
             infoGrid
 
-            VStack(alignment: .leading, spacing: 10) {
-                Label("关键问题", systemImage: "sparkles")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.Palette.infoMain)
-
-                VStack(spacing: 10) {
-                    ForEach(payload?.issues ?? []) { issue in
-                        Button {
-                            selectedIssueId = issue.id
-                            onSelectIssue(issue.id)
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: selectedIssueId == issue.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(.Palette.infoMain)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(issue.title)
-                                        .foregroundColor(.Palette.textPrimary)
-                                        .font(.callout.weight(.semibold))
-                                    Text(issue.detail)
-                                        .foregroundColor(.Palette.textSecondary)
-                                        .font(.footnote)
-                                }
-                                Spacer()
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.Palette.bgMuted)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(selectedIssueId == issue.id ? Color.Palette.infoMain.opacity(0.6) : Color.Palette.surfaceElevatedBorder, lineWidth: 1)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-                    }
-                }
-            }
-
-            Button(action: onConfirm) {
+            Button {
+                onConfirm(ProfileDraft(gender: gender, age: age, height: height, weight: weight))
+            } label: {
                 HStack {
                     Spacer()
-                    Text("确认并生成策略")
+                    Text("确认基本信息")
                         .font(.callout.weight(.semibold))
                     Spacer()
                 }
                 .padding(.vertical, 10)
-                .background(Color.Palette.infoMain)
+                .background(Color.Palette.successMain)
                 .foregroundColor(.Palette.textOnAccent)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
@@ -82,59 +49,132 @@ struct OnboardingProfileCardView: View {
                 .stroke(Color.Palette.surfaceElevatedBorder, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .onAppear {
-            selectedIssueId = payload?.selectedIssueId ?? ""
-        }
-        .onChange(of: payload?.selectedIssueId ?? "") { _, newValue in
-            selectedIssueId = newValue
+        .sheet(item: $editingField) { field in
+            editor(for: field)
         }
     }
 
     @ViewBuilder
     private var infoGrid: some View {
-        let name = payload?.name ?? "-"
-        let gender = payload?.gender ?? "-"
-        let age = payload?.age ?? 0
-        let height = payload?.height ?? 0
-        let weight = payload?.weight ?? 0
-
         VStack(alignment: .leading, spacing: 8) {
             Label("基础信息", systemImage: "person.crop.rectangle")
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(.Palette.infoMain)
+                .foregroundColor(.Palette.successMain)
             Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                 GridRow {
-                    infoTile(title: "姓名", value: name)
-                    infoTile(title: "性别", value: gender)
+                    infoTile(title: "性别", value: gender, unit: "") {
+                        tempGender = gender
+                        editingField = .gender(gender)
+                    }
+                    infoTile(title: "年龄", value: "\(age)", unit: "岁") {
+                        tempNumber = age
+                        editingField = .age(age)
+                    }
                 }
                 GridRow {
-                    infoTile(title: "年龄", value: "\(age) 岁")
-                    infoTile(title: "身高", value: "\(height) cm")
-                }
-                GridRow {
-                    infoTile(title: "体重", value: "\(weight) kg")
-                    infoTile(title: "问题", value: selectedIssueTitle)
+                    infoTile(title: "身高", value: "\(height)", unit: "cm") {
+                        tempNumber = height
+                        editingField = .height(height)
+                    }
+                    infoTile(title: "体重", value: "\(weight)", unit: "kg") {
+                        tempNumber = weight
+                        editingField = .weight(weight)
+                    }
                 }
             }
         }
     }
 
-    private var selectedIssueTitle: String {
-        payload?.issues.first(where: { $0.id == selectedIssueId })?.title ?? "未选择"
-    }
-
-    private func infoTile(title: String, value: String) -> some View {
+    private func infoTile(title: String, value: String, unit: String, onTap: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.footnote)
                 .foregroundColor(.Palette.textSecondary)
-            Text(value)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(.Palette.textPrimary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(.Palette.textPrimary)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.footnote)
+                        .foregroundColor(.Palette.textSecondary)
+                }
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.Palette.bgMuted)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture {
+            onTap()
+        }
     }
+
+    @ViewBuilder
+    private func editor(for field: ProfileFieldUpdate) -> some View {
+        switch field {
+        case .gender:
+            GenderPickerSheet(
+                selected: tempGender,
+                onConfirm: { value in
+                    gender = value
+                    editingField = nil
+                },
+                onCancel: { editingField = nil }
+            )
+        case .age:
+            NumberPickerSheet(
+                title: "年龄",
+                range: 10...90,
+                unit: "岁",
+                value: $tempNumber,
+                onConfirm: { value in
+                    age = value
+                    editingField = nil
+                },
+                onCancel: { editingField = nil }
+            )
+        case .height:
+            NumberPickerSheet(
+                title: "身高",
+                range: 120...220,
+                unit: "cm",
+                value: $tempNumber,
+                onConfirm: { value in
+                    height = value
+                    editingField = nil
+                },
+                onCancel: { editingField = nil }
+            )
+        case .weight:
+            NumberPickerSheet(
+                title: "体重",
+                range: 30...150,
+                unit: "kg",
+                value: $tempNumber,
+                onConfirm: { value in
+                    weight = value
+                    editingField = nil
+                },
+                onCancel: { editingField = nil }
+            )
+        }
+    }
+}
+
+#Preview {
+    OnboardingProfileInfoCardView(
+        payload: ProfileCardPayload(
+            gender: "男",
+            age: 30,
+            height: 178,
+            weight: 72,
+            issues: [],
+            selectedIssueId: ""
+        ),
+        onConfirm: { _ in }
+    )
+    .padding()
+    .background(Color.Palette.bgBase)
+    .preferredColorScheme(.dark)
 }

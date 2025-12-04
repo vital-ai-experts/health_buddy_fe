@@ -18,24 +18,5 @@ public enum OnboardingModule {
 
         // 注册对话卡片渲染
         OnboardingChatMessageRegistrar.registerRenderers()
-        let routeManager = router ?? RouteManager.shared
-        OnboardingChatMessageRegistrar.updateHandlers(
-            onViewDungeon: {
-                Task { @MainActor in
-                    if let url = routeManager.buildURL(path: "/dungeon_detail", queryItems: ["present": "sheet"]) {
-                        routeManager.open(url: url)
-                    }
-                }
-            },
-            onStartDungeon: {
-                Task { @MainActor in
-                    // 标记 onboarding 完成
-                    let state = OnboardingStateManager.shared
-                    state.saveOnboardingID(OnboardingStateManager.mockOnboardingID)
-                    state.markOnboardingAsCompleted()
-                    routeManager.currentTab = .agenda
-                }
-            }
-        )
     }
 }

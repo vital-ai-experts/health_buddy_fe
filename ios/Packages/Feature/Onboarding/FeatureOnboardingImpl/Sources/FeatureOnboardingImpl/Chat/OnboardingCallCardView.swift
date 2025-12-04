@@ -46,7 +46,7 @@ struct OnboardingCallCardView: View {
                     Spacer()
                 }
                 .padding(.vertical, 10)
-                .background(Color.Palette.infoMain)
+                .background(Color.Palette.successMain)
                 .foregroundColor(.Palette.textOnAccent)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
@@ -66,4 +66,18 @@ struct OnboardingCallCardView: View {
             phoneNumber = newValue
         }
     }
+}
+
+#Preview {
+    OnboardingCallCardView(
+        payload: CallCardPayload(
+            phoneNumber: "13800000000",
+            headline: "顾问将在 10 秒内来电",
+            note: "确认后会拨打你提供的手机号，讨论你的目标与日程。"
+        ),
+        onBook: { _ in }
+    )
+    .padding()
+    .background(Color.Palette.bgBase)
+    .preferredColorScheme(.dark)
 }

@@ -4,8 +4,6 @@ import LibraryServiceLoader
 import LibraryChatUI
 
 struct OnboardingChatContainer: View {
-    private let onFinish: () -> Void
-    private let onViewDungeon: () -> Void
     private let chatFeature: FeatureChatBuildable
     private let onboardingConversationId: String
     private let chatService: ChatService
@@ -13,13 +11,9 @@ struct OnboardingChatContainer: View {
     @State private var controller: ChatSessionControlling?
 
     init(
-        onFinish: @escaping () -> Void,
-        onViewDungeon: @escaping () -> Void,
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self),
         chatService: ChatService = OnboardingMockChatService()
     ) {
-        self.onFinish = onFinish
-        self.onViewDungeon = onViewDungeon
         self.chatFeature = chatFeature
         self.chatService = chatService
         let storedId = OnboardingStateManager.shared.getOnboardingID()
@@ -43,33 +37,6 @@ struct OnboardingChatContainer: View {
                 chatService: chatService
             )
         )
-        .onAppear {
-            OnboardingChatMessageRegistrar.updateHandlers(
-                onViewDungeon: {
-                    onViewDungeon()
-                },
-                onStartDungeon: {
-                    onFinish()
-                }
-            )
-        }
-        .onDisappear {
-            let routeManager = RouteManager.shared
-            OnboardingChatMessageRegistrar.updateHandlers(
-                onViewDungeon: {
-                    Task { @MainActor in
-                        if let url = routeManager.buildURL(path: "/dungeon_detail", queryItems: ["present": "sheet"]) {
-                            routeManager.open(url: url)
-                        }
-                    }
-                },
-                onStartDungeon: {
-                    Task { @MainActor in
-                        routeManager.currentTab = .agenda
-                    }
-                }
-            )
-        }
     }
 
     @MainActor
@@ -81,11 +48,5 @@ struct OnboardingChatContainer: View {
         if controller.currentMessages().isEmpty {
             await controller.sendSystemCommand(OnboardingChatMocking.Command.start, preferredConversationId: onboardingConversationId)
         }
-    }
-
-    @MainActor
-    private func sendMessage(_ text: String) async {
-        guard let controller else { return }
-        await controller.sendMessage(text)
     }
 }

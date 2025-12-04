@@ -35,5 +35,35 @@ public extension Color {
 
         public static let surfaceElevated = Color("SurfaceElevated", bundle: .module)
         public static let surfaceElevatedBorder = Color("SurfaceElevatedBorder", bundle: .module)
+
+        /// 统一的色板列表，供调试/预览使用，避免多处手动同步
+        public static let allSwatches: [(name: String, color: Color)] = [
+            ("bgBase", bgBase),
+            ("bgMuted", bgMuted),
+            ("borderSubtle", borderSubtle),
+            ("borderStrong", borderStrong),
+            ("textPrimary", textPrimary),
+            ("textSecondary", textSecondary),
+            ("textDisabled", textDisabled),
+            ("textOnAccent", textOnAccent),
+            ("warningMain", warningMain),
+            ("warningBgSoft", warningBgSoft),
+            ("warningBorder", warningBorder),
+            ("warningText", warningText),
+            ("warningHover", warningHover),
+            ("warningActive", warningActive),
+            ("successMain", successMain),
+            ("successBgSoft", successBgSoft),
+            ("successBorder", successBorder),
+            ("successText", successText),
+            ("successHover", successHover),
+            ("successActive", successActive),
+            ("dangerMain", dangerMain),
+            ("dangerBgSoft", dangerBgSoft),
+            ("infoMain", infoMain),
+            ("infoBgSoft", infoBgSoft),
+            ("surfaceElevated", surfaceElevated),
+            ("surfaceElevatedBorder", surfaceElevatedBorder)
+        ]
     }
 }

@@ -7,7 +7,6 @@ struct ProfileCardPayload: Codable {
         let detail: String
     }
 
-    let name: String
     let gender: String
     let age: Int
     let height: Int

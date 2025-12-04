@@ -29,10 +29,11 @@ public final class OnboardingMockChatService: ChatService {
             stateManager.saveOnboardingID(cid)
         }
 
-        for (index, event) in responses.enumerated() {
-            try? await Task.sleep(nanoseconds: 500_000_000)
+        let streamingResponses = responses.flatMap { expandTextMessageIfNeeded($0) }
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        for (index, event) in streamingResponses.enumerated() {
             eventHandler(.streamMessage(event))
-            if index < responses.count - 1 {
+            if index < streamingResponses.count - 1 {
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
@@ -77,7 +78,8 @@ public final class OnboardingMockChatService: ChatService {
 
 private extension OnboardingMockChatService {
     enum Stage {
-        case profile
+        case profileInfo
+        case issues
         case call
         case dungeon
     }
@@ -101,7 +103,7 @@ private extension OnboardingMockChatService {
         var issues: [Issue] = OnboardingMockChatService.defaultIssues
         var selectedIssueId: String
         var phoneNumber: String = "13800000000"
-        var stage: Stage = .profile
+        var stage: Stage = .profileInfo
         var hasGreeted = false
         var hasBookedCall = false
         var hasPushedDungeonCard = false
@@ -119,7 +121,6 @@ private extension OnboardingMockChatService {
         case selectIssue(String)
         case updateProfile(ProfileUpdate)
         case bookCall(String)
-        case viewDungeon
         case startDungeon
         case plainText(String)
     }
@@ -170,7 +171,7 @@ private extension OnboardingMockChatService {
             return respondClear(conversationId: conversationId, state: &state)
 
         case .skip:
-            return respondSkip(conversationId: conversationId)
+            return respondStartDungeon(conversationId: conversationId, state: &state)
 
         case .confirmProfile:
             return respondConfirmProfile(conversationId: conversationId, state: &state)
@@ -183,9 +184,6 @@ private extension OnboardingMockChatService {
 
         case .bookCall(let phone):
             return await respondBookCall(phone, conversationId: conversationId, state: &state)
-
-        case .viewDungeon:
-            return respondViewDungeon(conversationId: conversationId)
 
         case .startDungeon:
             return respondStartDungeon(conversationId: conversationId, state: &state)
@@ -215,9 +213,6 @@ private extension OnboardingMockChatService {
         if normalized == "onboarding_confirm_profile" || text == OnboardingChatMocking.Command.confirmProfile {
             return .confirmProfile
         }
-        if normalized == "onboarding_view_dungeon" || text == OnboardingChatMocking.Command.viewDungeon {
-            return .viewDungeon
-        }
         if normalized == "onboarding_start_dungeon" || text == OnboardingChatMocking.Command.startDungeon {
             return .startDungeon
         }
@@ -244,7 +239,7 @@ private extension OnboardingMockChatService {
             return .bookCall(phone)
         }
 
-        return .plainText(text)
+        return .plainText(normalized)
     }
 
     func parseProfileUpdate(from text: String) -> ProfileUpdate {
@@ -280,7 +275,7 @@ private extension OnboardingMockChatService {
         conversationId: String,
         state: inout OnboardingConversationState
     ) -> [StreamMessage] {
-        state.stage = .profile
+        state.stage = .profileInfo
         state.hasGreeted = true
 
         let statusId = UUID().uuidString
@@ -298,7 +293,7 @@ private extension OnboardingMockChatService {
                 conversationId: conversationId,
                 msgId: cardId,
                 content: "",
-                specialType: "onboarding_profile_card",
+                specialType: "onboarding_profile_info_card",
                 specialData: encodeProfilePayload(from: state)
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
@@ -357,9 +352,9 @@ private extension OnboardingMockChatService {
 
         let statusId = UUID().uuidString
         let msgId = UUID().uuidString
-        let cardId = UUID().uuidString
 
         let title = currentIssue(state)?.title ?? "关键问题"
+        state.stage = .call
 
         return [
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
@@ -370,10 +365,10 @@ private extension OnboardingMockChatService {
             ),
             makeMessageEvent(
                 conversationId: conversationId,
-                msgId: cardId,
+                msgId: UUID().uuidString,
                 content: "",
-                specialType: "onboarding_profile_card",
-                specialData: encodeProfilePayload(from: state)
+                specialType: "onboarding_call_card",
+                specialData: encodeCallPayload(from: state)
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
         ]
@@ -385,56 +380,33 @@ private extension OnboardingMockChatService {
         state: inout OnboardingConversationState
     ) -> [StreamMessage] {
         applyProfileUpdate(update, to: &state)
-
-        let statusId = UUID().uuidString
-        let msgId = UUID().uuidString
-        let cardId = UUID().uuidString
-
-        let summary = profileSummary(from: update, state: state)
-
-        return [
-            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
-            makeMessageEvent(
-                conversationId: conversationId,
-                msgId: msgId,
-                content: summary
-            ),
-            makeMessageEvent(
-                conversationId: conversationId,
-                msgId: cardId,
-                content: "",
-                specialType: "onboarding_profile_card",
-                specialData: encodeProfilePayload(from: state)
-            ),
-            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
-        ]
+        // 不返回提示消息，等待用户点击确认后统一发送锁定文案
+        return []
     }
 
     func respondConfirmProfile(
         conversationId: String,
         state: inout OnboardingConversationState
     ) -> [StreamMessage] {
-        state.stage = .call
+        state.stage = .issues
 
         let statusId = UUID().uuidString
         let msgId = UUID().uuidString
         let cardId = UUID().uuidString
-
-        let issueTitle = currentIssue(state)?.title ?? "你的目标"
 
         return [
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
             makeMessageEvent(
                 conversationId: conversationId,
                 msgId: msgId,
-                content: "收到，档案已锁定。「\(issueTitle)」将作为你的主线任务，先留一个手机号，我们 10 秒内安排顾问来电确认。"
+                content: "收到，档案已锁定。再确认一个你最想解决的关键问题："
             ),
             makeMessageEvent(
                 conversationId: conversationId,
                 msgId: cardId,
                 content: "",
-                specialType: "onboarding_call_card",
-                specialData: encodeCallPayload(from: state)
+                specialType: "onboarding_issue_card",
+                specialData: encodeProfilePayload(from: state)
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
         ]
@@ -474,7 +446,12 @@ private extension OnboardingMockChatService {
             msgId: dungeonCardId,
             content: "",
             specialType: "onboarding_dungeon_card",
-            specialData: encodeDungeonPayload(from: state)
+            specialData: encodeDungeonPayload(
+                from: state,
+                title: "专属副本已解锁，看看今日任务吧！",
+                primaryAction: "开启副本",
+                secondaryAction: "查看详情"
+            )
         ))
         responses.append(makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished))
 
@@ -483,18 +460,8 @@ private extension OnboardingMockChatService {
     }
 
     func respondViewDungeon(conversationId: String) -> [StreamMessage] {
-        let statusId = UUID().uuidString
-        let msgId = UUID().uuidString
-
-        return [
-            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
-            makeMessageEvent(
-                conversationId: conversationId,
-                msgId: msgId,
-                content: "好的，我会为你打开副本详情，随时可以从卡片进入。"
-            ),
-            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
-        ]
+        // 查看详情直接由客户端拉起副本详情，不再下发额外消息
+        return []
     }
 
     func respondStartDungeon(
@@ -504,16 +471,16 @@ private extension OnboardingMockChatService {
         state.stage = .dungeon
 
         let statusId = UUID().uuidString
-        let msgId = UUID().uuidString
-
-        let issueTitle = currentIssue(state)?.title ?? "副本"
+        let cardId = UUID().uuidString
 
         return [
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
             makeMessageEvent(
                 conversationId: conversationId,
-                msgId: msgId,
-                content: "副本「\(issueTitle)」已开启，我会把任务同步到今日清单，随时可以回来问我。"
+                msgId: cardId,
+                content: "",
+                specialType: "onboarding_finish_card",
+                specialData: nil
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
         ]
@@ -525,10 +492,15 @@ private extension OnboardingMockChatService {
         state: inout OnboardingConversationState
     ) async -> [StreamMessage] {
         switch state.stage {
-        case .profile:
+        case .profileInfo:
             var update = parseProfileUpdate(from: text.replacingOccurrences(of: "，", with: ";"))
             update = merge(update, with: parseLooseProfileUpdate(from: text))
             return respondUpdateProfile(update, conversationId: conversationId, state: &state)
+
+        case .issues:
+            let update = parseLooseProfileUpdate(from: text)
+            let issueId = update.selectedIssueId ?? state.selectedIssueId
+            return respondSelectIssue(issueId, conversationId: conversationId, state: &state)
 
         case .call:
             let phone = extractPhone(from: text) ?? state.phoneNumber
@@ -646,14 +618,13 @@ private extension OnboardingMockChatService {
             ProfileCardPayload.Issue(id: issue.id, title: issue.title, detail: issue.detail)
         }
         let payload = ProfileCardPayload(
-            name: state.profile.name,
             gender: state.profile.gender,
             age: state.profile.age,
             height: state.profile.height,
             weight: state.profile.weight,
             issues: issues,
             selectedIssueId: state.selectedIssueId
-        )
+            )
         return encodeToString(payload)
     }
 
@@ -666,14 +637,19 @@ private extension OnboardingMockChatService {
         return encodeToString(payload)
     }
 
-    func encodeDungeonPayload(from state: OnboardingConversationState) -> String {
+    func encodeDungeonPayload(
+        from state: OnboardingConversationState,
+        title: String,
+        primaryAction: String,
+        secondaryAction: String
+    ) -> String {
         let issueTitle = currentIssue(state)?.title ?? "你的专属副本"
         let payload = DungeonCardPayload(
-            title: "已加入副本，查看今日任务吧！",
+            title: title,
             subtitle: issueTitle,
             detail: "我们已为你生成今日的优先任务。点击查看详情或直接开启副本，任务会同步到首页。",
-            primaryAction: "开启副本",
-            secondaryAction: "查看详情"
+            primaryAction: primaryAction,
+            secondaryAction: secondaryAction
         )
         return encodeToString(payload)
     }
@@ -681,6 +657,59 @@ private extension OnboardingMockChatService {
     func encodeToString<T: Encodable>(_ value: T) -> String {
         guard let data = try? JSONEncoder().encode(value) else { return "" }
         return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    func makeTextMessageEvents(
+        conversationId: String,
+        msgId: String,
+        content: String
+    ) -> [StreamMessage] {
+        guard !content.isEmpty else {
+            return [makeMessageEvent(conversationId: conversationId, msgId: msgId, content: content)]
+        }
+
+        let chunkSize = 10
+        let totalCount = content.count
+        var boundaries: [Int] = []
+        var current = chunkSize
+
+        while current < totalCount {
+            boundaries.append(current)
+            current += chunkSize
+        }
+        boundaries.append(totalCount)
+
+        return boundaries.enumerated().map { index, boundary in
+            let messageType: MessageType = (index == boundaries.count - 1) ? .whole : .chunk
+            let chunkContent = String(content.prefix(boundary))
+
+            return StreamMessage(
+                id: UUID().uuidString,
+                data: StreamMessageData(
+                    conversationId: conversationId,
+                    msgId: msgId,
+                    dataType: .agentMessage,
+                    messageType: messageType,
+                    content: chunkContent
+                )
+            )
+        }
+    }
+
+    func expandTextMessageIfNeeded(_ message: StreamMessage) -> [StreamMessage] {
+        let data = message.data
+        let hasSpecialMessage = data.specialMessageType != nil || data.specialMessageData != nil
+
+        guard data.dataType == .agentMessage,
+              data.messageType != .chunk,
+              !hasSpecialMessage,
+              let conversationId = data.conversationId ?? data.onboardingId,
+              let content = data.content,
+              !content.isEmpty else {
+            return [message]
+        }
+
+        return makeTextMessageEvents(conversationId: conversationId, msgId: data.msgId, content: content)
     }
 
     func makeStatusEvent(
