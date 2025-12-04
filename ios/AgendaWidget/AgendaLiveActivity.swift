@@ -32,14 +32,21 @@ struct AgendaLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(context.state.task.title)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if let task = context.state.task {
+                            Text(task.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
-                        Text(context.state.task.description)
-                            .font(.body)
-                            .fontWeight(.semibold)
-                            .lineLimit(2)
+                            Text(task.description)
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .lineLimit(2)
+                        } else if let inquiry = context.state.inquiry {
+                            Text(inquiry.question)
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .lineLimit(2)
+                        }
                     }
                     .padding(.horizontal)
                 }
@@ -111,10 +118,11 @@ private struct TaskCardView: View {
     let totalSeconds: Double
 
     var body: some View {
-        if let status = context.state.status,
-           let task = context.state.task,
-           let countdown = context.state.countdown {
-            ZStack {
+        Group {
+            if let status = context.state.status,
+               let task = context.state.task,
+               let countdown = context.state.countdown {
+                ZStack {
                 // Background gradient for RPG atmosphere
                 LinearGradient(
                     colors: [
@@ -297,8 +305,9 @@ private struct TaskCardView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-        } else {
-            EmptyView()
+            } else {
+                EmptyView()
+            }
         }
         .widgetURL(deepLinkURL)
     }
