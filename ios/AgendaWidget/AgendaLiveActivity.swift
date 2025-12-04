@@ -110,14 +110,10 @@ private struct TaskCardView: View {
     let initialRemaining: Double
     let totalSeconds: Double
 
-    var body: AnyView {
-        guard let status = context.state.status,
-              let task = context.state.task,
-              let countdown = context.state.countdown else {
-            return AnyView(EmptyView())
-        }
-
-        return AnyView(
+    var body: some View {
+        if let status = context.state.status,
+           let task = context.state.task,
+           let countdown = context.state.countdown {
             ZStack {
                 // Background gradient for RPG atmosphere
                 LinearGradient(
@@ -302,7 +298,9 @@ private struct TaskCardView: View {
             .padding(.vertical, 10)
             }
             .widgetURL(deepLinkURL)
-        )
+        } else {
+            EmptyView()
+        }
     }
 
     private var energyColor: Color {
@@ -371,12 +369,8 @@ private struct TaskCardView: View {
 private struct InquiryCardView: View {
     let context: ActivityViewContext<AgendaActivityAttributes>
 
-    var body: AnyView {
-        guard let inquiry = context.state.inquiry else {
-            return AnyView(EmptyView())
-        }
-
-        return AnyView(
+    var body: some View {
+        if let inquiry = context.state.inquiry {
             ZStack {
                 // Background gradient
                 LinearGradient(
@@ -441,7 +435,9 @@ private struct InquiryCardView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             }
-        )
+        } else {
+            EmptyView()
+        }
     }
 }
 
