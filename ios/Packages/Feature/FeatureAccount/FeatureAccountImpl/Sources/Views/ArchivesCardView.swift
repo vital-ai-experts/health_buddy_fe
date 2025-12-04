@@ -27,7 +27,7 @@ struct ArchivesCardView: View {
 
                             Text("（失败）")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.Palette.errorMain)
+                                .foregroundColor(.red)
                         }
 
                         // Duration
