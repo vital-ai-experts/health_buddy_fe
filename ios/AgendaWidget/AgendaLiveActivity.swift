@@ -337,7 +337,10 @@ private struct TaskCardView: View {
 
     /// Build deep link to open app and send mock completion message
     private var deepLinkURL: URL? {
-        let message = "#mock#完成\(context.state.task.title)任务"
+        guard let task = context.state.task else {
+            return nil
+        }
+        let message = "#mock#完成\(task.title)任务"
         var components = URLComponents()
         components.scheme = "thrivebody"
         components.host = "main"
