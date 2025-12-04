@@ -165,6 +165,18 @@ public final class ChatStorageService {
         try modelContext.save()
     }
 
+    /// 删除指定会话的所有消息
+    public func deleteMessages(conversationId: String) throws {
+        let descriptor = FetchDescriptor<LocalChatMessage>(
+            predicate: #Predicate { $0.conversationId == conversationId }
+        )
+        let messages = try modelContext.fetch(descriptor)
+        for message in messages {
+            modelContext.delete(message)
+        }
+        try modelContext.save()
+    }
+
     /// 获取消息数量
     public func getMessageCount() throws -> Int {
         let descriptor = FetchDescriptor<LocalChatMessage>()

@@ -4,7 +4,6 @@ import FeatureOnboardingImpl
 import FeatureAgendaImpl
 import DomainHealth
 import DomainAuth
-import DomainChat
 import LibraryServiceLoader
 import LibraryTrack
 import FeatureDebugToolsImpl
@@ -18,12 +17,11 @@ enum AppComposition {
         // 2. 配置Domain层服务
         HealthDomainBootstrap.configure()
         AuthDomainBootstrap.configure()
-        ChatDomainBootstrap.configure()
 
         // 3. 注册Features
         AccountModule.register(router: router)
         ChatModule.register(router: router)
-        OnboardingModule.register()
+        OnboardingModule.register(router: router as? RouteManager)
         AgendaModule.register(router: router)
         DebugToolsFeatureModule.register(router: router)
     }

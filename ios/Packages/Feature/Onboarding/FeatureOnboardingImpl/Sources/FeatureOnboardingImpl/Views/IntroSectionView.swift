@@ -2,52 +2,73 @@ import SwiftUI
 import ThemeKit
 
 struct IntroSectionView: View {
-    let line1Started: Bool
-    let line2Started: Bool
-    let line3Started: Bool
-    let onLine1Completed: () -> Void
-    let onLine2Completed: () -> Void
     let onTypingCompleted: () -> Void
 
+    @State private var currentTypingIndex = 0
+    @State private var hasCompletedTyping = false
+
+    private let lines: [String] = [
+        "Hi！我是 Pascal，你的私人AI健康教练",
+        "🙅提前说好，我不是那种只会喊加油的气氛组",
+        "我是来帮你作弊的——帮你规划阻力最小的变好捷径，然后推你一把",
+        "好了，你先告诉我，咱们的目标是什么 👀"
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TypingTextView(
-                text: "你的身体每时每刻都在产生数据，但你从未真正读懂它。",
-                font: .title3.weight(.semibold),
-                color: .white,
-                start: line1Started,
-                charactersPerSecond: 14,
-                initialDelay: 0.05
-            ) {
-                onLine1Completed()
+        VStack(alignment: .center, spacing: 12) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                TypingTextView(
+                    text: line,
+                    font: font(for: index),
+                    color: textColor(for: index),
+                    alignment: .leading,
+                    start: index <= currentTypingIndex,
+                    charactersPerSecond: typingSpeed(for: index),
+                    initialDelay: 0.05
+                ) {
+                    handleLineCompleted(at: index)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            TypingTextView(
-                text: "我们不提供通用的健康建议。",
-                font: .body,
-                color: Color.white.opacity(0.85),
-                start: line2Started,
-                charactersPerSecond: 18,
-                initialDelay: 0.05
-            ) {
-                onLine2Completed()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            TypingTextView(
-                text: "我们读取你的生物数据，为你定制每天的行动战术。",
-                font: .body,
-                color: Color.white.opacity(0.85),
-                start: line3Started,
-                charactersPerSecond: 18,
-                initialDelay: 0.05
-            ) {
-                onTypingCompleted()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, -160)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .onAppear {
+            restartTyping()
+        }
+    }
+
+    private func handleLineCompleted(at index: Int) {
+        guard index == currentTypingIndex else { return }
+        let nextIndex = index + 1
+        if nextIndex < lines.count {
+            currentTypingIndex = nextIndex
+        } else if !hasCompletedTyping {
+            hasCompletedTyping = true
+            onTypingCompleted()
+        }
+    }
+
+    private func restartTyping() {
+        currentTypingIndex = 0
+        hasCompletedTyping = false
+        if lines.isEmpty {
+            hasCompletedTyping = true
+            onTypingCompleted()
+        }
+    }
+
+    private func font(for index: Int) -> Font {
+//        index == 0 ? .title3.weight(.semibold) : .body
+        .body
+    }
+
+    private func textColor(for index: Int) -> Color {
+//        index == 0 ? .Palette.textPrimary : .Palette.textSecondary
+        .Palette.textPrimary
+    }
+
+    private func typingSpeed(for index: Int) -> Double {
+        // index == 0 ? 14 : 18
+        14
     }
 }

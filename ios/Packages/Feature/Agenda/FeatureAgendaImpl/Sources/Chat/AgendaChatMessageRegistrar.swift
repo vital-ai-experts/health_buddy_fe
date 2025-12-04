@@ -15,7 +15,10 @@ enum AgendaChatMessageRegistrar {
 
     // MARK: - Agenda Task
 
-    private static func renderAgendaTask(message: CustomRenderedMessage) -> AnyView {
+    private static func renderAgendaTask(
+        message: CustomRenderedMessage,
+        _: ChatSessionControlling?
+    ) -> AnyView {
         let task = decodeTask(from: message.data) ?? AgendaTask.sampleTasks.first ?? fallbackTask
 
         return AnyView(
@@ -52,7 +55,10 @@ enum AgendaChatMessageRegistrar {
 
     // MARK: - Digest Report
 
-    private static func renderDigestReport(message: CustomRenderedMessage) -> AnyView {
+    private static func renderDigestReport(
+        message: CustomRenderedMessage,
+        _: ChatSessionControlling?
+    ) -> AnyView {
         let data = DigestReportData.from(jsonString: message.data ?? "") ?? .mock
         let digestMessage = DigestReportMessage(
             id: message.id,

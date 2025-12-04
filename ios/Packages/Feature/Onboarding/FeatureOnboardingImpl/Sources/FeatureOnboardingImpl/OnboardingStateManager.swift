@@ -4,12 +4,13 @@ import LibraryBase
 
 /// Onboarding 状态管理器实现
 final class OnboardingStateManager: OnboardingStateManaging {
-    static let mockOnboardingID = "mock-onboarding-id"
+    static let mockOnboardingID = "\(OnboardingChatMocking.onboardingConversationPrefix)legacy"
     static let shared = OnboardingStateManager()
 
     private let userDefaults = UserDefaults.standard
     private let hasCompletedOnboardingKey = "com.hehigh.thrivebody.hasCompletedOnboarding"
     private let onboardingIDKey = "com.hehigh.thrivebody.onboardingID"
+    private let initialQueryKey = "com.hehigh.thrivebody.onboardingInitialQuery"
 
     private init() {}
 
@@ -28,6 +29,7 @@ final class OnboardingStateManager: OnboardingStateManaging {
     func resetOnboardingState() {
         hasCompletedOnboarding = false
         clearOnboardingID()
+        clearInitialQuery()
         Log.w("⚠️ Onboarding 状态已重置", category: "Onboarding")
     }
 
@@ -64,5 +66,35 @@ final class OnboardingStateManager: OnboardingStateManaging {
     func clearOnboardingID() {
         userDefaults.removeObject(forKey: onboardingIDKey)
         Log.i("✅ Onboarding ID 已清除", category: "Onboarding")
+    }
+
+    /// 获取现有 Onboarding ID，如不存在则生成一个带前缀的 ID
+    func ensureOnboardingID() -> String {
+        if let existing = getOnboardingID() {
+            return existing
+        }
+        let newId = OnboardingChatMocking.makeConversationId()
+        saveOnboardingID(newId)
+        return newId
+    }
+
+    func saveInitialQuery(_ query: String) {
+        userDefaults.set(query, forKey: initialQueryKey)
+        Log.i("✅ Onboarding 首次提问已保存: \(query)", category: "Onboarding")
+    }
+
+    func getInitialQuery() -> String? {
+        let query = userDefaults.string(forKey: initialQueryKey)
+        if let query {
+            Log.i("ℹ️ 获取 Onboarding 首次提问: \(query)", category: "Onboarding")
+        } else {
+            Log.w("⚠️ 尚未保存 Onboarding 首次提问", category: "Onboarding")
+        }
+        return query
+    }
+
+    func clearInitialQuery() {
+        userDefaults.removeObject(forKey: initialQueryKey)
+        Log.i("✅ Onboarding 首次提问已清除", category: "Onboarding")
     }
 }

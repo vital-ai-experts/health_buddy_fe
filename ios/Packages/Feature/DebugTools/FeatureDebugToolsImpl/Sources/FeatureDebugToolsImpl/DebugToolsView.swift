@@ -5,12 +5,15 @@ import FeatureOnboardingApi
 import DomainAuth
 import LibraryServiceLoader
 import LibraryBase
+import FeatureChatImpl
+import SwiftData
 
 /// Debug Tools Main View - 调试工具主界面
 struct DebugToolsView: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @State private var showCopiedAlert = false
     @State private var hasJustReset = false
+    @Environment(\.modelContext) private var modelContext
     private let onboardingManager = ServiceManager.shared.resolve(OnboardingStateManaging.self)
     private let authService = ServiceManager.shared.resolve(AuthenticationService.self)
 
@@ -27,7 +30,7 @@ struct DebugToolsView: View {
                     Button {
                         resetOnboardingState()
                     } label: {
-                        Label("重置Onboarding状态", systemImage: "arrow.counterclockwise")
+                        Label("清除 Onboarding & 对话历史", systemImage: "trash")
                             .foregroundColor(.Palette.warningMain)
                     }
 
@@ -43,6 +46,12 @@ struct DebugToolsView: View {
                     openDungeonDetail()
                 } label: {
                     Label("打开副本详情页", systemImage: "gamecontroller")
+                }
+
+                NavigationLink {
+                    ThemePaletteDirectoryView()
+                } label: {
+                    Label("ThemeKit 目录", systemImage: "paintpalette")
                 }
             }
 
@@ -127,7 +136,7 @@ struct DebugToolsView: View {
     /// Onboarding 状态文字
     private var onboardingStatusText: String {
         if hasJustReset {
-            return "已重置onboarding状态"
+            return "已清除 Onboarding 状态，App 将在 3 秒后自动重启"
         } else {
             return onboardingManager.hasCompletedOnboarding ? "已完成onboarding" : "未完成onboarding"
         }
@@ -136,9 +145,11 @@ struct DebugToolsView: View {
     /// 重置 Onboarding 状态
     private func resetOnboardingState() {
         onboardingManager.resetOnboardingState()
+        clearChatHistory()
         hasJustReset = true
         Task {
             await logoutAfterReset()
+            await killAppAfterDelay()
         }
     }
 
@@ -165,6 +176,23 @@ struct DebugToolsView: View {
         RouteManager.shared.open(url: url)
     }
 
+    /// 清空本地聊天记录
+    private func clearChatHistory() {
+        let storage = ChatStorageService(modelContext: modelContext)
+        do {
+            try storage.deleteAllMessages()
+            Log.i("✅ 已清空本地聊天记录", category: "DebugTools")
+        } catch {
+            Log.e("❌ 清空聊天记录失败: \(error.localizedDescription)", error: error, category: "DebugTools")
+        }
+    }
+
+    /// 3 秒后杀掉 App，确保状态彻底重置
+    private func killAppAfterDelay() async {
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        exit(0)
+    }
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
     }
@@ -178,4 +206,5 @@ struct DebugToolsView: View {
     NavigationStack {
         DebugToolsView()
     }
+    .modelContainer(for: [LocalChatMessage.self], inMemory: true)
 }

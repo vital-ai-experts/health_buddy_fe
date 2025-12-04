@@ -1,174 +1,139 @@
 import SwiftUI
-import UIKit
 import FeatureOnboardingApi
-import FeatureAgendaApi
+import FeatureChatApi
 import LibraryServiceLoader
 import ThemeKit
 
 struct OnboardingView: View {
-    @EnvironmentObject private var router: RouteManager
     @StateObject private var viewModel: OnboardingViewModel
-    @State private var introLine1Started = false
-    @State private var introLine2Started = false
-    @State private var introLine3Started = false
+    @State private var showChat = false
+    @State private var pendingChatPayload: OnboardingInitialChatPayload?
     @State private var introTypingCompleted = false
-    @State private var showDungeonDetail = false
-
-    private let agendaFeature: FeatureAgendaBuildable
-
-    private var shouldShowProgressAndButton: Bool {
-        viewModel.step != .intro || introTypingCompleted
-    }
+    @FocusState private var isInputFocused: Bool
+    private let chatFeature: FeatureChatBuildable
 
     init(
         onComplete: @escaping () -> Void,
         stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self),
-        agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolve(FeatureAgendaBuildable.self)
+        chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self)
     ) {
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             stateManager: stateManager,
             onComplete: onComplete
         ))
-        self.agendaFeature = agendaFeature
+        self.chatFeature = chatFeature
     }
 
     var body: some View {
-        ZStack {
-            background(for: viewModel.step)
+        ZStack(alignment: .center) {
+            Color.Palette.bgBase
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                Spacer(minLength: 0)
-
-                switch viewModel.step {
-                case .intro:
-                    IntroSectionView(
-                        line1Started: introLine1Started,
-                        line2Started: introLine2Started,
-                        line3Started: introLine3Started,
-                        onLine1Completed: { introLine2Started = true },
-                        onLine2Completed: { introLine3Started = true },
-                        onTypingCompleted: { introTypingCompleted = true }
-                    )
-
-                case .scan:
-                    ScanSectionView(
-                        isCompleted: viewModel.isScanCompleted,
-                        lines: viewModel.visibleScanLines
-                    )
-
-                case .profile:
-                    ProfileSectionView(
-                        snapshot: viewModel.profileSnapshot,
-                        issueOptions: viewModel.issueOptions,
-                        selectedIssueID: viewModel.selectedIssueID,
-                        selectedIssue: viewModel.selectedIssue,
-                        onIssueSelect: { viewModel.selectIssue($0) }
-                    )
-
-                case .call:
-                    CallSectionView(
-                        name: binding(\.name),
-                        phoneNumber: binding(\.phoneNumber),
-                        callState: viewModel.callState
-                    )
+            IntroSectionView(onTypingCompleted: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    introTypingCompleted = true
                 }
+            })
+                .padding(.horizontal, 16)
+            
+            VStack(alignment: .center) {
+                Spacer()
 
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if viewModel.step == .intro {
-                BreathingDotView()
-                    .padding(.trailing, -12)
-                    .padding(.bottom, 100)
+                if introTypingCompleted {
+                    bottomInputArea
+                        .transition(.opacity)
+                }
             }
         }
-        .overlay(alignment: .top) {
-            if shouldShowProgressAndButton {
-                OnboardingProgressIndicator(step: viewModel.step)
-                    .padding(.top, 8)
-                    .padding(.horizontal, 24)
-                    .transition(.opacity)
-            }
+        .animation(.easeInOut(duration: 0.3), value: introTypingCompleted)
+        .fullScreenCover(isPresented: $showChat) {
+            OnboardingChatContainer(
+                initialUserMessage: pendingChatPayload?.query,
+                conversationId: pendingChatPayload?.conversationId,
+                chatFeature: chatFeature
+            )
+            .environmentObject(OnboardingFlowController(finish: {
+                viewModel.completeAfterDungeonStart()
+                RouteManager.shared.currentTab = .agenda
+            }))
         }
-        .overlay(alignment: .bottom) {
-            if shouldShowProgressAndButton {
-                OnboardingPrimaryButton(
-                    title: viewModel.primaryButtonTitle,
-                    isDisabled: viewModel.isPrimaryButtonDisabled,
-                    isLoading: viewModel.isPrimaryButtonLoading,
-                    action: {
-                        if viewModel.step == .call && viewModel.callState == .completed {
-                            showDungeonDetail = true
-                        } else {
-                            if viewModel.step == .call {
-                                dismissKeyboard()
+    }
+
+    private var bottomInputArea: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            suggestionCapsules
+            messageField
+        }
+    }
+
+    private var suggestionCapsules: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(viewModel.suggestionRows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 10) {
+                        ForEach(row, id: \.self) { suggestion in
+                            Button {
+                                handleSuggestionTap(suggestion)
+                            } label: {
+                                Text(suggestion)
+                                    .font(.callout.weight(.medium))
+                                    .foregroundColor(.Palette.textPrimary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.Palette.surfaceElevated)
+                                    .clipShape(Capsule())
+                                    .shadow(color: Color.black.opacity(0.06), radius: 6, y: 6)
                             }
-                            viewModel.handlePrimaryAction()
                         }
                     }
-                )
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
-                .transition(.opacity)
+                }
             }
-        }
-        .onChange(of: viewModel.step) { _, newValue in
-            if newValue == .scan {
-                viewModel.startScanIfNeeded()
-            }
-            if newValue == .intro && !introLine1Started {
-                introLine1Started = true
-            }
-        }
-        .onAppear {
-            if !introLine1Started {
-                introLine1Started = true
-            }
-        }
-        .animation(.easeInOut(duration: 0.35), value: shouldShowProgressAndButton)
-        .sheet(isPresented: $showDungeonDetail) {
-            agendaFeature.makeDungeonDetailView {
-                startDungeonAndFinish()
-            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
         }
     }
 
-    private func binding<Value>(_ keyPath: ReferenceWritableKeyPath<OnboardingViewModel, Value>) -> Binding<Value> {
-        Binding(
-            get: { viewModel[keyPath: keyPath] },
-            set: { viewModel[keyPath: keyPath] = $0 }
+    private var messageField: some View {
+        TextField(
+            "我想...（例如：每天下午3点不再犯困）",
+            text: $viewModel.inputText
         )
+        .submitLabel(.send)
+        .textInputAutocapitalization(.sentences)
+        .disableAutocorrection(true)
+        .foregroundColor(.Palette.textPrimary)
+        .focused($isInputFocused)
+        .onSubmit { submitInput() }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(Color.Palette.surfaceElevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.Palette.borderSubtle, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(0.06), radius: 12, y: 6)
+        .padding(.horizontal, 16)
     }
 
-    @ViewBuilder
-    private func background(for step: OnboardingStep) -> some View {
-        Color.black
+    private func submitInput() {
+        guard let payload = viewModel.submitCurrentInput() else { return }
+        pendingChatPayload = payload
+        showChat = true
+        isInputFocused = false
     }
 
-    private func startDungeonAndFinish() {
-        showDungeonDetail = false
-        router.enqueueChatMessage(viewModel.dungeonJoinMockMessage)
-        // 打开对话页面
-        if let chatURL = router.buildURL(path: "/chat", queryItems: ["present": "fullscreen"]) {
-            router.open(url: chatURL)
-        }
-        viewModel.completeAfterDungeonStart()
-    }
-
-    /// 收起键盘，适用于预约回电按钮点击
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    private func handleSuggestionTap(_ suggestion: String) {
+        viewModel.inputText = suggestion
+        submitInput()
     }
 }
 
 private final class PreviewOnboardingStateManager: OnboardingStateManaging {
     var hasCompletedOnboarding = false
     private var onboardingID: String?
+    private var initialQuery: String?
 
     func markOnboardingAsCompleted() {
         hasCompletedOnboarding = true
@@ -177,6 +142,7 @@ private final class PreviewOnboardingStateManager: OnboardingStateManaging {
     func resetOnboardingState() {
         hasCompletedOnboarding = false
         onboardingID = nil
+        initialQuery = nil
     }
 
     func shouldShowOnboarding(isAuthenticated: Bool) -> Bool {
@@ -194,13 +160,41 @@ private final class PreviewOnboardingStateManager: OnboardingStateManaging {
     func clearOnboardingID() {
         onboardingID = nil
     }
+
+    func ensureOnboardingID() -> String {
+        onboardingID ?? {
+            let newId = OnboardingChatMocking.makeConversationId()
+            onboardingID = newId
+            return newId
+        }()
+    }
+
+    func saveInitialQuery(_ query: String) {
+        initialQuery = query
+    }
+
+    func getInitialQuery() -> String? {
+        initialQuery
+    }
+
+    func clearInitialQuery() {
+        initialQuery = nil
+    }
+}
+
+private struct PreviewChatFeature: FeatureChatBuildable {
+    func makeConversationListView() -> AnyView { AnyView(Text("Conversations")) }
+    func makeChatView(conversationId: String?) -> AnyView { AnyView(Text("Chat")) }
+    func makeChatTabView() -> AnyView { AnyView(Text("ChatTab")) }
+    func makeChatView(config: ChatConversationConfig) -> AnyView { AnyView(Text(config.navigationTitle)) }
 }
 
 #Preview {
     OnboardingView(
         onComplete: {},
-        stateManager: PreviewOnboardingStateManager()
+        stateManager: PreviewOnboardingStateManager(),
+        chatFeature: PreviewChatFeature()
     )
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, .light)
         .environmentObject(RouteManager.shared)
 }

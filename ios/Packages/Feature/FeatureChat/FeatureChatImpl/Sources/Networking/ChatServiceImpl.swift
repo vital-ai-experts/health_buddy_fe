@@ -1,8 +1,10 @@
 import Foundation
+import FeatureChatApi
+import LibraryChatUI
 import LibraryNetworking
 import LibraryBase
 
-/// Default implementation of ChatService
+/// 默认 ChatService 实现，直连后端
 public final class ChatServiceImpl: ChatService {
     private let apiClient: APIClient
 
@@ -10,9 +12,6 @@ public final class ChatServiceImpl: ChatService {
         self.apiClient = apiClient
     }
 
-    // MARK: - ChatService Implementation
-
-    /// 发送对话消息（IDL: /conversations/message/send）
     public func sendMessage(
         userInput: String?,
         conversationId: String?,
@@ -35,7 +34,6 @@ public final class ChatServiceImpl: ChatService {
         }
     }
 
-    /// 恢复对话（IDL: /conversations/message/resume）
     public func resumeConversation(
         conversationId: String,
         lastDataId: String?,
@@ -58,7 +56,6 @@ public final class ChatServiceImpl: ChatService {
         }
     }
 
-    /// 获取对话列表（IDL: /conversations/list）
     public func getConversations(limit: Int? = nil, offset: Int? = nil) async throws -> [Conversation] {
         var queryItems: [URLQueryItem] = []
         if let limit = limit {
@@ -82,8 +79,7 @@ public final class ChatServiceImpl: ChatService {
         return response.conversations.map { Conversation(from: $0) }
     }
 
-    /// 获取对话历史（IDL: /conversations/history）
-    public func getConversationHistory(id: String) async throws -> [Message] {
+    public func getConversationHistory(id: String, chatSession: ChatSessionControlling?) async throws -> [Message] {
         let endpoint = APIEndpoint(
             path: "/conversations/history",
             method: .get,
@@ -99,7 +95,6 @@ public final class ChatServiceImpl: ChatService {
         return response.messages.map { Message(from: $0, conversationId: id) }
     }
 
-    /// 删除对话
     public func deleteConversation(id: String) async throws {
         let endpoint = APIEndpoint(
             path: "/conversations/\(id)",
@@ -107,16 +102,10 @@ public final class ChatServiceImpl: ChatService {
             requiresAuth: true
         )
 
-        struct DeleteResponse: Codable {
-            let message: String
-        }
-
+        struct DeleteResponse: Codable { let message: String }
         let _: DeleteResponse = try await apiClient.request(endpoint, responseType: DeleteResponse.self)
     }
 
-    // MARK: - Private Methods
-
-    /// SSE事件处理（参考OnboardingServiceImpl的实现）
     private func handleSSEEvent(
         _ sseEvent: ServerSentEvent,
         eventHandler: @escaping (ConversationStreamEvent) -> Void
@@ -130,14 +119,7 @@ public final class ChatServiceImpl: ChatService {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let streamMessage = try decoder.decode(StreamMessage.self, from: data)
-
             Log.i("✅ [ChatService] Decoded StreamMessage", category: "Chat")
-            Log.i("  id: \(streamMessage.id)", category: "Chat")
-            Log.i("  msgId: \(streamMessage.data.msgId)", category: "Chat")
-            Log.i("  dataType: \(streamMessage.data.dataType)", category: "Chat")
-            Log.i("  conversationId: \(streamMessage.data.conversationId ?? "nil")", category: "Chat")
-            Log.i("  content length: \(streamMessage.data.content?.count ?? 0)", category: "Chat")
-
             eventHandler(.streamMessage(streamMessage))
         } catch {
             Log.e("❌ [ChatService] Failed to decode: \(error)", category: "Chat")
