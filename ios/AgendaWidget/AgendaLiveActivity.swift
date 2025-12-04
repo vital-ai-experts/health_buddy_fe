@@ -296,10 +296,10 @@ private struct TaskCardView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .widgetURL(deepLinkURL)
         } else {
             EmptyView()
         }
+        .widgetURL(deepLinkURL)
     }
 
     private var energyColor: Color {
