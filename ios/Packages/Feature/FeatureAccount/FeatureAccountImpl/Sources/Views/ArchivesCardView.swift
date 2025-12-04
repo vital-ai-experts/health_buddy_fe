@@ -13,7 +13,7 @@ struct ArchivesCardView: View {
             onEdit: onEdit
         ) {
             VStack(alignment: .leading, spacing: 20) {
-                ForEach(Array(data.failedProjects)) { project in
+                ForEach(data.failedProjects) { (project: FailedProject) in
                     VStack(alignment: .leading, spacing: 12) {
                         // Project header
                         HStack(spacing: 8) {
