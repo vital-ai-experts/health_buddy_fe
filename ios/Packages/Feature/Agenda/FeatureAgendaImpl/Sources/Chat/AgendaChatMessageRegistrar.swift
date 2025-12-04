@@ -75,7 +75,10 @@ enum AgendaChatMessageRegistrar {
 
     // MARK: - Inquiry Card
 
-    private static func renderInquiryCard(message: CustomRenderedMessage) -> AnyView {
+    private static func renderInquiryCard(
+        message: CustomRenderedMessage,
+        _: ChatSessionControlling?
+    ) -> AnyView {
         let card = decodeInquiryCard(from: message.data) ?? InquiryCard.sampleCards.first ?? fallbackInquiryCard
 
         return AnyView(
@@ -147,6 +150,32 @@ private struct AgendaTaskCardPayload: Decodable {
             timeWindow: timeWindow,
             progress: progress,
             actionType: action
+        )
+    }
+}
+
+private struct InquiryCardPayload: Decodable {
+    let emoji: String
+    let question: String
+    let options: [InquiryOptionPayload]
+
+    struct InquiryOptionPayload: Decodable {
+        let emoji: String
+        let text: String
+        let actionId: String
+    }
+
+    func toInquiryCard() -> InquiryCard {
+        return InquiryCard(
+            emoji: emoji,
+            question: question,
+            options: options.map { option in
+                InquiryOption(
+                    emoji: option.emoji,
+                    text: option.text,
+                    actionId: option.actionId
+                )
+            }
         )
     }
 }
