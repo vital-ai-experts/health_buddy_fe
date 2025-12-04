@@ -165,6 +165,7 @@ private struct TaskCardView: View {
                             )
                         }
                     }
+                    }
                 }
 
                 // Middle: Task card with frosted glass effect
