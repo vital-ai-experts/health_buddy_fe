@@ -86,7 +86,7 @@ struct AboutMeEditSheet: View {
                     .font(.system(size: 14))
                     .foregroundColor(.Palette.textSecondary.opacity(0.6))
                     .padding()
-                    .background(Color.Palette.bgSecondary)
+                    .background(Color.Palette.surfaceElevated)
                     .cornerRadius(8)
             }
         }
@@ -139,7 +139,7 @@ struct AboutMeEditSheet: View {
                     .font(.system(size: 14))
                     .foregroundColor(.Palette.textSecondary.opacity(0.6))
                     .padding()
-                    .background(Color.Palette.bgSecondary)
+                    .background(Color.Palette.surfaceElevated)
                     .cornerRadius(8)
             }
         }
@@ -170,7 +170,7 @@ struct AboutMeEditSheet: View {
                     .font(.system(size: 14))
                     .foregroundColor(.Palette.textSecondary.opacity(0.6))
                     .padding()
-                    .background(Color.Palette.bgSecondary)
+                    .background(Color.Palette.surfaceElevated)
                     .cornerRadius(8)
             }
         }
@@ -230,7 +230,7 @@ struct AboutMeEditSheet: View {
     @ViewBuilder
     private var archivesEditForm: some View {
         Section(header: Text("已归档的失败项目")) {
-            ForEach(editedArchives.failedProjects.indices, id: \.self) { index in
+            ForEach(Array(editedArchives.failedProjects.enumerated()), id: \.offset) { index, _ in
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("项目名称")
@@ -257,7 +257,7 @@ struct AboutMeEditSheet: View {
                             .font(.system(size: 14))
                             .foregroundColor(.Palette.textSecondary.opacity(0.6))
                             .padding()
-                            .background(Color.Palette.bgSecondary)
+                            .background(Color.Palette.surfaceElevated)
                             .cornerRadius(8)
                     }
                 }
