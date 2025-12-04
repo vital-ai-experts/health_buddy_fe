@@ -168,7 +168,7 @@ public final class LiveActivityManager: ObservableObject {
         currentAgendaActivity != nil && currentAgendaActivity?.activityState == .active
     }
     
-    /// 切换到下一条 mock 任务（会保存索引并立即更新 Live Activity）
+    /// 切换到下一条 mock 任务（随机选择，会保存索引并立即更新 Live Activity）
     public func advanceToNextMockTask() async {
         loadMockTasksIfNeeded()
         let allCards = mockTasks + mockInquiries
@@ -177,7 +177,19 @@ public final class LiveActivityManager: ObservableObject {
             return
         }
 
-        let nextIndex = (currentMockTaskIndex + 1) % allCards.count
+        // 随机选择下一张卡片，避免连续出现相同卡片
+        let nextIndex: Int
+        if allCards.count == 1 {
+            nextIndex = 0
+        } else {
+            // 随机选择一个不同于当前索引的位置
+            var randomIndex = Int.random(in: 0..<allCards.count)
+            while randomIndex == currentMockTaskIndex {
+                randomIndex = Int.random(in: 0..<allCards.count)
+            }
+            nextIndex = randomIndex
+        }
+
         currentMockTaskIndex = nextIndex
         persistCurrentMockIndex(nextIndex)
 
