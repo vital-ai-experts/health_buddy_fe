@@ -20,6 +20,7 @@ public final class MessageListCollectionView: UICollectionView {
 
     // Scroll tracking
     private var isUserScrolling = false
+    private var hasUserInitiatedScroll = false
     private var shouldAutoScroll = true
     private var lastContentHeight: CGFloat = 0
 
@@ -402,6 +403,7 @@ extension MessageListCollectionView: UICollectionViewDelegate {
 
     public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         isUserScrolling = true
+        hasUserInitiatedScroll = true
     }
 
     public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -426,13 +428,31 @@ extension MessageListCollectionView: UICollectionViewDelegate {
     }
 
     private func updateAutoScrollState() {
-        // Check if user is near bottom
-        let threshold: CGFloat = 100
-        let bottomOffset = contentSize.height - (contentOffset.y + bounds.height)
-        shouldAutoScroll = bottomOffset < threshold
+        guard !isUserScrolling else { return }
+
+        // 用户未主动滚动过，或者当前最后一条已出现在视口内，则保持自动滚动
+        shouldAutoScroll = !hasUserInitiatedScroll || isLastItemVisible()
     }
 
     public func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
         onLoadMoreHistory?()
+    }
+}
+
+private extension MessageListCollectionView {
+    func isLastItemVisible() -> Bool {
+        guard let lastIndexPath = lastItemIndexPath,
+              let attributes = layoutAttributesForItem(at: lastIndexPath) else {
+            return false
+        }
+
+        let visibleBottom = contentOffset.y + bounds.height - adjustedContentInset.bottom
+        let threshold: CGFloat = 12
+        return attributes.frame.maxY <= visibleBottom + threshold
+    }
+
+    var lastItemIndexPath: IndexPath? {
+        guard !messages.isEmpty else { return nil }
+        return IndexPath(item: messages.count - 1, section: 0)
     }
 }

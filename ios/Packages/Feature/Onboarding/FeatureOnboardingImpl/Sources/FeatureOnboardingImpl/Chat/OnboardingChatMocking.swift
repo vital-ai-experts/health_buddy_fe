@@ -9,6 +9,8 @@ enum OnboardingChatMocking {
         static let bookCallPrefix = "#mock#onboarding_book_call:"
         static let viewDungeon = "#mock#onboarding_view_dungeon"
         static let startDungeon = "#mock#onboarding_start_dungeon"
+        static let healthAuthorized = "#mock#onboarding_health_authorized"
+        static let selectGenderPrefix = "#mock#onboarding_select_gender:"
     }
 
     static let onboardingConversationPrefix = "onboarding_"

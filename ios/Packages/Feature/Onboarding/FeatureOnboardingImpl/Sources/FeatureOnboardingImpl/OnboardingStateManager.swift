@@ -11,6 +11,9 @@ final class OnboardingStateManager: OnboardingStateManaging {
     private let hasCompletedOnboardingKey = "com.hehigh.thrivebody.hasCompletedOnboarding"
     private let onboardingIDKey = "com.hehigh.thrivebody.onboardingID"
     private let initialQueryKey = "com.hehigh.thrivebody.onboardingInitialQuery"
+    private let healthAuthorizedKey = "com.hehigh.thrivebody.onboardingHealthAuthorized"
+    private let selectedGenderKey = "com.hehigh.thrivebody.onboardingSelectedGender"
+    private let callCompletedKey = "com.hehigh.thrivebody.onboardingCallCompleted"
 
     private init() {}
 
@@ -30,6 +33,9 @@ final class OnboardingStateManager: OnboardingStateManaging {
         hasCompletedOnboarding = false
         clearOnboardingID()
         clearInitialQuery()
+        clearHealthAuthorized()
+        clearSelectedGender()
+        clearCallCompleted()
         Log.w("⚠️ Onboarding 状态已重置", category: "Onboarding")
     }
 
@@ -96,5 +102,34 @@ final class OnboardingStateManager: OnboardingStateManaging {
     func clearInitialQuery() {
         userDefaults.removeObject(forKey: initialQueryKey)
         Log.i("✅ Onboarding 首次提问已清除", category: "Onboarding")
+    }
+
+    // MARK: - Health data & profile persistence
+
+    var hasAuthorizedHealth: Bool {
+        get { userDefaults.bool(forKey: healthAuthorizedKey) }
+        set { userDefaults.set(newValue, forKey: healthAuthorizedKey) }
+    }
+
+    func clearHealthAuthorized() {
+        userDefaults.removeObject(forKey: healthAuthorizedKey)
+    }
+
+    var selectedGender: String? {
+        get { userDefaults.string(forKey: selectedGenderKey) }
+        set { userDefaults.set(newValue, forKey: selectedGenderKey) }
+    }
+
+    func clearSelectedGender() {
+        userDefaults.removeObject(forKey: selectedGenderKey)
+    }
+
+    var hasCompletedCall: Bool {
+        get { userDefaults.bool(forKey: callCompletedKey) }
+        set { userDefaults.set(newValue, forKey: callCompletedKey) }
+    }
+
+    func clearCallCompleted() {
+        userDefaults.removeObject(forKey: callCompletedKey)
     }
 }

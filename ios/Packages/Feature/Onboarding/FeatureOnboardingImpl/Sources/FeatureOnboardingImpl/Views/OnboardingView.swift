@@ -17,11 +17,16 @@ struct OnboardingView: View {
         stateManager: OnboardingStateManaging = ServiceManager.shared.resolve(OnboardingStateManaging.self),
         chatFeature: FeatureChatBuildable = ServiceManager.shared.resolve(FeatureChatBuildable.self)
     ) {
+        let storedId = stateManager.getOnboardingID()
+        let hasExistingOnboarding = (!stateManager.hasCompletedOnboarding) &&
+        (storedId?.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) == true)
+
         _viewModel = StateObject(wrappedValue: OnboardingViewModel(
             stateManager: stateManager,
             onComplete: onComplete
         ))
         self.chatFeature = chatFeature
+        self._showChat = State(initialValue: hasExistingOnboarding)
     }
 
     var body: some View {

@@ -6,7 +6,7 @@ struct OnboardingFinishCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("已加入副本，查看今日任务吧！")
+            Text("已激活副本，踏上征程吧！")
                 .font(.headline.weight(.bold))
                 .foregroundColor(.Palette.textPrimary)
 

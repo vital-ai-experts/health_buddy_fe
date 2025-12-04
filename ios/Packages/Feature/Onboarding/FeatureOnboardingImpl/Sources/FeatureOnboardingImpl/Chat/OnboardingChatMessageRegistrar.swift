@@ -34,9 +34,56 @@ enum OnboardingChatMessageRegistrar {
             type: "onboarding_finish_card",
             renderer: renderFinishCard
         )
+        ChatMessageRendererRegistry.shared.register(
+            type: "onboarding_health_connect_card",
+            renderer: renderHealthConnectCard
+        )
+        ChatMessageRendererRegistry.shared.register(
+            type: "onboarding_single_choice_card",
+            renderer: renderSingleChoiceCard
+        )
     }
 
     // MARK: - Renderers
+
+    private static func renderHealthConnectCard(
+        message: CustomRenderedMessage,
+        session: ChatSessionControlling?
+    ) -> AnyView {
+        let payload = decode(HealthConnectCardPayload.self, from: message.data)
+        return AnyView(
+            OnboardingHealthConnectCardView(
+                payload: payload,
+                onAuthorized: {
+                    Task { @MainActor in
+                        await session?.sendSystemCommand(OnboardingChatMocking.Command.healthAuthorized, preferredConversationId: nil)
+                    }
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        )
+    }
+
+    private static func renderSingleChoiceCard(
+        message: CustomRenderedMessage,
+        session: ChatSessionControlling?
+    ) -> AnyView {
+        let payload = decode(SingleChoiceCardPayload.self, from: message.data)
+        return AnyView(
+            OnboardingSingleChoiceCardView(
+                payload: payload,
+                onSelect: { option in
+                    let command = "\(OnboardingChatMocking.Command.selectGenderPrefix)\(option.id)"
+                    Task { @MainActor in
+                        await session?.sendSystemCommand(command, preferredConversationId: nil)
+                    }
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        )
+    }
 
     private static func renderProfileInfoCard(
         message: CustomRenderedMessage,

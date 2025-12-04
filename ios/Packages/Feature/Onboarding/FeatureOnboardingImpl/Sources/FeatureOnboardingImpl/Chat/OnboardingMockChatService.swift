@@ -1,5 +1,6 @@
 import Foundation
 import FeatureChatApi
+import FeatureOnboardingApi
 import LibraryChatUI
 
 /// Onboarding 阶段专用的 Mock Chat Service，完全在本地生成对话流与卡片
@@ -17,7 +18,7 @@ public final class OnboardingMockChatService: ChatService {
         let rawText = userInput ?? ""
         let cleanText = ChatMocking.stripMockPrefix(from: rawText)
         let cid = resolveConversationId(from: conversationId)
-        var state = states[cid] ?? OnboardingConversationState()
+        var state = states[cid] ?? OnboardingConversationState(stateManager: stateManager)
 
         let responses = await handleMessage(
             cleanText,
@@ -78,6 +79,9 @@ public final class OnboardingMockChatService: ChatService {
 
 private extension OnboardingMockChatService {
     enum Stage {
+        case start
+        case healthConnect
+        case survey
         case profileInfo
         case issues
         case call
@@ -103,13 +107,26 @@ private extension OnboardingMockChatService {
         var issues: [Issue] = OnboardingMockChatService.defaultIssues
         var selectedIssueId: String
         var phoneNumber: String = "13800000000"
-        var stage: Stage = .profileInfo
+        var stage: Stage = .start
         var hasGreeted = false
+        var hasConnectedHealth = false
+        var selectedGender: String?
         var hasBookedCall = false
         var hasPushedDungeonCard = false
 
-        init() {
+        init(stateManager: OnboardingStateManager = OnboardingStateManager.shared) {
             selectedIssueId = issues.first?.id ?? "fatigue"
+            hasConnectedHealth = stateManager.hasAuthorizedHealth
+            selectedGender = stateManager.selectedGender
+            hasBookedCall = stateManager.hasCompletedCall
+
+            if hasBookedCall {
+                stage = .dungeon
+            } else if selectedGender != nil {
+                stage = .call
+            } else if hasConnectedHealth {
+                stage = .survey
+            }
         }
     }
 
@@ -117,8 +134,10 @@ private extension OnboardingMockChatService {
         case start
         case clear
         case skip
+        case healthAuthorized
         case confirmProfile
         case selectIssue(String)
+        case selectGender(String)
         case updateProfile(ProfileUpdate)
         case bookCall(String)
         case startDungeon
@@ -173,11 +192,17 @@ private extension OnboardingMockChatService {
         case .skip:
             return respondStartDungeon(conversationId: conversationId, state: &state)
 
+        case .healthAuthorized:
+            return respondHealthAuthorized(conversationId: conversationId, state: &state)
+
         case .confirmProfile:
             return respondConfirmProfile(conversationId: conversationId, state: &state)
 
         case .selectIssue(let issueId):
             return respondSelectIssue(issueId, conversationId: conversationId, state: &state)
+
+        case .selectGender(let genderId):
+            return respondSelectGender(genderId, conversationId: conversationId, state: &state)
 
         case .updateProfile(let update):
             return respondUpdateProfile(update, conversationId: conversationId, state: &state)
@@ -210,11 +235,21 @@ private extension OnboardingMockChatService {
         if normalized == "onboarding_start" || text == OnboardingChatMocking.Command.start {
             return .start
         }
+        if normalized == "onboarding_health_authorized" || text == OnboardingChatMocking.Command.healthAuthorized {
+            return .healthAuthorized
+        }
         if normalized == "onboarding_confirm_profile" || text == OnboardingChatMocking.Command.confirmProfile {
             return .confirmProfile
         }
         if normalized == "onboarding_start_dungeon" || text == OnboardingChatMocking.Command.startDungeon {
             return .startDungeon
+        }
+
+        if normalized.hasPrefix("onboarding_select_gender:") || text.hasPrefix(OnboardingChatMocking.Command.selectGenderPrefix) {
+            let id = normalized.hasPrefix("onboarding_select_gender:")
+            ? String(normalized.dropFirst("onboarding_select_gender:".count))
+            : String(text.dropFirst(OnboardingChatMocking.Command.selectGenderPrefix.count))
+            return .selectGender(id)
         }
 
         if normalized.hasPrefix("onboarding_select_issue:") || text.hasPrefix(OnboardingChatMocking.Command.selectIssuePrefix) {
@@ -275,26 +310,32 @@ private extension OnboardingMockChatService {
         conversationId: String,
         state: inout OnboardingConversationState
     ) -> [StreamMessage] {
-        state.stage = .profileInfo
+        state.stage = .healthConnect
         state.hasGreeted = true
 
         let statusId = UUID().uuidString
-        let messageId = UUID().uuidString
+        let messageId1 = UUID().uuidString
+        let messageId2 = UUID().uuidString
         let cardId = UUID().uuidString
 
         return [
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
             makeMessageEvent(
                 conversationId: conversationId,
-                msgId: messageId,
-                content: "我已经读取完你的身体数据，先帮你生成了一版健康档案草稿，确认后我会为你安排顾问电话。"
+                msgId: messageId1,
+                content: "很有价值的目标。👊为了帮你搞定它，我需要连接你的 Apple Health，读取你的运动、睡眠和心率等基础数据，这能让我实时看到你的进展。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: messageId2,
+                content: "至于隐私？把心放肚子里。端到端加密和 GDPR 标准是我的底线。我痛恨垃圾邮件和数据泄露，就像你痛恨高体脂率一样。"
             ),
             makeMessageEvent(
                 conversationId: conversationId,
                 msgId: cardId,
                 content: "",
-                specialType: "onboarding_profile_info_card",
-                specialData: encodeProfilePayload(from: state)
+                specialType: "onboarding_health_connect_card",
+                specialData: encodeHealthConnectPayload(from: state)
             ),
             makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
         ]
@@ -305,7 +346,7 @@ private extension OnboardingMockChatService {
         state: inout OnboardingConversationState
     ) -> [StreamMessage] {
         // 重置本地状态
-        state = OnboardingConversationState()
+        state = OnboardingConversationState(stateManager: stateManager)
 
         let resetMsgId = UUID().uuidString
         var events: [StreamMessage] = [
@@ -341,6 +382,60 @@ private extension OnboardingMockChatService {
         ]
     }
 
+    func respondHealthAuthorized(
+        conversationId: String,
+        state: inout OnboardingConversationState
+    ) -> [StreamMessage] {
+        state.stage = .survey
+        state.hasConnectedHealth = true
+        stateManager.hasAuthorizedHealth = true
+
+        let statusId = UUID().uuidString
+        let msg1 = UUID().uuidString
+        let msg2 = UUID().uuidString
+        let msg3 = UUID().uuidString
+        let msg4 = UUID().uuidString
+        let msg5 = UUID().uuidString
+        let cardId = UUID().uuidString
+
+        return [
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msg1,
+                content: "给我一分钟，正在同步你的体征数据..."
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msg2,
+                content: "嗯... 基础底子不错。看到你的静息心率（RHR）长期稳定在 65 左右，心肺功能是达标的，这很好。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msg3,
+                content: "但是... 这里的波动有点问题。你每晚的深睡比例平均只有 8%，远低于 15% 的及格线。而且入睡潜伏期很不稳定。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msg4,
+                content: "难怪你会觉得累。你的身体其实每晚都在‘假睡’，根本没有完成物理层面的修复。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msg5,
+                content: "行了，我心里有数了。要想方案真的落地，我还有一些关键问题要问你。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: cardId,
+                content: "",
+                specialType: "onboarding_single_choice_card",
+                specialData: encodeGenderPayload(from: state)
+            ),
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
+        ]
+    }
+
     func respondSelectIssue(
         _ issueId: String,
         conversationId: String,
@@ -366,6 +461,38 @@ private extension OnboardingMockChatService {
             makeMessageEvent(
                 conversationId: conversationId,
                 msgId: UUID().uuidString,
+                content: "",
+                specialType: "onboarding_call_card",
+                specialData: encodeCallPayload(from: state)
+            ),
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
+        ]
+    }
+
+    func respondSelectGender(
+        _ genderId: String,
+        conversationId: String,
+        state: inout OnboardingConversationState
+    ) -> [StreamMessage] {
+        state.profile.gender = mapGender(from: genderId)
+        state.selectedGender = genderId
+        state.stage = .call
+        stateManager.selectedGender = genderId
+
+        let statusId = UUID().uuidString
+        let msgId = UUID().uuidString
+        let cardId = UUID().uuidString
+
+        return [
+            makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: msgId,
+                content: "光有这些数据可不够，咱俩得打个电话。"
+            ),
+            makeMessageEvent(
+                conversationId: conversationId,
+                msgId: cardId,
                 content: "",
                 specialType: "onboarding_call_card",
                 specialData: encodeCallPayload(from: state)
@@ -420,25 +547,42 @@ private extension OnboardingMockChatService {
         state.phoneNumber = phone
         state.stage = .dungeon
         state.hasBookedCall = true
+        stateManager.hasCompletedCall = true
 
         let statusId = UUID().uuidString
-        let waitingMsgId = UUID().uuidString
-        let finishMsgId = UUID().uuidString
+        let msg1 = UUID().uuidString
+        let msg2 = UUID().uuidString
+        let msg3 = UUID().uuidString
+        let msg4 = UUID().uuidString
+        let msg5 = UUID().uuidString
         let dungeonCardId = UUID().uuidString
 
         var responses: [StreamMessage] = []
         responses.append(makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating))
         responses.append(makeMessageEvent(
             conversationId: conversationId,
-            msgId: waitingMsgId,
-            content: "好的，将在 10 秒内给 \(phone) 拨出顾问电话，请保持畅通。"
+            msgId: msg1,
+            content: "电话挂了。情况我摸透了。"
         ))
-
-        try? await Task.sleep(nanoseconds: 900_000_000)
         responses.append(makeMessageEvent(
             conversationId: conversationId,
-            msgId: finishMsgId,
-            content: "通话完成，我已为你解锁专属副本，先看一眼今日任务吧。"
+            msgId: msg2,
+            content: "根据你的情况，我为你定制了这份「生物钟重置协议」。"
+        ))
+        responses.append(makeMessageEvent(
+            conversationId: conversationId,
+            msgId: msg3,
+            content: "底层的逻辑很硬核，我融合了 Huberman Lab 的神经调控理论和斯坦福的 CBT-I 疗法(失眠认知行为疗法)。而你要做的很简单，把我推送到你手机锁屏上的微任务完成了就行。"
+        ))
+        responses.append(makeMessageEvent(
+            conversationId: conversationId,
+            msgId: msg4,
+            content: "🌌 闭上眼，想象一下 21 天后的那个早晨：闹钟还没响，你的皮质醇已经自然唤醒了大脑。没有起床气，不需要靠第一杯咖啡续命，那种久违的、大脑瞬间开机的清澈感和掌控感，很想要吧？"
+        ))
+        responses.append(makeMessageEvent(
+            conversationId: conversationId,
+            msgId: msg5,
+            content: "以我的经验，像你这样的用户，坚持 21 天，改善率可达 85%，睡眠变好就像打 RPG 游戏一样简单。"
         ))
 
         responses.append(makeMessageEvent(
@@ -448,8 +592,8 @@ private extension OnboardingMockChatService {
             specialType: "onboarding_dungeon_card",
             specialData: encodeDungeonPayload(
                 from: state,
-                title: "专属副本已解锁，看看今日任务吧！",
-                primaryAction: "开启副本",
+                title: "🧬 已生成副本：21天深度睡眠修护",
+                primaryAction: "🔥 激活副本",
                 secondaryAction: "查看详情"
             )
         ))
@@ -457,11 +601,6 @@ private extension OnboardingMockChatService {
 
         state.hasPushedDungeonCard = true
         return responses
-    }
-
-    func respondViewDungeon(conversationId: String) -> [StreamMessage] {
-        // 查看详情直接由客户端拉起副本详情，不再下发额外消息
-        return []
     }
 
     func respondStartDungeon(
@@ -492,6 +631,46 @@ private extension OnboardingMockChatService {
         state: inout OnboardingConversationState
     ) async -> [StreamMessage] {
         switch state.stage {
+        case.start:
+            return []
+        case .healthConnect:
+            let statusId = UUID().uuidString
+            let msgId = UUID().uuidString
+
+            return [
+                makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
+                makeMessageEvent(
+                    conversationId: conversationId,
+                    msgId: msgId,
+                    content: "先点一下上面的「连接 Apple Health」按钮，授权后我才能分析你的数据。"
+                ),
+                makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
+            ]
+
+        case .survey:
+            if text.contains("男") {
+                return respondSelectGender("male", conversationId: conversationId, state: &state)
+            }
+            if text.contains("女") {
+                return respondSelectGender("female", conversationId: conversationId, state: &state)
+            }
+            if text.contains("保密") {
+                return respondSelectGender("secret", conversationId: conversationId, state: &state)
+            }
+
+            let statusId = UUID().uuidString
+            let msgId = UUID().uuidString
+
+            return [
+                makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .generating),
+                makeMessageEvent(
+                    conversationId: conversationId,
+                    msgId: msgId,
+                    content: "点选卡片上的选项会更快，帮我确定你的节律特征。"
+                ),
+                makeStatusEvent(conversationId: conversationId, msgId: statusId, status: .finished)
+            ]
+
         case .profileInfo:
             var update = parseProfileUpdate(from: text.replacingOccurrences(of: "，", with: ";"))
             update = merge(update, with: parseLooseProfileUpdate(from: text))
@@ -578,6 +757,17 @@ private extension OnboardingMockChatService {
         return update
     }
 
+    func mapGender(from id: String) -> String {
+        switch id.lowercased() {
+        case "male":
+            return "男"
+        case "female":
+            return "女"
+        default:
+            return "保密"
+        }
+    }
+
     func extractPhone(from text: String) -> String? {
         let digits = text.filter { $0.isNumber }
         guard digits.count >= 6 else { return nil }
@@ -628,11 +818,43 @@ private extension OnboardingMockChatService {
         return encodeToString(payload)
     }
 
+    func encodeHealthConnectPayload(from state: OnboardingConversationState) -> String {
+        let payload = HealthConnectCardPayload(
+            title: "连接 Apple Health",
+            description: "我需要访问你的运动、睡眠和心率等基础数据，用于实时调整方案。",
+            connectButtonTitle: "🔗 连接 Apple Health",
+            loadingTitle: "正在分析...",
+            analyzingHint: "Pascal 正在分析数据...",
+            isFinished: state.hasConnectedHealth || stateManager.hasAuthorizedHealth
+        )
+        return encodeToString(payload)
+    }
+
+    func encodeGenderPayload(from state: OnboardingConversationState) -> String {
+        let selectedId = state.selectedGender ?? stateManager.selectedGender
+        let payload = SingleChoiceCardPayload(
+            title: "你的性别",
+            description: "这能帮我做出更准确的节律判断。",
+            options: [
+                .init(id: "male", title: "男", subtitle: nil),
+                .init(id: "female", title: "女", subtitle: nil),
+                .init(id: "secret", title: "保密", subtitle: nil)
+            ],
+            ctaTitle: nil,
+            selectedId: selectedId
+        )
+        return encodeToString(payload)
+    }
+
     func encodeCallPayload(from state: OnboardingConversationState) -> String {
         let payload = CallCardPayload(
             phoneNumber: state.phoneNumber,
-            headline: "顾问将在 10 秒内来电",
-            note: "确认后会拨打你提供的手机号，讨论你的目标与日程。"
+            headline: "给我 10 分钟，聊聊你的压力和想法",
+            note: "有些具体的细节，我得亲耳听你说，才能判断你到底是卡在哪一步了。",
+            ctaTitle: "📞 接听 Pascal 的来电",
+            requiresPhoneNumber: true,
+            loadingTitle: "通话中...",
+            hasFinished: state.hasBookedCall || stateManager.hasCompletedCall
         )
         return encodeToString(payload)
     }
@@ -643,11 +865,10 @@ private extension OnboardingMockChatService {
         primaryAction: String,
         secondaryAction: String
     ) -> String {
-        let issueTitle = currentIssue(state)?.title ?? "你的专属副本"
         let payload = DungeonCardPayload(
             title: title,
-            subtitle: issueTitle,
-            detail: "我们已为你生成今日的优先任务。点击查看详情或直接开启副本，任务会同步到首页。",
+            subtitle: "当前等级：Lv.1 睡眠新手 ➔ 目标：Lv.10 满电玩家",
+            detail: "🔴 现状：深度睡眠 8% (易疲劳、脑雾、情绪像过山车)\n🟢 21天后：深度睡眠 15% (精力无限、反应敏捷、皮肤光泽度 +20%)",
             primaryAction: primaryAction,
             secondaryAction: secondaryAction
         )
