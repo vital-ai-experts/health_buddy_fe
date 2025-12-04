@@ -19,7 +19,7 @@ struct CustomTabBar: View {
     @State private var isDragging: Bool = false
 
     private let tabs: [(tab: RouteManager.Tab, icon: String, title: String)] = [
-        (.agenda, "calendar", "今天"),
+        (.agenda, "calendar", "此刻"),
         (.profile, "person.fill", "关于我")
     ]
 
