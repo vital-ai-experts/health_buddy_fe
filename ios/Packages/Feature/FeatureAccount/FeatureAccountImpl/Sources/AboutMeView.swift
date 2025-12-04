@@ -98,7 +98,7 @@ public struct AboutMeView: View {
             HStack {
                 Text("内容更新：\(aboutMeData.updateTime)")
                     .font(.system(size: 13))
-                    .foregroundColor(.Palette.textTertiary.opacity(0.6))
+                    .foregroundColor(.Palette.textSecondary.opacity(0.5))
                 Spacer()
             }
             .padding(.bottom, 8)
