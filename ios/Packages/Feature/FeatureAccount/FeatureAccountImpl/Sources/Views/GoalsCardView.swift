@@ -5,67 +5,52 @@ import ThemeKit
 struct GoalsCardView: View {
     let data: GoalsData
     let onEdit: () -> Void
-    
+
     var body: some View {
         AboutMeCardView(
-            title: "目标",
-            subtitle: "你的动机与挑战",
+            title: "🎯 目标与核心驱动",
+            subtitle: "",
             onEdit: onEdit
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                insightItem(
-                    emoji: "🏷️",
-                    title: "表层意图",
-                    description: "\"\(data.surfaceGoal)\""
+                // Surface Goal Section
+                sectionItem(
+                    title: "表面意图",
+                    content: data.surfaceGoal
                 )
-                
-                insightItem(
-                    emoji: "🔑",
-                    title: "深层动机",
-                    description: data.deepMotivation
-                )
-                
-                insightItem(
-                    emoji: "🚫",
-                    title: "潜在障碍",
-                    description: data.obstacle,
-                    aiThinking: data.obstacleAIThinking
-                )
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                // Deep Motivation Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(data.deepMotivationTitle)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.Palette.textPrimary)
+
+                    Text(data.deepMotivationContent)
+                        .font(.system(size: 15))
+                        .foregroundColor(.Palette.textSecondary)
+                        .lineSpacing(6)
+                }
+
+                // Pascal's comment (non-editable)
+                PascalCommentView(comment: data.pascalComment)
             }
         }
     }
-    
+
     @ViewBuilder
-    private func insightItem(emoji: String, title: String, description: String, aiThinking: String? = nil) -> some View {
+    private func sectionItem(title: String, content: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(emoji)
-                    .font(.system(size: 20))
-                
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.Palette.textPrimary)
-            }
-            
-            Text(description)
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.Palette.textPrimary)
+
+            Text(content)
                 .font(.system(size: 15))
                 .foregroundColor(.Palette.textSecondary)
-                .lineSpacing(4)
-            
-            if let thinking = aiThinking {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("AI 🤔:")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.Palette.infoMain)
-                    
-                    Text(thinking)
-                        .font(.system(size: 14))
-                        .foregroundColor(.Palette.infoMain.opacity(0.8))
-                }
-                .padding(12)
-                .background(Color.Palette.infoBgSoft)
-                .cornerRadius(12)
-            }
+                .lineSpacing(6)
         }
     }
 }
@@ -78,5 +63,5 @@ struct GoalsCardView: View {
         )
         .padding()
     }
-    .background(Color.Palette.surfaceElevated)
+    .background(Color.Palette.bgBase)
 }

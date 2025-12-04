@@ -5,46 +5,46 @@ import ThemeKit
 struct ArchivesCardView: View {
     let data: ArchivesData
     let onEdit: () -> Void
-    
+
     var body: some View {
         AboutMeCardView(
-            title: "历史档案",
-            subtitle: "过往经验与策略",
+            title: "📂 历史档案",
+            subtitle: "",
             onEdit: onEdit
         ) {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("❌ 过去失败的项目")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.Palette.textPrimary)
-                    
-                    ForEach(data.failedProjects) { project in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("• \(project.name)")
-                                .font(.system(size: 15, weight: .medium))
-                            Text("  \(project.duration)")
-                                .font(.system(size: 14))
+            VStack(alignment: .leading, spacing: 20) {
+                ForEach(data.failedProjects) { project in
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Project header
+                        HStack(spacing: 8) {
+                            Text("已归档：")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.Palette.textPrimary)
+
+                            Text(project.name)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.Palette.textPrimary)
+
+                            Text("（失败）")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.Palette.errorMain)
+                        }
+
+                        // Duration
+                        HStack(spacing: 8) {
+                            Text("-")
+                                .font(.system(size: 15))
                                 .foregroundColor(.Palette.textSecondary)
-                            Text("  失败原因：\(project.failureReason)")
-                                .font(.system(size: 14))
+
+                            Text(project.duration)
+                                .font(.system(size: 15))
                                 .foregroundColor(.Palette.textSecondary)
                         }
+
+                        // Pascal's comment
+                        PascalCommentView(comment: project.pascalComment)
                     }
-                }
-                
-                Divider()
-                    .padding(.vertical, 4)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("✅ 本次策略调整")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.Palette.successMain)
-                    
-                    ForEach(data.strategyAdjustments, id: \.self) { adjustment in
-                        Text("• \(adjustment)")
-                            .font(.system(size: 14))
-                            .foregroundColor(.Palette.textPrimary)
-                    }
+                    .padding(.bottom, 8)
                 }
             }
         }
@@ -59,5 +59,5 @@ struct ArchivesCardView: View {
         )
         .padding()
     }
-    .background(Color.Palette.surfaceElevated)
+    .background(Color.Palette.bgBase)
 }
