@@ -38,6 +38,7 @@ public struct SystemMessageView: View {
                 if !message.text.isEmpty {
                     MessageContentView(
                         text: message.text,
+                        scienceNote: message.scienceNote,
                         isStreaming: message.isStreaming,
                         configuration: configuration
                     )
@@ -227,11 +228,14 @@ private struct ToolCallStatusBadge: View {
 /// Main message content view
 private struct MessageContentView: View {
     let text: String
+    let scienceNote: String?
     let isStreaming: Bool
     let configuration: ChatConfiguration
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let trimmedScience = scienceNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        VStack(alignment: .leading, spacing: trimmedScience?.isEmpty == false ? 10 : 4) {
             if isStreaming {
                 MarkdownTextWithCursor(
                     text: text,
@@ -246,6 +250,10 @@ private struct MessageContentView: View {
                     textColor: configuration.botMessageTextColor
                 )
                 .textSelection(.enabled)
+            }
+
+            if let science = trimmedScience, !science.isEmpty {
+                ScienceNoteView(content: science)
             }
         }
         .padding(12)
@@ -368,6 +376,14 @@ private struct HealthProfileView: View {
             ),
             onHealthProfileConfirm: { print("Confirmed") },
             onHealthProfileReject: { print("Rejected") }
+        )
+
+        SystemMessageView(
+            message: SystemMessage(
+                text: "喝完别瘫着，起来把下面这个任务做了，帮你把奶茶里的糖分快速代谢掉，这波不亏！",
+                timestamp: Date(),
+                scienceNote: "“餐后仅需进行 2-5 分钟的轻微步行，即可显著抑制血糖水平和胰岛素分泌。” —— Sports Medicine, 2022 Meta-analysis"
+            )
         )
     }
     .padding()

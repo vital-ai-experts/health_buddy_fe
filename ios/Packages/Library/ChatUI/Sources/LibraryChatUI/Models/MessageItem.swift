@@ -66,6 +66,7 @@ public struct SystemMessage: Hashable, Identifiable {
     public let toolCalls: [ToolCallInfo]
     public let specialMessageType: SpecialMessageType?
     public let specialMessageData: String?
+    public let scienceNote: String?
     public let topicTitle: String?
 
     public init(
@@ -77,6 +78,7 @@ public struct SystemMessage: Hashable, Identifiable {
         toolCalls: [ToolCallInfo] = [],
         specialMessageType: SpecialMessageType? = nil,
         specialMessageData: String? = nil,
+        scienceNote: String? = nil,
         topicTitle: String? = nil
     ) {
         self.id = id
@@ -87,6 +89,7 @@ public struct SystemMessage: Hashable, Identifiable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.scienceNote = scienceNote
         self.topicTitle = topicTitle
     }
 }
@@ -191,6 +194,7 @@ extension MessageItem {
                 toolCalls: chatMessage.toolCalls ?? [],
                 specialMessageType: chatMessage.specialMessageType,
                 specialMessageData: chatMessage.specialMessageData,
+                scienceNote: chatMessage.scienceNote,
                 topicTitle: chatMessage.goalTitle
             ))
         }

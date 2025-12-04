@@ -70,6 +70,7 @@ public struct StreamMessageData: Codable {
     public let toolCalls: [ToolCall]?
     public let specialMessageType: String?
     public let specialMessageData: String?
+    public let scienceNote: String?
 
     public init(
         conversationId: String? = nil,
@@ -83,7 +84,8 @@ public struct StreamMessageData: Codable {
         content: String? = nil,
         toolCalls: [ToolCall]? = nil,
         specialMessageType: String? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        scienceNote: String? = nil
     ) {
         self.conversationId = conversationId
         self.onboardingId = onboardingId
@@ -97,6 +99,7 @@ public struct StreamMessageData: Codable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.scienceNote = scienceNote
     }
 }
 
@@ -193,6 +196,7 @@ public struct Message: Identifiable {
     public let toolCalls: [ToolCall]?
     public let specialMessageType: String?
     public let specialMessageData: String?
+    public let scienceNote: String?
 
     public init(
         id: String,
@@ -203,7 +207,8 @@ public struct Message: Identifiable {
         thinkingContent: String? = nil,
         toolCalls: [ToolCall]? = nil,
         specialMessageType: String? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        scienceNote: String? = nil
     ) {
         self.id = id
         self.conversationId = conversationId
@@ -214,6 +219,7 @@ public struct Message: Identifiable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.scienceNote = scienceNote
     }
 
     public init(from response: ConversationMessage, conversationId: String) {
@@ -227,12 +233,14 @@ public struct Message: Identifiable {
             self.toolCalls = nil
             self.specialMessageType = nil
             self.specialMessageData = nil
+            self.scienceNote = nil
         } else {
             self.content = response.data?.content ?? ""
             self.thinkingContent = response.data?.thinkingContent
             self.toolCalls = response.data?.toolCalls
             self.specialMessageType = nil
             self.specialMessageData = nil
+            self.scienceNote = response.data?.scienceNote
         }
 
         self.createdAt = response.createdAt

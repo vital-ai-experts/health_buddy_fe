@@ -152,12 +152,7 @@ enum OnboardingChatMessageRegistrar {
         let payload = decode(DungeonCardPayload.self, from: message.data)
         return AnyView(
             OnboardingDungeonCardView(
-                payload: payload,
-                onStartDungeon: {
-                    Task { @MainActor in
-                        await session?.sendSystemCommand(OnboardingChatMocking.Command.startDungeon, preferredConversationId: nil)
-                    }
-                }
+                payload: payload
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 4)

@@ -65,6 +65,7 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
     public let toolCalls: [ToolCallInfo]? // AI执行的工具调用
     public let specialMessageType: SpecialMessageType?  // 特殊消息类型
     public let specialMessageData: String?  // 特殊消息的数据（例如：健康档案的JSON）
+    public let scienceNote: String?  // 科学依据引用
     /// 原始的特殊消息类型字符串，允许外部模块基于字符串注册自定义渲染
     public let specialMessageTypeRaw: String?
 
@@ -87,6 +88,7 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         toolCalls: [ToolCallInfo]? = nil,
         specialMessageType: SpecialMessageType? = nil,
         specialMessageData: String? = nil,
+        scienceNote: String? = nil,
         specialMessageTypeRaw: String? = nil,
         goalId: String? = nil,
         goalTitle: String? = nil,
@@ -103,6 +105,7 @@ public struct ChatMessage: ChatMessageProtocol, Equatable {
         self.toolCalls = toolCalls
         self.specialMessageType = specialMessageType
         self.specialMessageData = specialMessageData
+        self.scienceNote = scienceNote
         self.specialMessageTypeRaw = specialMessageTypeRaw ?? specialMessageType?.rawValue
         self.goalId = goalId
         self.goalTitle = goalTitle

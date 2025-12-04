@@ -348,7 +348,9 @@ private extension MockChatService {
         statusMessageId: String,
         eventHandler: @escaping (ConversationStreamEvent) -> Void
     ) async throws {
-        let taskMessageId = UUID().uuidString
+        let firstMessageId = UUID().uuidString
+        let secondMessageId = UUID().uuidString
+        let scienceMessageId = UUID().uuidString
         let cardMessageId = UUID().uuidString
 
         // 开始生成
@@ -364,34 +366,50 @@ private extension MockChatService {
 
         try? await Task.sleep(nanoseconds: 500_000_000)
 
-        let chunks: [String] = [
-            "啊，我就知道。你的意志力这就“欠费”了？😉",
-            """
+        // 第一条气泡
+        let firstBubble = "呦，这就破防了？👀看你今天 HRV 跌成那个鬼样子，这杯快乐水我就不拦着你了。毕竟比起发胖，现在你还是别发疯更重要。"
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: firstMessageId,
+                dataType: .agentMessage,
+                messageType: .whole,
+                content: firstBubble
+            )
+        )))
 
-不过，看在你今天被工作折磨得够惨的份上，这杯“毒药”我准了。在我的算法里，心情崩溃比发胖更危险。
-""",
-            """
+        try? await Task.sleep(nanoseconds: 650_000_000)
 
-我会给你增加一个任务，帮你把这杯奶茶的糖分快速代谢掉：
-"""
-        ]
+        // 第二条气泡
+        let secondBubble = "不过我丑话说在前头，可以喝，但代价得付。这杯奶茶的热量债，我给你申请了分期付款。"
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: secondMessageId,
+                dataType: .agentMessage,
+                messageType: .whole,
+                content: secondBubble
+            )
+        )))
 
-        for (index, chunk) in chunks.enumerated() {
-            try? await Task.sleep(nanoseconds: UInt64(700_000_000 + index * 200_000_000))
+        try? await Task.sleep(nanoseconds: 650_000_000)
 
-            let messageType: MessageType = (index == chunks.count - 1) ? .whole : .chunk
-
-            eventHandler(.streamMessage(StreamMessage(
-                id: UUID().uuidString,
-                data: StreamMessageData(
-                    conversationId: conversationId,
-                    msgId: taskMessageId,
-                    dataType: .agentMessage,
-                    messageType: messageType,
-                    content: chunks.prefix(index + 1).joined()
-                )
-            )))
-        }
+        // 第三条气泡 + 科学依据
+        let scienceNote = "“餐后仅需进行 2-5 分钟的轻微步行，即可显著抑制血糖水平和胰岛素分泌。相比于坐着不动，这种即时的代谢干预能将餐后血糖峰值平均降低 17% 以上。” —— Sports Medicine, 2022 Meta-analysis"
+        let thirdBubble = "喝完别瘫着，起来把下面这个任务做了，帮你把奶茶里的糖分快速代谢掉，这波不亏！"
+        eventHandler(.streamMessage(StreamMessage(
+            id: UUID().uuidString,
+            data: StreamMessageData(
+                conversationId: conversationId,
+                msgId: scienceMessageId,
+                dataType: .agentMessage,
+                messageType: .whole,
+                content: thirdBubble,
+                scienceNote: scienceNote
+            )
+        )))
 
         try? await Task.sleep(nanoseconds: 600_000_000)
 

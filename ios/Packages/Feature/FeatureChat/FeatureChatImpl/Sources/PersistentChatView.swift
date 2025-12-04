@@ -232,6 +232,7 @@ public final class PersistentChatViewModel: ObservableObject {
                     isStreaming: false,
                     specialMessageType: nil,
                     specialMessageData: localMsg.specialMessageData,
+                    scienceNote: localMsg.scienceNote,
                     specialMessageTypeRaw: localMsg.specialMessageTypeRaw,
                     goalId: localMsg.goalId,
                     goalTitle: localMsg.goalTitle
@@ -335,7 +336,12 @@ public final class PersistentChatViewModel: ObservableObject {
                         text: localMsg.content,
                         isFromUser: localMsg.isFromUser,
                         timestamp: localMsg.createdAt,
-                        isStreaming: false
+                        isStreaming: false,
+                        specialMessageData: localMsg.specialMessageData,
+                        scienceNote: localMsg.scienceNote,
+                        specialMessageTypeRaw: localMsg.specialMessageTypeRaw,
+                        goalId: localMsg.goalId,
+                        goalTitle: localMsg.goalTitle
                     )
                 }
 
@@ -477,6 +483,7 @@ public final class PersistentChatViewModel: ObservableObject {
                         )},
                         specialMessageType: specialType,
                         specialMessageData: message.specialMessageData,
+                        scienceNote: message.scienceNote,
                         specialMessageTypeRaw: message.specialMessageType
                     )
 
@@ -489,7 +496,8 @@ public final class PersistentChatViewModel: ObservableObject {
                         isFromUser: false,
                         createdAt: chatMessage.timestamp,
                         specialMessageTypeRaw: message.specialMessageType,
-                        specialMessageData: message.specialMessageData
+                        specialMessageData: message.specialMessageData,
+                        scienceNote: message.scienceNote
                     )
                 }
 
@@ -868,9 +876,10 @@ public final class PersistentChatViewModel: ObservableObject {
         let hasContent = data.content != nil && !data.content!.isEmpty
         let hasThinking = data.thinkingContent != nil && !data.thinkingContent!.isEmpty
         let hasToolCalls = data.toolCalls != nil && !data.toolCalls!.isEmpty
+        let hasScience = data.scienceNote != nil && !(data.scienceNote?.isEmpty ?? true)
         let hasSpecial = data.specialMessageType != nil || data.specialMessageData != nil
 
-        guard hasContent || hasThinking || hasToolCalls || hasSpecial else {
+        guard hasContent || hasThinking || hasToolCalls || hasSpecial || hasScience else {
             return
         }
 
@@ -903,6 +912,7 @@ public final class PersistentChatViewModel: ObservableObject {
                 toolCalls: toolCallInfos ?? existingMessage.toolCalls,
                 specialMessageType: specialType ?? existingMessage.specialMessageType,
                 specialMessageData: data.specialMessageData ?? existingMessage.specialMessageData,
+                scienceNote: data.scienceNote ?? existingMessage.scienceNote,
                 specialMessageTypeRaw: data.specialMessageType ?? existingMessage.specialMessageTypeRaw
             )
             displayMessages[index] = message
@@ -924,6 +934,7 @@ public final class PersistentChatViewModel: ObservableObject {
                 toolCalls: toolCallInfos,
                 specialMessageType: specialType,
                 specialMessageData: data.specialMessageData,
+                scienceNote: data.scienceNote,
                 specialMessageTypeRaw: data.specialMessageType
             )
             displayMessages.append(newMessage)
@@ -953,6 +964,7 @@ public final class PersistentChatViewModel: ObservableObject {
                 toolCalls: message.toolCalls,
                 specialMessageType: message.specialMessageType,
                 specialMessageData: message.specialMessageData,
+                scienceNote: message.scienceNote,
                 specialMessageTypeRaw: message.specialMessageTypeRaw
             )
             displayMessages[index] = finalMessage
@@ -974,6 +986,7 @@ public final class PersistentChatViewModel: ObservableObject {
                 isStreaming: false,
                 specialMessageType: failedMessage.specialMessageType,
                 specialMessageData: failedMessage.specialMessageData,
+                scienceNote: failedMessage.scienceNote,
                 specialMessageTypeRaw: failedMessage.specialMessageTypeRaw,
                 hasError: true,
                 errorMessage: message
@@ -995,7 +1008,8 @@ public final class PersistentChatViewModel: ObservableObject {
                 createdAt: message.timestamp,
                 conversationId: self.conversationId,
                 specialMessageTypeRaw: message.specialMessageTypeRaw,
-                specialMessageData: message.specialMessageData
+                specialMessageData: message.specialMessageData,
+                scienceNote: message.scienceNote
             )
         }
     }
@@ -1010,7 +1024,8 @@ public final class PersistentChatViewModel: ObservableObject {
         goalId: String? = nil,
         goalTitle: String? = nil,
         specialMessageTypeRaw: String? = nil,
-        specialMessageData: String? = nil
+        specialMessageData: String? = nil,
+        scienceNote: String? = nil
     ) async {
         guard let storageService = storageService else { return }
 
@@ -1023,7 +1038,8 @@ public final class PersistentChatViewModel: ObservableObject {
             goalId: goalId,
             goalTitle: goalTitle,
             specialMessageTypeRaw: specialMessageTypeRaw,
-            specialMessageData: specialMessageData
+            specialMessageData: specialMessageData,
+            scienceNote: scienceNote
         )
 
         do {

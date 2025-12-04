@@ -4,8 +4,9 @@ import FeatureAgendaApi
 import LibraryServiceLoader
 
 struct OnboardingDungeonCardView: View {
+    @EnvironmentObject private var flowController: OnboardingFlowController
+
     let payload: DungeonCardPayload?
-    let onStartDungeon: () -> Void
     @State private var showDetail = false
     private let agendaFeature: FeatureAgendaBuildable
 
@@ -73,12 +74,14 @@ struct OnboardingDungeonCardView: View {
 
     init(
         payload: DungeonCardPayload?,
-        onStartDungeon: @escaping () -> Void,
         agendaFeature: FeatureAgendaBuildable = ServiceManager.shared.resolveOptional(FeatureAgendaBuildable.self) ?? PreviewAgendaFeature()
     ) {
         self.payload = payload
-        self.onStartDungeon = onStartDungeon
         self.agendaFeature = agendaFeature
+    }
+    
+    private func onStartDungeon() {
+        flowController.finish()
     }
 }
 
@@ -92,12 +95,12 @@ struct OnboardingDungeonCardView: View {
     )
     return OnboardingDungeonCardView(
         payload: payload,
-        onStartDungeon: {},
         agendaFeature: PreviewAgendaFeature()
     )
     .padding()
     .background(Color.Palette.bgBase)
     .preferredColorScheme(.dark)
+    .environmentObject(OnboardingFlowController(finish: {}))
 }
 
 private struct PreviewAgendaFeature: FeatureAgendaBuildable {

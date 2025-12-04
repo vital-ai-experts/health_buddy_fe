@@ -7,27 +7,10 @@ import LibraryChatUI
 public final class ChatBuilder: FeatureChatBuildable {
     public init() {}
 
-    public func makeConversationListView() -> AnyView {
-        // 不再使用对话列表，直接返回单一对话视图
-        AnyView(PersistentChatView())
-    }
-
-    public func makeChatView(conversationId: String?) -> AnyView {
-        AnyView(
-            PersistentChatView(
-                initialConversationId: conversationId,
-                chatService: defaultChatService()
-            )
-        )
-    }
-
-    public func makeChatTabView() -> AnyView {
-        AnyView(ChatTabView())
-    }
-
     public func makeChatView(config: ChatConversationConfig) -> AnyView {
         AnyView(
             PersistentChatView(
+                defaultSelectedGoalId: config.defaultSelectedGoalId,
                 initialConversationId: config.initialConversationId,
                 chatService: config.chatService ?? defaultChatService(),
                 chatSessionBuilder: { viewModel in
@@ -41,17 +24,6 @@ public final class ChatBuilder: FeatureChatBuildable {
                 }
             )
         )
-    }
-}
-
-/// ChatView 包装器，用于fullscreen展示
-private struct ChatTabView: View {
-    @EnvironmentObject var router: RouteManager
-
-    var body: some View {
-        NavigationStack {
-            PersistentChatView(chatService: defaultChatService())
-        }
     }
 }
 

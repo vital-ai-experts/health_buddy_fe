@@ -434,18 +434,6 @@ private struct PreviewAccountFeature: FeatureAccountBuildable {
 }
 
 private struct PreviewChatFeature: FeatureChatBuildable {
-    func makeConversationListView() -> AnyView {
-        AnyView(Text("Conversation List Preview"))
-    }
-    
-    func makeChatView(conversationId: String?) -> AnyView {
-        AnyView(Text("Chat Preview"))
-    }
-    
-    func makeChatTabView() -> AnyView {
-        AnyView(Text("Chat Tab Preview"))
-    }
-
     func makeChatView(config: ChatConversationConfig) -> AnyView {
         AnyView(Text(config.navigationTitle))
     }

@@ -188,9 +188,6 @@ private final class PreviewOnboardingStateManager: OnboardingStateManaging {
 }
 
 private struct PreviewChatFeature: FeatureChatBuildable {
-    func makeConversationListView() -> AnyView { AnyView(Text("Conversations")) }
-    func makeChatView(conversationId: String?) -> AnyView { AnyView(Text("Chat")) }
-    func makeChatTabView() -> AnyView { AnyView(Text("ChatTab")) }
     func makeChatView(config: ChatConversationConfig) -> AnyView { AnyView(Text(config.navigationTitle)) }
 }
 
