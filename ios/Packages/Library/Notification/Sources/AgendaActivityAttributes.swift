@@ -4,6 +4,12 @@ import Foundation
 /// Activity Attributes for Agenda Live Activity
 @available(iOS 16.1, *)
 public struct AgendaActivityAttributes: ActivityAttributes {
+    /// Card type for Live Activity
+    public enum CardType: String, Codable, Hashable {
+        case task       // 任务卡片
+        case inquiry    // 问询卡片
+    }
+
     /// RPG-style Content State for Live Activity
     public struct ContentState: Codable, Hashable {
         // MARK: - Top Status Section
@@ -117,15 +123,67 @@ public struct AgendaActivityAttributes: ActivityAttributes {
             }
         }
 
-        // MARK: - Main Content State Properties
-        public var status: StatusInfo
-        public var task: TaskInfo
-        public var countdown: CountdownInfo
+        // MARK: - Inquiry Card Section
+        public struct InquiryInfo: Codable, Hashable {
+            /// Question emoji
+            public var emoji: String
+            /// Question text
+            public var question: String
+            /// Available options
+            public var options: [InquiryOptionInfo]
 
+            public init(emoji: String, question: String, options: [InquiryOptionInfo]) {
+                self.emoji = emoji
+                self.question = question
+                self.options = options
+            }
+        }
+
+        public struct InquiryOptionInfo: Codable, Hashable {
+            /// Option emoji
+            public var emoji: String
+            /// Option text
+            public var text: String
+            /// URL scheme to open when tapped
+            public var scheme: String
+
+            public init(emoji: String, text: String, scheme: String) {
+                self.emoji = emoji
+                self.text = text
+                self.scheme = scheme
+            }
+        }
+
+        // MARK: - Main Content State Properties
+        /// Card type (task or inquiry)
+        public var cardType: CardType
+        /// Status info (for task cards)
+        public var status: StatusInfo?
+        /// Task info (for task cards)
+        public var task: TaskInfo?
+        /// Countdown info (for task cards)
+        public var countdown: CountdownInfo?
+        /// Inquiry info (for inquiry cards)
+        public var inquiry: InquiryInfo?
+
+        // MARK: - Initializers
+
+        /// Initialize with task card data
         public init(status: StatusInfo, task: TaskInfo, countdown: CountdownInfo) {
+            self.cardType = .task
             self.status = status
             self.task = task
             self.countdown = countdown
+            self.inquiry = nil
+        }
+
+        /// Initialize with inquiry card data
+        public init(inquiry: InquiryInfo) {
+            self.cardType = .inquiry
+            self.status = nil
+            self.task = nil
+            self.countdown = nil
+            self.inquiry = inquiry
         }
     }
 

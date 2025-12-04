@@ -17,6 +17,8 @@ public final class LiveActivityManager: ObservableObject {
     
     /// Mock 任务列表（本地持久化）
     private var mockTasks: [AgendaActivityAttributes.ContentState] = []
+    /// Mock 问询列表（本地持久化）
+    private var mockInquiries: [AgendaActivityAttributes.ContentState] = []
     /// 当前展示的 mock 任务索引（本地持久化）
     private var currentMockTaskIndex: Int = 0
     /// 记录当前使用的用户ID，便于重启或切换任务时复用
@@ -55,19 +57,19 @@ public final class LiveActivityManager: ObservableObject {
 
         let attributes = AgendaActivityAttributes(userId: userId)
 
-        // 读取/生成 mock 任务列表
+        // 读取/生成 mock 任务列表和问询列表
         loadMockTasksIfNeeded()
-        let tasks = mockTasks
-        currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
+        let allCards = mockTasks + mockInquiries
+        currentMockTaskIndex = loadCurrentMockIndex(max: allCards.count)
 
         // 当前要展示的内容
         let selectedState: AgendaActivityAttributes.ContentState
         if let initialState {
             selectedState = initialState
-        } else if currentMockTaskIndex < tasks.count {
-            selectedState = tasks[currentMockTaskIndex]
+        } else if currentMockTaskIndex < allCards.count {
+            selectedState = allCards[currentMockTaskIndex]
         } else {
-            selectedState = tasks.first!
+            selectedState = allCards.first!
             currentMockTaskIndex = 0
             persistCurrentMockIndex(0)
         }
@@ -169,27 +171,29 @@ public final class LiveActivityManager: ObservableObject {
     /// 切换到下一条 mock 任务（会保存索引并立即更新 Live Activity）
     public func advanceToNextMockTask() async {
         loadMockTasksIfNeeded()
-        guard !mockTasks.isEmpty else {
-            Log.w("⚠️ [LiveActivity] 没有可用的 mock 任务", category: "Notification")
+        let allCards = mockTasks + mockInquiries
+        guard !allCards.isEmpty else {
+            Log.w("⚠️ [LiveActivity] 没有可用的 mock 卡片", category: "Notification")
             return
         }
-        
-        let nextIndex = (currentMockTaskIndex + 1) % mockTasks.count
+
+        let nextIndex = (currentMockTaskIndex + 1) % allCards.count
         currentMockTaskIndex = nextIndex
         persistCurrentMockIndex(nextIndex)
-        
+
         let nextState: AgendaActivityAttributes.ContentState
-        if nextIndex < mockTasks.count {
-            nextState = prepareState(mockTasks[nextIndex])
+        if nextIndex < allCards.count {
+            nextState = prepareState(allCards[nextIndex])
         } else {
-            nextState = prepareState(mockTasks.first!)
+            nextState = prepareState(allCards.first!)
             currentMockTaskIndex = 0
             persistCurrentMockIndex(0)
         }
 
         if let activity = currentAgendaActivity, activity.activityState == .active {
             await activity.update(.init(state: nextState, staleDate: nil))
-            Log.i("✅ [LiveActivity] 切换到下一任务: \(nextState.task.title)", category: "Notification")
+            let cardDescription = nextState.cardType == .task ? nextState.task?.title ?? "任务" : "问询卡片"
+            Log.i("✅ [LiveActivity] 切换到下一卡片: \(cardDescription)", category: "Notification")
         } else {
             Log.w("ℹ️ [LiveActivity] 当前没有活动，尝试重启并展示下一任务", category: "Notification")
             do {
@@ -298,9 +302,13 @@ public final class LiveActivityManager: ObservableObject {
     }
     
     private func prepareState(_ state: AgendaActivityAttributes.ContentState) -> AgendaActivityAttributes.ContentState {
+        // 问询卡片不需要处理 countdown
+        guard state.cardType == .task, var countdown = state.countdown else {
+            return state
+        }
+
         var newState = state
-        var countdown = newState.countdown
-        
+
         // 确保有 startAt
         if countdown.startAt == nil {
             countdown.startAt = Date()
@@ -329,8 +337,13 @@ public final class LiveActivityManager: ObservableObject {
     // MARK: - Mock 任务管理（本地持久化）
     
     private func loadMockTasksIfNeeded() {
-        if !mockTasks.isEmpty { return }
-        mockTasks = defaultMockTasks()
+        if !mockTasks.isEmpty && !mockInquiries.isEmpty { return }
+        if mockTasks.isEmpty {
+            mockTasks = defaultMockTasks()
+        }
+        if mockInquiries.isEmpty {
+            mockInquiries = defaultMockInquiries()
+        }
     }
     
     private func loadCurrentMockIndex(max count: Int) -> Int {
@@ -517,6 +530,74 @@ public final class LiveActivityManager: ObservableObject {
                 timeRange: "现在",
                 progress: 0.8,
                 remaining: 300
+            )
+        ]
+    }
+
+    /// 5 条问询卡片
+    private func defaultMockInquiries() -> [AgendaActivityAttributes.ContentState] {
+        return [
+            // 问询 1：睡眠时间问询
+            AgendaActivityAttributes.ContentState(
+                inquiry: .init(
+                    emoji: "👀",
+                    question: "正在为你计算今晚的最佳入睡时间，在我运行模型前，有没有什么干扰项需要我手动录入的？",
+                    options: [
+                        .init(emoji: "🥗", text: "我很健康", scheme: "thrivebody://main?tab=chat&sendmsg=我很健康"),
+                        .init(emoji: "🍺", text: "喝了酒", scheme: "thrivebody://main?tab=chat&sendmsg=喝了酒"),
+                        .init(emoji: "🍔", text: "吃了夜宵", scheme: "thrivebody://main?tab=chat&sendmsg=吃了夜宵")
+                    ]
+                )
+            ),
+
+            // 问询 2：睡眠质量体感问询
+            AgendaActivityAttributes.ContentState(
+                inquiry: .init(
+                    emoji: "👀",
+                    question: "数据说你昨晚只睡了 6 小时，但我想知道你的真实体感。你现在感觉怎么样？",
+                    options: [
+                        .init(emoji: "🚀", text: "满血复活", scheme: "thrivebody://main?tab=chat&sendmsg=满血复活"),
+                        .init(emoji: "😑", text: "有点脑雾", scheme: "thrivebody://main?tab=chat&sendmsg=有点脑雾"),
+                        .init(emoji: "🧟‍♂️", text: "像卡车碾过", scheme: "thrivebody://main?tab=chat&sendmsg=像卡车碾过")
+                    ]
+                )
+            ),
+
+            // 问询 3：心率异常问询
+            AgendaActivityAttributes.ContentState(
+                inquiry: .init(
+                    emoji: "👀",
+                    question: "虽然你坐着没动，但心率数据越来越高了，是遇到什么棘手的情况了吗？",
+                    options: [
+                        .init(emoji: "😨", text: "突发焦虑", scheme: "thrivebody://main?tab=chat&sendmsg=突发焦虑"),
+                        .init(emoji: "🤮", text: "开了个烂会", scheme: "thrivebody://main?tab=chat&sendmsg=开了个烂会"),
+                        .init(emoji: "☕️", text: "咖啡因上头", scheme: "thrivebody://main?tab=chat&sendmsg=咖啡因上头")
+                    ]
+                )
+            ),
+
+            // 问询 4：HRV下降问询
+            AgendaActivityAttributes.ContentState(
+                inquiry: .init(
+                    emoji: "👀",
+                    question: "HRV 已经连跌 3 天了，深睡也一直在减少，最近是不是遇到了什么事情？",
+                    options: [
+                        .init(emoji: "🤯", text: "工作太卷", scheme: "thrivebody://main?tab=chat&sendmsg=工作太卷"),
+                        .init(emoji: "🦠", text: "感觉要病", scheme: "thrivebody://main?tab=chat&sendmsg=感觉要病"),
+                        .init(emoji: "💔", text: "情绪烂事", scheme: "thrivebody://main?tab=chat&sendmsg=情绪烂事")
+                    ]
+                )
+            ),
+
+            // 问询 5：午餐拍照问询
+            AgendaActivityAttributes.ContentState(
+                inquiry: .init(
+                    emoji: "📷",
+                    question: "中午啦。别让自己饿着，吃的什么，随手拍一张给我看看？我来帮你记录今天的卡路里摄入。",
+                    options: [
+                        .init(emoji: "📷", text: "随手拍", scheme: "thrivebody://main?tab=chat&action=take_photo")
+                    ]
+                )
             )
         ]
     }

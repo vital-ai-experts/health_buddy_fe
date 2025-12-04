@@ -67,32 +67,83 @@ struct AgendaLiveActivityView: View {
     @State private var totalSeconds: Double
 
     var body: some View {
-        ZStack {
-            // Background gradient for RPG atmosphere
-            LinearGradient(
-                colors: [
-                    Color.Palette.bgBase,
-                    Color.Palette.bgMuted
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .opacity(0.98)
+        // Switch between task card and inquiry card
+        switch context.state.cardType {
+        case .task:
+            TaskCardView(context: context, countdownStart: countdownStart, initialRemaining: initialRemaining, totalSeconds: totalSeconds)
+        case .inquiry:
+            InquiryCardView(context: context)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 8) {
-                // Top: Status with dynamic color
-                HStack(spacing: 6) {
-                    Image(systemName: context.state.status.icon)
+    init(context: ActivityViewContext<AgendaActivityAttributes>) {
+        self.context = context
+        let countdown = context.state.countdown ?? AgendaActivityAttributes.ContentState.CountdownInfo(
+            label: "",
+            timeRange: "",
+            progressColor: "#FFD700",
+            progress: 0
+        )
+        let startAt = countdown.startAt ?? Date()
+        let remaining = Double(countdown.remainingTimeSeconds ?? 0)
+        let total = Double(countdown.totalTimeSeconds ?? 0)
+        let inferredRemaining: Double
+        if remaining > 0 {
+            inferredRemaining = remaining
+        } else if total > 0 {
+            inferredRemaining = max(0, total * (1 - countdown.progress))
+        } else {
+            inferredRemaining = 0
+        }
+
+        _countdownStart = State(initialValue: startAt)
+        _initialRemaining = State(initialValue: inferredRemaining)
+        _totalSeconds = State(initialValue: total > 0 ? total : (inferredRemaining > 0 ? inferredRemaining : 0))
+    }
+}
+
+/// Task Card View (original implementation)
+@available(iOS 16.1, *)
+private struct TaskCardView: View {
+    let context: ActivityViewContext<AgendaActivityAttributes>
+    let countdownStart: Date
+    let initialRemaining: Double
+    let totalSeconds: Double
+
+    var body: some View {
+        guard let status = context.state.status,
+              let task = context.state.task,
+              let countdown = context.state.countdown else {
+            return AnyView(EmptyView())
+        }
+
+        return AnyView(
+            ZStack {
+                // Background gradient for RPG atmosphere
+                LinearGradient(
+                    colors: [
+                        Color.Palette.bgBase,
+                        Color.Palette.bgMuted
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(0.98)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    // Top: Status with dynamic color
+                    HStack(spacing: 6) {
+                        Image(systemName: status.icon)
                         .font(.system(size: 20))
                         .foregroundStyle(energyColor)
 
                     // Display "状态名称 值" format
                     HStack(spacing: 4) {
-                        Text(context.state.status.name)
+                        Text(status.name)
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(energyColor)
 
-                        Text(context.state.status.value)
+                        Text(status.value)
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(energyColor)
                     }
@@ -101,7 +152,7 @@ struct AgendaLiveActivityView: View {
 
                     // Buffs with type-specific colors
                     HStack(spacing: 4) {
-                        ForEach(context.state.status.buffs, id: \.icon) { buff in
+                        ForEach(status.buffs, id: \.icon) { buff in
                             HStack(spacing: 2) {
                                 Image(systemName: buff.icon)
                                     .font(.system(size: 12))
@@ -123,12 +174,12 @@ struct AgendaLiveActivityView: View {
                 // Middle: Task card with frosted glass effect
                 HStack(alignment: .center, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(context.state.task.title)
+                        Text(task.title)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(Color.Palette.textPrimary)
                             .lineLimit(1)
 
-                        Text(context.state.task.description)
+                        Text(task.description)
                             .font(.system(size: 11))
                             .foregroundColor(Color.Palette.textSecondary)
                             .lineLimit(2)
@@ -144,12 +195,12 @@ struct AgendaLiveActivityView: View {
                                 .frame(width: 28, height: 28)
                                 .shadow(color: Color.Palette.successMain.opacity(0.4), radius: 6, x: 0, y: 3)
 
-                            Image(systemName: context.state.task.button.icon)
+                            Image(systemName: task.button.icon)
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(Color.Palette.textOnAccent)
                         }
 
-                        Text(context.state.task.button.label)
+                        Text(task.button.label)
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundColor(Color.Palette.textSecondary)
                     }
@@ -174,7 +225,7 @@ struct AgendaLiveActivityView: View {
                 // Bottom: Countdown with system-driven timer progress (auto-updates)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(context.state.countdown.label)
+                        Text(countdown.label)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(Color.Palette.textSecondary)
 
@@ -183,7 +234,7 @@ struct AgendaLiveActivityView: View {
                         HStack(spacing: 2) {
                             Image(systemName: "clock")
                                 .font(.system(size: 9))
-                            Text("最佳时间: \(context.state.countdown.timeRange)")
+                            Text("最佳时间: \(countdown.timeRange)")
                                 .font(.system(size: 9))
                                 .foregroundColor(Color.Palette.textSecondary)
                     }
@@ -225,7 +276,7 @@ struct AgendaLiveActivityView: View {
                             }
                         }
                     } else {
-                        let staticProgress = min(max(context.state.countdown.progress, 0), 1)
+                        let staticProgress = min(max(countdown.progress, 0), 1)
                         ZStack(alignment: .leading) {
                             Capsule()
                                 .fill(Color.Palette.warningBgSoft.opacity(0.7))
@@ -249,34 +300,17 @@ struct AgendaLiveActivityView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-        }
-        .widgetURL(deepLinkURL)
-    }
-    
-    init(context: ActivityViewContext<AgendaActivityAttributes>) {
-        self.context = context
-        let countdown = context.state.countdown
-        let startAt = countdown.startAt ?? Date()
-        let remaining = Double(countdown.remainingTimeSeconds ?? 0)
-        let total = Double(countdown.totalTimeSeconds ?? 0)
-        let inferredRemaining: Double
-        if remaining > 0 {
-            inferredRemaining = remaining
-        } else if total > 0 {
-            inferredRemaining = max(0, total * (1 - countdown.progress))
-        } else {
-            inferredRemaining = 0
-        }
-
-        _countdownStart = State(initialValue: startAt)
-        _initialRemaining = State(initialValue: inferredRemaining)
-        _totalSeconds = State(initialValue: total > 0 ? total : (inferredRemaining > 0 ? inferredRemaining : 0))
-        
+            }
+            .widgetURL(deepLinkURL)
+        )
     }
 
     private var energyColor: Color {
+        guard let status = context.state.status else {
+            return Color.Palette.successMain
+        }
         // Parse percentage from value
-        let percentString = context.state.status.value.replacingOccurrences(of: "%", with: "")
+        let percentString = status.value.replacingOccurrences(of: "%", with: "")
         if let percent = Int(percentString) {
             if percent > 60 {
                 return Color.Palette.successMain
@@ -319,7 +353,9 @@ struct AgendaLiveActivityView: View {
     }
 
     private func timerInterval() -> ClosedRange<Date>? {
-        let countdown = context.state.countdown
+        guard let countdown = context.state.countdown else {
+            return nil
+        }
         let start = countdown.startAt ?? countdownStart
         let total = totalSeconds > 0 ? totalSeconds : max(initialRemaining, 0)
         guard total > 0 else {
@@ -327,6 +363,85 @@ struct AgendaLiveActivityView: View {
         }
         let end = start.addingTimeInterval(total)
         return start...end
+    }
+}
+
+/// Inquiry Card View for lock screen
+@available(iOS 16.1, *)
+private struct InquiryCardView: View {
+    let context: ActivityViewContext<AgendaActivityAttributes>
+
+    var body: some View {
+        guard let inquiry = context.state.inquiry else {
+            return AnyView(EmptyView())
+        }
+
+        return AnyView(
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    colors: [
+                        Color.Palette.bgBase,
+                        Color.Palette.bgMuted
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(0.98)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    // Question section
+                    HStack(alignment: .top, spacing: 10) {
+                        Text(inquiry.emoji)
+                            .font(.system(size: 28))
+
+                        Text(inquiry.question)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(Color.Palette.textPrimary)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.bottom, 4)
+
+                    // Options section
+                    VStack(spacing: 6) {
+                        ForEach(Array(inquiry.options.enumerated()), id: \.element.scheme) { index, option in
+                            Link(destination: URL(string: option.scheme)!) {
+                                HStack(spacing: 8) {
+                                    Text(option.emoji)
+                                        .font(.system(size: 16))
+
+                                    Text(option.text)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(Color.Palette.textPrimary)
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(Color.Palette.textSecondary)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.Palette.bgMuted.opacity(0.85))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .strokeBorder(
+                                                    Color.Palette.borderSubtle.opacity(0.5),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+            }
+        )
     }
 }
 
