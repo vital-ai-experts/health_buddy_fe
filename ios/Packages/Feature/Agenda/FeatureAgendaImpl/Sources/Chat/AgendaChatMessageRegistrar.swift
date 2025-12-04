@@ -153,29 +153,3 @@ private struct AgendaTaskCardPayload: Decodable {
         )
     }
 }
-
-private struct InquiryCardPayload: Decodable {
-    let emoji: String
-    let question: String
-    let options: [InquiryOptionPayload]
-
-    struct InquiryOptionPayload: Decodable {
-        let emoji: String
-        let text: String
-        let actionId: String
-    }
-
-    func toInquiryCard() -> InquiryCard {
-        return InquiryCard(
-            emoji: emoji,
-            question: question,
-            options: options.map { option in
-                InquiryOption(
-                    emoji: option.emoji,
-                    text: option.text,
-                    actionId: option.actionId
-                )
-            }
-        )
-    }
-}

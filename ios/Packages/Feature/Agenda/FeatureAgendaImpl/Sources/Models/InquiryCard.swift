@@ -2,13 +2,13 @@ import Foundation
 import SwiftUI
 
 /// 问询卡片 - 用于主动向用户提问
-struct InquiryCard: Identifiable {
-    let id: String
-    let emoji: String  // 卡片的主表情图标
-    let question: String  // 问询问题
-    let options: [InquiryOption]  // 选项列表
+public struct InquiryCard: Identifiable {
+    public let id: String
+    public let emoji: String  // 卡片的主表情图标
+    public let question: String  // 问询问题
+    public let options: [InquiryOption]  // 选项列表
 
-    init(
+    public init(
         id: String = UUID().uuidString,
         emoji: String,
         question: String,
@@ -22,13 +22,13 @@ struct InquiryCard: Identifiable {
 }
 
 /// 问询选项
-struct InquiryOption: Identifiable {
-    let id: String
-    let emoji: String  // 选项的表情图标
-    let text: String  // 选项文本
-    let actionId: String  // 用于识别用户选择的操作ID
+public struct InquiryOption: Identifiable {
+    public let id: String
+    public let emoji: String  // 选项的表情图标
+    public let text: String  // 选项文本
+    public let actionId: String  // 用于识别用户选择的操作ID
 
-    init(
+    public init(
         id: String = UUID().uuidString,
         emoji: String,
         text: String,
@@ -77,7 +77,7 @@ struct InquiryOptionPayload: Decodable {
 
 extension InquiryCard {
     /// 示例问询卡片
-    static var sampleCards: [InquiryCard] {
+    public static var sampleCards: [InquiryCard] {
         [
             // 卡片 1: 睡眠时间计算问询
             InquiryCard(
