@@ -4,6 +4,7 @@ public struct TypingTextView: View {
     private let text: String
     private let font: Font
     private let color: Color
+    private let alignment: TextAlignment
     private let start: Bool
     private let typingInterval: TimeInterval
     private let cursorBlinkInterval: TimeInterval
@@ -37,6 +38,7 @@ public struct TypingTextView: View {
         text: String,
         font: Font = .body,
         color: Color = .white,
+        alignment: TextAlignment = .leading,
         start: Bool = true,
         charactersPerSecond: Double = 18,
         initialDelay: TimeInterval = 0,
@@ -48,6 +50,7 @@ public struct TypingTextView: View {
         self.text = text
         self.font = font
         self.color = color
+        self.alignment = alignment
         self.start = start
         self.typingInterval = 1.0 / max(charactersPerSecond, 1)
         self.cursorBlinkInterval = cursorBlinkInterval
@@ -61,7 +64,7 @@ public struct TypingTextView: View {
         Text(displayText)
             .font(font)
             .foregroundColor(color)
-            .multilineTextAlignment(.leading)
+            .multilineTextAlignment(alignment)
             .onAppear(perform: tryStart)
             .onDisappear(perform: stopAnimations)
             .onChange(of: text) { _, _ in restartIfNeeded() }

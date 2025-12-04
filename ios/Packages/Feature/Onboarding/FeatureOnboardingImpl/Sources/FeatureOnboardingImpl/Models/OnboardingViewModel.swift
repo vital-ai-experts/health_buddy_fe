@@ -2,17 +2,22 @@ import SwiftUI
 import FeatureOnboardingApi
 import LibraryBase
 
+struct OnboardingInitialChatPayload {
+    let conversationId: String
+    let query: String
+}
+
 @MainActor
 final class OnboardingViewModel: ObservableObject {
-    @Published var step: OnboardingStep = .intro
-    @Published var visibleScanLines: [OnboardingScanLine] = []
-    @Published var isScanCompleted = false
+    @Published var inputText: String = ""
 
-    private let scanLines: [OnboardingScanLine]
+    let suggestionRows: [[String]] = [
+        ["提升睡眠质量", "消除日间疲劳", "科学减脂"],
+        ["增强肌肉力量", "缓解焦虑/压力"]
+    ]
+
     private let stateManager: OnboardingStateManaging
     private let onComplete: () -> Void
-    private var scanTask: Task<Void, Never>?
-    private var hasRestoredChat = false
 
     init(
         stateManager: OnboardingStateManaging,
@@ -20,65 +25,23 @@ final class OnboardingViewModel: ObservableObject {
     ) {
         self.stateManager = stateManager
         self.onComplete = onComplete
-        self.scanLines = OnboardingMockData.scanLines
     }
 
-    var primaryButtonTitle: String {
-        switch step {
-        case .intro:
-            return "连接我的身体数据"
-        case .scan:
-            return isScanCompleted ? "进入对话" : "初步诊断生成中..."
-        }
+    func submitCurrentInput() -> OnboardingInitialChatPayload? {
+        submit(text: inputText)
     }
 
-    var isPrimaryButtonDisabled: Bool {
-        switch step {
-        case .scan:
-            return !isScanCompleted
-        default:
-            return false
-        }
-    }
+    func submit(text: String) -> OnboardingInitialChatPayload? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
 
-    func handlePrimaryAction() {
-        switch step {
-        case .intro:
-            withAnimation(.easeInOut(duration: 0.4)) {
-                step = .scan
-            }
-            startScanIfNeeded()
-
-        case .scan:
-            break
-        }
-    }
-
-    func startScanIfNeeded() {
-        guard scanTask == nil else { return }
-        visibleScanLines = []
-        isScanCompleted = false
-
-        scanTask = Task { [weak self] in
-            guard let self else { return }
-
-            for line in scanLines {
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        visibleScanLines.append(line)
-                    }
-                }
-            }
-
-            try? await Task.sleep(nanoseconds: 200_000_000)
-
-            await MainActor.run {
-                withAnimation {
-                    isScanCompleted = true
-                }
-            }
-        }
+        let conversationId = stateManager.ensureOnboardingID()
+        stateManager.saveInitialQuery(trimmed)
+        inputText = ""
+        return OnboardingInitialChatPayload(
+            conversationId: conversationId,
+            query: trimmed
+        )
     }
 
     func finishOnboarding() {
@@ -91,24 +54,5 @@ final class OnboardingViewModel: ObservableObject {
 
     func completeAfterDungeonStart() {
         finishOnboarding()
-    }
-
-    func shouldRestoreChatDirectly() -> Bool {
-        guard !hasRestoredChat else { return false }
-        guard !stateManager.hasCompletedOnboarding else { return false }
-        if let id = stateManager.getOnboardingID(),
-           id.hasPrefix(OnboardingChatMocking.onboardingConversationPrefix) {
-            hasRestoredChat = true
-            return true
-        }
-        return false
-    }
-
-    var onboardingConversationId: String {
-        stateManager.getOnboardingID() ?? OnboardingChatMocking.makeConversationId()
-    }
-
-    deinit {
-        scanTask?.cancel()
     }
 }

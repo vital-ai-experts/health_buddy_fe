@@ -10,4 +10,8 @@ public protocol OnboardingStateManaging {
     func saveOnboardingID(_ id: String)
     func getOnboardingID() -> String?
     func clearOnboardingID()
+    func ensureOnboardingID() -> String
+    func saveInitialQuery(_ query: String)
+    func getInitialQuery() -> String?
+    func clearInitialQuery()
 }
