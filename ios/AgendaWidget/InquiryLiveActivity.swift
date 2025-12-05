@@ -93,10 +93,7 @@ struct InquiryLiveActivityView: View {
 
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(context.state.options, id: \.id) { option in
-                        Button(intent: InquiryOptionIntent(
-                            optionId: option.id,
-                            optionText: option.text
-                        )) {
+                        Link(destination: buildOptionURL(for: option)) {
                             HStack(spacing: 6) {
                                 Text(option.emoji)
                                     .font(.system(size: 16))
@@ -134,6 +131,21 @@ struct InquiryLiveActivityView: View {
         .widgetURL(deepLinkURL)
     }
 
+    /// Build deep link for option selection
+    private func buildOptionURL(for option: InquiryActivityAttributes.ContentState.InquiryOption) -> URL {
+        let message = "#inquiry#\(option.text)"
+        var components = URLComponents()
+        components.scheme = "thrivebody"
+        components.host = "main"
+        components.queryItems = [
+            URLQueryItem(name: "tab", value: "chat"),
+            URLQueryItem(name: "sendmsg", value: message),
+            URLQueryItem(name: "inquiry", value: "1"),
+            URLQueryItem(name: "complete", value: "1")
+        ]
+        return components.url ?? URL(string: "thrivebody://main")!
+    }
+
     /// Build deep link to open app and send message
     private var deepLinkURL: URL? {
         var components = URLComponents()
@@ -144,53 +156,6 @@ struct InquiryLiveActivityView: View {
             URLQueryItem(name: "inquiry", value: "1")
         ]
         return components.url
-    }
-}
-
-// MARK: - App Intent for Option Selection
-
-@available(iOS 16.1, *)
-struct InquiryOptionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Select Inquiry Option"
-    static var description: IntentDescription = IntentDescription("Respond to health inquiry")
-    static var openAppWhenRun: Bool = true
-
-    @Parameter(title: "Option ID")
-    var optionId: String
-
-    @Parameter(title: "Option Text")
-    var optionText: String
-
-    init() {
-        self.optionId = ""
-        self.optionText = ""
-    }
-
-    init(optionId: String, optionText: String) {
-        self.optionId = optionId
-        self.optionText = optionText
-    }
-
-    @MainActor
-    func perform() async throws -> some IntentResult & OpensIntent {
-        Log.i("📱 Inquiry option selected: \(optionText) (id: \(optionId))", category: "Notification")
-
-        // Send message to app via deep link
-        let message = "#inquiry#\(optionText)"
-        var components = URLComponents()
-        components.scheme = "thrivebody"
-        components.host = "main"
-        components.queryItems = [
-            URLQueryItem(name: "tab", value: "chat"),
-            URLQueryItem(name: "sendmsg", value: message),
-            URLQueryItem(name: "inquiry", value: "1")
-        ]
-
-        if let url = components.url {
-            return .result(opensIntent: .init(url: url))
-        }
-
-        return .result()
     }
 }
 
