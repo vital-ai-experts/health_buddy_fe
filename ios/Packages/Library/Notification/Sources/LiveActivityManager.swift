@@ -12,8 +12,14 @@ public final class LiveActivityManager: ObservableObject {
     /// Current active agenda activity
     @Published public private(set) var currentAgendaActivity: Activity<AgendaActivityAttributes>?
 
+    /// Current active inquiry activity (问询卡片)
+    @Published public private(set) var currentInquiryActivity: Activity<InquiryActivityAttributes>?
+
     /// Live Activity push token (stored in memory)
     @Published public private(set) var liveActivityToken: String?
+
+    /// Inquiry Activity push token (stored in memory)
+    @Published public private(set) var inquiryActivityToken: String?
     
     /// Mock 任务列表（本地持久化）
     private var mockTasks: [AgendaActivityAttributes.ContentState] = []
@@ -22,8 +28,11 @@ public final class LiveActivityManager: ObservableObject {
     /// 记录当前使用的用户ID，便于重启或切换任务时复用
     private var currentUserId: String = "guest"
 
-    /// Push token observation task
+    /// Push token observation task (for Agenda activity)
     private var pushTokenTask: Task<Void, Never>?
+
+    /// Push token observation task (for Inquiry activity)
+    private var inquiryPushTokenTask: Task<Void, Never>?
     
     private let mockTaskIndexKey = "com.thrivebody.liveactivity.mockTaskIndex"
 
@@ -519,6 +528,190 @@ public final class LiveActivityManager: ObservableObject {
                 remaining: 300
             )
         ]
+    }
+
+    // MARK: - Inquiry Activity Management
+
+    /// Start a new inquiry live activity (问询卡片)
+    /// - Parameters:
+    ///   - userId: User identifier
+    ///   - question: Question text
+    ///   - options: List of inquiry options
+    /// - Throws: ActivityKit errors if activity cannot be started
+    public func startInquiryActivity(
+        userId: String,
+        question: String,
+        options: [InquiryActivityAttributes.ContentState.InquiryOption]
+    ) async throws {
+        Log.i("🚀 Starting Inquiry Live Activity...", category: "Notification")
+        Log.i("   - User ID: \(userId)", category: "Notification")
+        Log.i("   - Question: \(question)", category: "Notification")
+
+        // Check if activities are enabled
+        let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        Log.i("   - Activities enabled: \(areActivitiesEnabled)", category: "Notification")
+
+        // Clean up existing inquiry activities first
+        stopObservingInquiryPushToken()
+        await cleanupAllInquiryActivities()
+
+        let attributes = InquiryActivityAttributes(userId: userId)
+        let contentState = InquiryActivityAttributes.ContentState(
+            question: question,
+            options: options,
+            createdAt: Date()
+        )
+
+        do {
+            let activity = try Activity<InquiryActivityAttributes>.request(
+                attributes: attributes,
+                content: .init(state: contentState, staleDate: nil),
+                pushType: .token
+            )
+            currentInquiryActivity = activity
+            Log.i("✅ Inquiry Live Activity started successfully!", category: "Notification")
+            Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+            Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
+
+            // Start observing push token updates
+            startObservingInquiryPushToken(for: activity)
+        } catch {
+            Log.e("❌ Failed to start Inquiry Live Activity: \(error)", category: "Notification")
+            Log.i("   - Error type: \(type(of: error))", category: "Notification")
+            Log.i("   - Error description: \(error.localizedDescription)", category: "Notification")
+            throw error
+        }
+    }
+
+    /// Update the current inquiry live activity
+    /// - Parameters:
+    ///   - question: New question text
+    ///   - options: New list of options
+    /// - Throws: ActivityKit errors if update fails
+    public func updateInquiryActivity(
+        question: String,
+        options: [InquiryActivityAttributes.ContentState.InquiryOption]
+    ) async throws {
+        guard let activity = currentInquiryActivity else {
+            Log.w("⚠️ No currentInquiryActivity stored, cannot update", category: "Notification")
+            throw LiveActivityError.noActiveActivity
+        }
+
+        // Check if activity is still active
+        guard activity.activityState == .active else {
+            Log.w("⚠️ Inquiry Activity is no longer active (state: \(activity.activityState)), clearing reference", category: "Notification")
+            currentInquiryActivity = nil
+            throw LiveActivityError.noActiveActivity
+        }
+
+        let newState = InquiryActivityAttributes.ContentState(
+            question: question,
+            options: options,
+            createdAt: Date()
+        )
+
+        let alertConfiguration = AlertConfiguration(
+            title: .init(stringLiteral: "新的问询"),
+            body: .init(stringLiteral: question),
+            sound: .default
+        )
+
+        await activity.update(
+            .init(state: newState, staleDate: nil),
+            alertConfiguration: alertConfiguration
+        )
+
+        Log.i("✅ Inquiry Live Activity updated: question=\(question)", category: "Notification")
+    }
+
+    /// Stop the current inquiry live activity
+    public func stopInquiryActivity() async {
+        // Stop observing push tokens
+        stopObservingInquiryPushToken()
+
+        // Clean up all inquiry activities
+        await cleanupAllInquiryActivities()
+        Log.i("✅ Inquiry Live Activity stopped", category: "Notification")
+    }
+
+    /// Check if there's an active inquiry activity
+    public var isInquiryActive: Bool {
+        currentInquiryActivity != nil && currentInquiryActivity?.activityState == .active
+    }
+
+    /// Clean up all existing inquiry activities
+    private func cleanupAllInquiryActivities() async {
+        stopObservingInquiryPushToken()
+
+        let activities = Activity<InquiryActivityAttributes>.activities
+        let count = activities.count
+
+        if count > 0 {
+            Log.i("🧹 Cleaning up \(count) existing Inquiry Activity(ies)...", category: "Notification")
+        }
+
+        for activity in activities {
+            Log.i("   - Ending inquiry activity: \(activity.id) (state: \(activity.activityState))", category: "Notification")
+            let finalState = InquiryActivityAttributes.ContentState(
+                question: "感谢回复！",
+                options: [],
+                createdAt: Date()
+            )
+            await activity.end(
+                .init(state: finalState, staleDate: nil),
+                dismissalPolicy: .immediate
+            )
+        }
+
+        // Clear our reference
+        currentInquiryActivity = nil
+
+        if count > 0 {
+            Log.i("✅ Inquiry cleanup completed, all activities ended", category: "Notification")
+        }
+    }
+
+    // MARK: - Inquiry Push Token Management
+
+    /// Start observing push token updates for the inquiry activity
+    private func startObservingInquiryPushToken(for activity: Activity<InquiryActivityAttributes>) {
+        // Cancel any existing observation
+        stopObservingInquiryPushToken()
+
+        Log.i("🔔 Starting inquiry push token observation...", category: "Notification")
+
+        inquiryPushTokenTask = Task {
+            for await pushToken in activity.pushTokenUpdates {
+                let tokenString = pushToken.map { String(format: "%02x", $0) }.joined()
+                Log.i("📱 Inquiry Live Activity Push Token Updated:", category: "Notification")
+                Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+                Log.i("   - Push Token: \(tokenString)", category: "Notification")
+                Log.i("   - Token Data: \(pushToken.base64EncodedString())", category: "Notification")
+
+                // Store the token
+                self.inquiryActivityToken = tokenString
+
+                // Report to backend via DeviceTrackManager
+                await reportInquiryActivityToken(tokenString)
+            }
+        }
+    }
+
+    /// Report Inquiry Activity push token to backend
+    private func reportInquiryActivityToken(_ token: String) async {
+        Log.i("📤 Reporting Inquiry Activity token to backend...", category: "Notification")
+
+        // Trigger NotificationManager to report device info with Inquiry Activity token
+        Task {
+            await NotificationManager.shared.reportDeviceInfoWithLiveActivityToken()
+        }
+    }
+
+    /// Stop observing inquiry push token updates
+    private func stopObservingInquiryPushToken() {
+        inquiryPushTokenTask?.cancel()
+        inquiryPushTokenTask = nil
+        Log.i("🔕 Stopped inquiry push token observation", category: "Notification")
     }
 }
 
