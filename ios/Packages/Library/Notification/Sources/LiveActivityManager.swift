@@ -2,6 +2,12 @@ import ActivityKit
 import Foundation
 import LibraryBase
 
+/// 混合卡片类型（包含 Agenda 任务卡和 Inquiry 问询卡）
+enum MixedCardType {
+    case agenda(AgendaActivityAttributes.ContentState)
+    case inquiry(question: String, options: [InquiryActivityAttributes.ContentState.InquiryOption])
+}
+
 /// Manager for handling Live Activities
 @available(iOS 16.1, *)
 @MainActor
@@ -12,28 +18,35 @@ public final class LiveActivityManager: ObservableObject {
     /// Current active agenda activity
     @Published public private(set) var currentAgendaActivity: Activity<AgendaActivityAttributes>?
 
+    /// Current active inquiry activity (问询卡片)
+    @Published public private(set) var currentInquiryActivity: Activity<InquiryActivityAttributes>?
+
     /// Live Activity push token (stored in memory)
     @Published public private(set) var liveActivityToken: String?
-    
-    /// Mock 任务列表（本地持久化）
-    private var mockTasks: [AgendaActivityAttributes.ContentState] = []
-    /// 当前展示的 mock 任务索引（本地持久化）
-    private var currentMockTaskIndex: Int = 0
+
+    /// Inquiry Activity push token (stored in memory)
+    @Published public private(set) var inquiryActivityToken: String?
+
+    /// 混合卡片列表（包含 Agenda 和 Inquiry 两种类型，随机打散）
+    private var mixedCards: [MixedCardType] = []
+    /// 当前展示的混合卡片索引
+    private var currentCardIndex: Int = 0
     /// 记录当前使用的用户ID，便于重启或切换任务时复用
     private var currentUserId: String = "guest"
 
-    /// Push token observation task
+    /// Push token observation task (for Agenda activity)
     private var pushTokenTask: Task<Void, Never>?
-    
-    private let mockTaskIndexKey = "com.thrivebody.liveactivity.mockTaskIndex"
+
+    /// Push token observation task (for Inquiry activity)
+    private var inquiryPushTokenTask: Task<Void, Never>?
+
+    private let cardIndexKey = "com.thrivebody.liveactivity.cardIndex"
 
     private init() {}
 
-    /// Start a new agenda live activity with RPG-style mock data
+    /// Start a new mixed card (Agenda or Inquiry) with current or next card from the mixed list
     /// - Parameters:
     ///   - userId: User identifier
-    ///   - title: Title of the live activity (deprecated, uses mock data)
-    ///   - text: Text content to display (deprecated, uses mock data)
     /// - Throws: ActivityKit errors if activity cannot be started
     public func startAgendaActivity(
         userId: String,
@@ -41,7 +54,7 @@ public final class LiveActivityManager: ObservableObject {
         text: String = "Take a deep breath 🌬️",
         initialState: AgendaActivityAttributes.ContentState? = nil
     ) async throws {
-        Log.i("🚀 Starting RPG-style Live Activity...", category: "Notification")
+        Log.i("🚀 Starting Live Activity (Mixed Cards)...", category: "Notification")
         Log.i("   - User ID: \(userId)", category: "Notification")
         currentUserId = userId
 
@@ -51,46 +64,74 @@ public final class LiveActivityManager: ObservableObject {
 
         // Clean up ALL existing activities first
         stopObservingPushToken()
+        stopObservingInquiryPushToken()
         await cleanupAllActivities()
+        await cleanupAllInquiryActivities()
 
-        let attributes = AgendaActivityAttributes(userId: userId)
-
-        // 读取/生成 mock 任务列表
-        loadMockTasksIfNeeded()
-        let tasks = mockTasks
-        currentMockTaskIndex = loadCurrentMockIndex(max: tasks.count)
-
-        // 当前要展示的内容
-        let selectedState: AgendaActivityAttributes.ContentState
+        // 如果有 initialState，直接启动 Agenda 卡片
         if let initialState {
-            selectedState = initialState
-        } else if currentMockTaskIndex < tasks.count {
-            selectedState = tasks[currentMockTaskIndex]
-        } else {
-            selectedState = tasks.first!
-            currentMockTaskIndex = 0
-            persistCurrentMockIndex(0)
+            let attributes = AgendaActivityAttributes(userId: userId)
+            let contentState = prepareState(initialState)
+
+            do {
+                let activity = try Activity<AgendaActivityAttributes>.request(
+                    attributes: attributes,
+                    content: .init(state: contentState, staleDate: nil),
+                    pushType: .token
+                )
+                currentAgendaActivity = activity
+                Log.i("✅ Agenda Live Activity started successfully!", category: "Notification")
+                Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+                Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
+
+                // Start observing push token updates
+                startObservingPushToken(for: activity)
+            } catch {
+                Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
+                Log.i("   - Error type: \(type(of: error))", category: "Notification")
+                Log.i("   - Error description: \(error.localizedDescription)", category: "Notification")
+                throw error
+            }
+            return
         }
-        let contentState = prepareState(selectedState)
 
-        do {
-            let activity = try Activity<AgendaActivityAttributes>.request(
-                attributes: attributes,
-                content: .init(state: contentState, staleDate: nil),
-                pushType: .token
-            )
-            currentAgendaActivity = activity
-            Log.i("✅ RPG-style Live Activity started successfully!", category: "Notification")
-            Log.i("   - Activity ID: \(activity.id)", category: "Notification")
-            Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
+        // 否则使用混合卡片机制
+        loadMixedCardsIfNeeded()
+        guard !mixedCards.isEmpty else {
+            Log.w("⚠️ [LiveActivity] 没有可用的卡片", category: "Notification")
+            throw LiveActivityError.noActiveActivity
+        }
 
-            // Start observing push token updates
-            startObservingPushToken(for: activity)
-        } catch {
-            Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
-            Log.i("   - Error type: \(type(of: error))", category: "Notification")
-            Log.i("   - Error description: \(error.localizedDescription)", category: "Notification")
-            throw error
+        // 加载当前卡片索引
+        currentCardIndex = loadCurrentCardIndex(max: mixedCards.count)
+        let currentCard = mixedCards[currentCardIndex]
+
+        // 根据卡片类型启动相应的 Live Activity
+        switch currentCard {
+        case .agenda(let state):
+            let attributes = AgendaActivityAttributes(userId: userId)
+            let contentState = prepareState(state)
+
+            do {
+                let activity = try Activity<AgendaActivityAttributes>.request(
+                    attributes: attributes,
+                    content: .init(state: contentState, staleDate: nil),
+                    pushType: .token
+                )
+                currentAgendaActivity = activity
+                Log.i("✅ Agenda Live Activity started successfully!", category: "Notification")
+                Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+                Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
+
+                // Start observing push token updates
+                startObservingPushToken(for: activity)
+            } catch {
+                Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
+                throw error
+            }
+
+        case .inquiry(let question, let options):
+            try await startInquiryActivity(userId: userId, question: question, options: options)
         }
     }
 
@@ -166,40 +207,75 @@ public final class LiveActivityManager: ObservableObject {
         currentAgendaActivity != nil && currentAgendaActivity?.activityState == .active
     }
     
-    /// 切换到下一条 mock 任务（会保存索引并立即更新 Live Activity）
+    /// 切换到下一张混合卡片（包含 Agenda 任务卡和 Inquiry 问询卡，随机轮换）
     public func advanceToNextMockTask() async {
-        loadMockTasksIfNeeded()
-        guard !mockTasks.isEmpty else {
-            Log.w("⚠️ [LiveActivity] 没有可用的 mock 任务", category: "Notification")
+        // 加载混合卡片列表
+        loadMixedCardsIfNeeded()
+        guard !mixedCards.isEmpty else {
+            Log.w("⚠️ [LiveActivity] 没有可用的卡片", category: "Notification")
             return
         }
-        
-        let nextIndex = (currentMockTaskIndex + 1) % mockTasks.count
-        currentMockTaskIndex = nextIndex
-        persistCurrentMockIndex(nextIndex)
-        
-        let nextState: AgendaActivityAttributes.ContentState
-        if nextIndex < mockTasks.count {
-            nextState = prepareState(mockTasks[nextIndex])
-        } else {
-            nextState = prepareState(mockTasks.first!)
-            currentMockTaskIndex = 0
-            persistCurrentMockIndex(0)
+
+        // 切换到下一张卡片
+        let nextIndex = (currentCardIndex + 1) % mixedCards.count
+        currentCardIndex = nextIndex
+        persistCurrentCardIndex(nextIndex)
+
+        let nextCard = mixedCards[nextIndex]
+
+        // 根据卡片类型启动相应的 Live Activity
+        switch nextCard {
+        case .agenda(let state):
+            await switchToAgendaCard(state)
+
+        case .inquiry(let question, let options):
+            await switchToInquiryCard(question: question, options: options)
+        }
+    }
+
+    /// 切换到 Agenda 卡片
+    private func switchToAgendaCard(_ state: AgendaActivityAttributes.ContentState) async {
+        let preparedState = prepareState(state)
+
+        // 清理 Inquiry 卡片（如果有）
+        if isInquiryActive {
+            await stopInquiryActivity()
         }
 
+        // 更新或启动 Agenda 卡片
         if let activity = currentAgendaActivity, activity.activityState == .active {
-            await activity.update(.init(state: nextState, staleDate: nil))
-            Log.i("✅ [LiveActivity] 切换到下一任务: \(nextState.task.title)", category: "Notification")
+            await activity.update(.init(state: preparedState, staleDate: nil))
+            Log.i("✅ [LiveActivity] 切换到 Agenda 卡片: \(preparedState.task.title)", category: "Notification")
         } else {
-            Log.w("ℹ️ [LiveActivity] 当前没有活动，尝试重启并展示下一任务", category: "Notification")
+            Log.i("ℹ️ [LiveActivity] 启动 Agenda 卡片: \(preparedState.task.title)", category: "Notification")
             do {
                 try await startAgendaActivity(
                     userId: currentUserId,
-                    initialState: nextState
+                    initialState: preparedState
                 )
             } catch {
-                Log.e("❌ [LiveActivity] 重启活动失败: \(error)", category: "Notification")
+                Log.e("❌ [LiveActivity] 启动 Agenda 卡片失败: \(error)", category: "Notification")
             }
+        }
+    }
+
+    /// 切换到 Inquiry 卡片
+    private func switchToInquiryCard(question: String, options: [InquiryActivityAttributes.ContentState.InquiryOption]) async {
+        // 清理 Agenda 卡片（如果有）
+        if isAgendaActive {
+            await stopAgendaActivity()
+        }
+
+        // 启动 Inquiry 卡片
+        Log.i("ℹ️ [LiveActivity] 启动 Inquiry 卡片: \(question)", category: "Notification")
+        do {
+            try await startInquiryActivity(
+                userId: currentUserId,
+                question: question,
+                options: options
+            )
+        } catch {
+            Log.e("❌ [LiveActivity] 启动 Inquiry 卡片失败: \(error)", category: "Notification")
         }
     }
 
@@ -326,21 +402,91 @@ public final class LiveActivityManager: ObservableObject {
         return newState
     }
     
-    // MARK: - Mock 任务管理（本地持久化）
-    
-    private func loadMockTasksIfNeeded() {
-        if !mockTasks.isEmpty { return }
-        mockTasks = defaultMockTasks()
+    // MARK: - 混合卡片管理（本地持久化）
+
+    /// 加载混合卡片列表（如果未加载）
+    private func loadMixedCardsIfNeeded() {
+        if !mixedCards.isEmpty { return }
+        mixedCards = generateMixedCards()
     }
-    
-    private func loadCurrentMockIndex(max count: Int) -> Int {
+
+    /// 生成混合卡片列表（包含 Agenda 和 Inquiry 两种类型，随机打散）
+    private func generateMixedCards() -> [MixedCardType] {
+        var cards: [MixedCardType] = []
+
+        // 添加所有 Agenda 任务卡
+        let agendaTasks = defaultMockTasks()
+        cards.append(contentsOf: agendaTasks.map { .agenda($0) })
+
+        // 添加所有 Inquiry 问询卡
+        let inquiries = defaultInquiryCards()
+        cards.append(contentsOf: inquiries.map {
+            .inquiry(question: $0.question, options: $0.options)
+        })
+
+        // 随机打散顺序
+        return cards.shuffled()
+    }
+
+    /// 加载当前卡片索引
+    private func loadCurrentCardIndex(max count: Int) -> Int {
         guard count > 0 else { return 0 }
-        let stored = UserDefaults.standard.integer(forKey: mockTaskIndexKey)
+        let stored = UserDefaults.standard.integer(forKey: cardIndexKey)
         return stored % count
     }
-    
-    private func persistCurrentMockIndex(_ index: Int) {
-        UserDefaults.standard.set(index, forKey: mockTaskIndexKey)
+
+    /// 持久化当前卡片索引
+    private func persistCurrentCardIndex(_ index: Int) {
+        UserDefaults.standard.set(index, forKey: cardIndexKey)
+    }
+
+    /// 默认问询卡片列表
+    private func defaultInquiryCards() -> [(question: String, options: [InquiryActivityAttributes.ContentState.InquiryOption])] {
+        return [
+            // 卡片1：入睡时间计算前的干扰项问询
+            (
+                question: "👀 正在为你计算今晚的最佳入睡时间，在我运行模型前，有没有什么干扰项需要我手动录入的？",
+                options: [
+                    .init(emoji: "🥗", text: "我很健康", id: "healthy"),
+                    .init(emoji: "🍺", text: "喝了酒", id: "alcohol"),
+                    .init(emoji: "🍔", text: "吃了夜宵", id: "late_snack")
+                ]
+            ),
+            // 卡片2：睡眠体感问询
+            (
+                question: "👀 数据说你昨晚只睡了 6 小时，但我想知道你的真实体感。你现在感觉怎么样？",
+                options: [
+                    .init(emoji: "🚀", text: "满血复活", id: "energized"),
+                    .init(emoji: "😑", text: "有点脑雾", id: "foggy"),
+                    .init(emoji: "🧟‍♂️", text: "像卡车碾过", id: "exhausted")
+                ]
+            ),
+            // 卡片3：心率异常问询
+            (
+                question: "👀 虽然你坐着没动，但心率数据越来越高了，是遇到什么棘手的情况了吗？",
+                options: [
+                    .init(emoji: "😨", text: "突发焦虑", id: "anxiety"),
+                    .init(emoji: "🤮", text: "开了个烂会", id: "bad_meeting"),
+                    .init(emoji: "☕️", text: "咖啡因上头", id: "caffeine")
+                ]
+            ),
+            // 卡片4：HRV 下降问询
+            (
+                question: "👀 HRV 已经连跌 3 天了，深睡也一直在减少，最近是不是遇到了什么事情？",
+                options: [
+                    .init(emoji: "🤯", text: "工作太卷", id: "overwork"),
+                    .init(emoji: "🦠", text: "感觉要病", id: "getting_sick"),
+                    .init(emoji: "💔", text: "情绪烂事", id: "emotional")
+                ]
+            ),
+            // 卡片5：午餐拍照提醒
+            (
+                question: "👀 中午啦。别让自己饿着，吃的什么，随手拍一张给我看看？我来帮你记录今天的卡路里摄入。",
+                options: [
+                    .init(emoji: "📷", text: "随手拍", id: "take_photo")
+                ]
+            )
+        ]
     }
     
     /// 参考用户文案的 10 条 mock 任务
@@ -519,6 +665,190 @@ public final class LiveActivityManager: ObservableObject {
                 remaining: 300
             )
         ]
+    }
+
+    // MARK: - Inquiry Activity Management
+
+    /// Start a new inquiry live activity (问询卡片)
+    /// - Parameters:
+    ///   - userId: User identifier
+    ///   - question: Question text
+    ///   - options: List of inquiry options
+    /// - Throws: ActivityKit errors if activity cannot be started
+    public func startInquiryActivity(
+        userId: String,
+        question: String,
+        options: [InquiryActivityAttributes.ContentState.InquiryOption]
+    ) async throws {
+        Log.i("🚀 Starting Inquiry Live Activity...", category: "Notification")
+        Log.i("   - User ID: \(userId)", category: "Notification")
+        Log.i("   - Question: \(question)", category: "Notification")
+
+        // Check if activities are enabled
+        let areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        Log.i("   - Activities enabled: \(areActivitiesEnabled)", category: "Notification")
+
+        // Clean up existing inquiry activities first
+        stopObservingInquiryPushToken()
+        await cleanupAllInquiryActivities()
+
+        let attributes = InquiryActivityAttributes(userId: userId)
+        let contentState = InquiryActivityAttributes.ContentState(
+            question: question,
+            options: options,
+            createdAt: Date()
+        )
+
+        do {
+            let activity = try Activity<InquiryActivityAttributes>.request(
+                attributes: attributes,
+                content: .init(state: contentState, staleDate: nil),
+                pushType: .token
+            )
+            currentInquiryActivity = activity
+            Log.i("✅ Inquiry Live Activity started successfully!", category: "Notification")
+            Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+            Log.i("   - Activity State: \(activity.activityState)", category: "Notification")
+
+            // Start observing push token updates
+            startObservingInquiryPushToken(for: activity)
+        } catch {
+            Log.e("❌ Failed to start Inquiry Live Activity: \(error)", category: "Notification")
+            Log.i("   - Error type: \(type(of: error))", category: "Notification")
+            Log.i("   - Error description: \(error.localizedDescription)", category: "Notification")
+            throw error
+        }
+    }
+
+    /// Update the current inquiry live activity
+    /// - Parameters:
+    ///   - question: New question text
+    ///   - options: New list of options
+    /// - Throws: ActivityKit errors if update fails
+    public func updateInquiryActivity(
+        question: String,
+        options: [InquiryActivityAttributes.ContentState.InquiryOption]
+    ) async throws {
+        guard let activity = currentInquiryActivity else {
+            Log.w("⚠️ No currentInquiryActivity stored, cannot update", category: "Notification")
+            throw LiveActivityError.noActiveActivity
+        }
+
+        // Check if activity is still active
+        guard activity.activityState == .active else {
+            Log.w("⚠️ Inquiry Activity is no longer active (state: \(activity.activityState)), clearing reference", category: "Notification")
+            currentInquiryActivity = nil
+            throw LiveActivityError.noActiveActivity
+        }
+
+        let newState = InquiryActivityAttributes.ContentState(
+            question: question,
+            options: options,
+            createdAt: Date()
+        )
+
+        let alertConfiguration = AlertConfiguration(
+            title: .init(stringLiteral: "新的问询"),
+            body: .init(stringLiteral: question),
+            sound: .default
+        )
+
+        await activity.update(
+            .init(state: newState, staleDate: nil),
+            alertConfiguration: alertConfiguration
+        )
+
+        Log.i("✅ Inquiry Live Activity updated: question=\(question)", category: "Notification")
+    }
+
+    /// Stop the current inquiry live activity
+    public func stopInquiryActivity() async {
+        // Stop observing push tokens
+        stopObservingInquiryPushToken()
+
+        // Clean up all inquiry activities
+        await cleanupAllInquiryActivities()
+        Log.i("✅ Inquiry Live Activity stopped", category: "Notification")
+    }
+
+    /// Check if there's an active inquiry activity
+    public var isInquiryActive: Bool {
+        currentInquiryActivity != nil && currentInquiryActivity?.activityState == .active
+    }
+
+    /// Clean up all existing inquiry activities
+    private func cleanupAllInquiryActivities() async {
+        stopObservingInquiryPushToken()
+
+        let activities = Activity<InquiryActivityAttributes>.activities
+        let count = activities.count
+
+        if count > 0 {
+            Log.i("🧹 Cleaning up \(count) existing Inquiry Activity(ies)...", category: "Notification")
+        }
+
+        for activity in activities {
+            Log.i("   - Ending inquiry activity: \(activity.id) (state: \(activity.activityState))", category: "Notification")
+            let finalState = InquiryActivityAttributes.ContentState(
+                question: "感谢回复！",
+                options: [],
+                createdAt: Date()
+            )
+            await activity.end(
+                .init(state: finalState, staleDate: nil),
+                dismissalPolicy: .immediate
+            )
+        }
+
+        // Clear our reference
+        currentInquiryActivity = nil
+
+        if count > 0 {
+            Log.i("✅ Inquiry cleanup completed, all activities ended", category: "Notification")
+        }
+    }
+
+    // MARK: - Inquiry Push Token Management
+
+    /// Start observing push token updates for the inquiry activity
+    private func startObservingInquiryPushToken(for activity: Activity<InquiryActivityAttributes>) {
+        // Cancel any existing observation
+        stopObservingInquiryPushToken()
+
+        Log.i("🔔 Starting inquiry push token observation...", category: "Notification")
+
+        inquiryPushTokenTask = Task {
+            for await pushToken in activity.pushTokenUpdates {
+                let tokenString = pushToken.map { String(format: "%02x", $0) }.joined()
+                Log.i("📱 Inquiry Live Activity Push Token Updated:", category: "Notification")
+                Log.i("   - Activity ID: \(activity.id)", category: "Notification")
+                Log.i("   - Push Token: \(tokenString)", category: "Notification")
+                Log.i("   - Token Data: \(pushToken.base64EncodedString())", category: "Notification")
+
+                // Store the token
+                self.inquiryActivityToken = tokenString
+
+                // Report to backend via DeviceTrackManager
+                await reportInquiryActivityToken(tokenString)
+            }
+        }
+    }
+
+    /// Report Inquiry Activity push token to backend
+    private func reportInquiryActivityToken(_ token: String) async {
+        Log.i("📤 Reporting Inquiry Activity token to backend...", category: "Notification")
+
+        // Trigger NotificationManager to report device info with Inquiry Activity token
+        Task {
+            await NotificationManager.shared.reportDeviceInfoWithLiveActivityToken()
+        }
+    }
+
+    /// Stop observing inquiry push token updates
+    private func stopObservingInquiryPushToken() {
+        inquiryPushTokenTask?.cancel()
+        inquiryPushTokenTask = nil
+        Log.i("🔕 Stopped inquiry push token observation", category: "Notification")
     }
 }
 
