@@ -5,69 +5,62 @@ import ThemeKit
 struct BioHardwareCardView: View {
     let data: BioHardwareData
     let onEdit: () -> Void
-    
+
     var body: some View {
         AboutMeCardView(
-            title: "生理信息",
-            subtitle: "你的生理特征",
+            title: "🧬 生理信息",
+            subtitle: "",
             onEdit: onEdit
         ) {
-            VStack(alignment: .leading, spacing: 16) {
-                insightItem(
-                    emoji: "🧬",
-                    title: "昼夜节律",
-                    description: data.chronotype,
-                    aiThinking: data.chronotypeAIThinking
-                )
-                
-                insightItem(
-                    emoji: "☕️",
-                    title: "咖啡因代谢",
-                    description: data.caffeineSensitivity,
-                    aiThinking: data.caffeineSensitivityAIThinking
-                )
-                
-                insightItem(
-                    emoji: "🔋",
-                    title: "压力耐受度",
-                    description: data.stressResilience
-                )
+            VStack(alignment: .leading, spacing: 20) {
+                // Chronotype section
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionHeader(title: "昼夜节律——社交时差受害者")
+
+                    Text(data.chronotype)
+                        .font(.system(size: 15))
+                        .foregroundColor(.Palette.textSecondary)
+                        .lineSpacing(6)
+
+                    PascalCommentView(comment: data.chronotypePascalComment)
+                }
+
+                Divider()
+
+                // Caffeine Metabolism section
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionHeader(title: "咖啡因代谢——甚至可以说\"拥堵\"")
+
+                    Text(data.caffeineMetabolism)
+                        .font(.system(size: 15))
+                        .foregroundColor(.Palette.textSecondary)
+                        .lineSpacing(6)
+
+                    if !data.caffeineMetabolismPascalComment.isEmpty {
+                        PascalCommentView(comment: data.caffeineMetabolismPascalComment)
+                    }
+                }
+
+                Divider()
+
+                // Stress Resilience section
+                VStack(alignment: .leading, spacing: 12) {
+                    sectionHeader(title: "压力耐受——高敏感型")
+
+                    Text(data.stressResilience)
+                        .font(.system(size: 15))
+                        .foregroundColor(.Palette.textSecondary)
+                        .lineSpacing(6)
+                }
             }
         }
     }
-    
+
     @ViewBuilder
-    private func insightItem(emoji: String, title: String, description: String, aiThinking: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(emoji)
-                    .font(.system(size: 20))
-                
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.Palette.textPrimary)
-            }
-            
-            Text(description)
-                .font(.system(size: 15))
-                .foregroundColor(.Palette.textSecondary)
-                .lineSpacing(4)
-            
-            if let thinking = aiThinking {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("AI 🤔:")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.Palette.infoMain)
-                    
-                    Text(thinking)
-                        .font(.system(size: 14))
-                        .foregroundColor(.Palette.infoMain.opacity(0.8))
-                }
-                .padding(12)
-                .background(Color.Palette.infoBgSoft)
-                .cornerRadius(12)
-            }
-        }
+    private func sectionHeader(title: String) -> some View {
+        Text(title)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.Palette.textPrimary)
     }
 }
 
@@ -79,5 +72,5 @@ struct BioHardwareCardView: View {
         )
         .padding()
     }
-    .background(Color.Palette.surfaceElevated)
+    .background(Color.Palette.bgBase)
 }

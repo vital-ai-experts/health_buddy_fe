@@ -4,47 +4,56 @@ import ThemeKit
 /// Archives card view displaying historical data
 struct ArchivesCardView: View {
     let data: ArchivesData
-    let onEdit: () -> Void
-    
+    let onEdit: (() -> Void)?
+    @State private var expandedProjects: Set<UUID> = []
+
+    init(data: ArchivesData, onEdit: (() -> Void)? = nil) {
+        self.data = data
+        self.onEdit = onEdit
+    }
+
     var body: some View {
         AboutMeCardView(
-            title: "历史档案",
-            subtitle: "过往经验与策略",
+            title: "📂 历史档案",
+            subtitle: "",
             onEdit: onEdit
         ) {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("❌ 过去失败的项目")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.Palette.textPrimary)
-                    
-                    ForEach(data.failedProjects) { project in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("• \(project.name)")
-                                .font(.system(size: 15, weight: .medium))
-                            Text("  \(project.duration)")
-                                .font(.system(size: 14))
-                                .foregroundColor(.Palette.textSecondary)
-                            Text("  失败原因：\(project.failureReason)")
-                                .font(.system(size: 14))
-                                .foregroundColor(.Palette.textSecondary)
+            VStack(alignment: .leading, spacing: 20) {
+                ForEach(data.failedProjects) { (project: FailedProject) in
+                    DisclosureGroup(
+                        isExpanded: Binding(
+                            get: { expandedProjects.contains(project.id) },
+                            set: { isExpanded in
+                                if isExpanded {
+                                    expandedProjects.insert(project.id)
+                                } else {
+                                    expandedProjects.remove(project.id)
+                                }
+                            }
+                        )
+                    ) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Duration
+                            HStack(spacing: 8) {
+                                Text("-")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.Palette.textSecondary)
+
+                                Text(project.duration)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.Palette.textSecondary)
+                            }
+
+                            // Pascal's comment
+                            PascalCommentView(comment: project.pascalComment)
                         }
+                        .padding(.top, 8)
+                    } label: {
+                        Text("已归档：\(project.name)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.Palette.textSecondary)
                     }
-                }
-                
-                Divider()
-                    .padding(.vertical, 4)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("✅ 本次策略调整")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.Palette.successMain)
-                    
-                    ForEach(data.strategyAdjustments, id: \.self) { adjustment in
-                        Text("• \(adjustment)")
-                            .font(.system(size: 14))
-                            .foregroundColor(.Palette.textPrimary)
-                    }
+                    .animation(.easeInOut, value: expandedProjects)
                 }
             }
         }
@@ -59,5 +68,5 @@ struct ArchivesCardView: View {
         )
         .padding()
     }
-    .background(Color.Palette.surfaceElevated)
+    .background(Color.Palette.bgBase)
 }

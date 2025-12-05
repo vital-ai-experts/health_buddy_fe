@@ -5,7 +5,7 @@ import ThemeKit
 struct AboutMeCardView<Content: View>: View {
     let title: String
     let subtitle: String
-    let onEdit: () -> Void
+    let onEdit: (() -> Void)?
     @ViewBuilder let content: () -> Content
     
     var body: some View {
@@ -14,7 +14,7 @@ struct AboutMeCardView<Content: View>: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.Palette.textPrimary)
                     
                     Text(subtitle)
@@ -24,12 +24,14 @@ struct AboutMeCardView<Content: View>: View {
                 
                 Spacer()
                 
-                Button(action: onEdit) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 20))
-                        .foregroundColor(.Palette.textSecondary)
+                if let onEdit {
+                    Button(action: onEdit) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 20))
+                            .foregroundColor(.Palette.textSecondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             
             // Card content

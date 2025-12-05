@@ -94,28 +94,41 @@ public struct AboutMeView: View {
                 onInfoTapped: { showingInfoSheet = true }
             )
 
-            // 目标 (The Core Drivers)
+            // 更新时间 - 特殊样式的浅灰色文字
+            HStack {
+                Text("内容更新：\(aboutMeData.updateTime)")
+                    .font(.system(size: 13))
+                    .foregroundColor(.Palette.textSecondary.opacity(0.5))
+                Spacer()
+            }
+            .padding(.bottom, 8)
+
+            // 近期模式回溯
+            RecentPatternCardView(
+                data: aboutMeData.recentPattern
+            )
+
+            // 目标与核心驱动
             GoalsCardView(
                 data: aboutMeData.goals,
                 onEdit: { editingSection = .goals }
             )
 
-            // 生理信息 (Bio-Hardware)
+            // 生理信息
             BioHardwareCardView(
                 data: aboutMeData.bioHardware,
                 onEdit: { editingSection = .bioHardware }
             )
 
-            // 行为与偏好 (Neuro-Software)
+            // 行为与偏好
             NeuroSoftwareCardView(
                 data: aboutMeData.neuroSoftware,
                 onEdit: { editingSection = .neuroSoftware }
             )
 
-            // 历史档案 (The Archives)
+            // 历史档案
             ArchivesCardView(
-                data: aboutMeData.archives,
-                onEdit: { editingSection = .archives }
+                data: aboutMeData.archives
             )
         }
     }
