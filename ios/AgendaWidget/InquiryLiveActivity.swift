@@ -153,6 +153,7 @@ struct InquiryLiveActivityView: View {
 struct InquiryOptionIntent: AppIntent {
     static var title: LocalizedStringResource = "Select Inquiry Option"
     static var description: IntentDescription = IntentDescription("Respond to health inquiry")
+    static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Option ID")
     var optionId: String
@@ -170,7 +171,8 @@ struct InquiryOptionIntent: AppIntent {
         self.optionText = optionText
     }
 
-    func perform() async throws -> some IntentResult {
+    @MainActor
+    func perform() async throws -> some IntentResult & OpensIntent {
         Log.i("📱 Inquiry option selected: \(optionText) (id: \(optionId))", category: "Notification")
 
         // Send message to app via deep link
@@ -185,7 +187,7 @@ struct InquiryOptionIntent: AppIntent {
         ]
 
         if let url = components.url {
-            await UIApplication.shared.open(url)
+            return .result(opensIntent: .init(url: url))
         }
 
         return .result()
