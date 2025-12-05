@@ -16,6 +16,7 @@ struct AgendaLiveActivity: Widget {
             AgendaLiveActivityView(context: context)
                 .activityBackgroundTint(Color.Palette.bgMuted)
                 .activitySystemActionForegroundColor(Color.Palette.textPrimary)
+                .environment(\.colorScheme, .light)
         } dynamicIsland: { context in
             DynamicIsland {
                 // Expanded region
