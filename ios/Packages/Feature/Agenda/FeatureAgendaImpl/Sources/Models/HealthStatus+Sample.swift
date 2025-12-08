@@ -197,12 +197,52 @@ extension HealthStatus {
         )
     )
 
+    /// 断食反噬
+    static let sampleFastingBackfire = HealthStatus(
+        overallPerformance: 62,
+        temperature: 17,
+        metrics: [
+            HealthMetric(
+                icon: "🔴",
+                name: "HRV",
+                value: "砸穿",
+                status: .low,
+                description: "生存危机模式"
+            ),
+            HealthMetric(
+                icon: "🔴",
+                name: "皮质醇",
+                value: "飙升",
+                status: .high,
+                description: "HPA轴激活"
+            ),
+            HealthMetric(
+                icon: "🟡",
+                name: "糖原",
+                value: "亏空",
+                status: .low,
+                description: "急需碳水"
+            )
+        ],
+        expertInsight: ExpertInsight(
+            title: "⚠️ 被断食反噬中",
+            body: """
+            最近 HRV 走低的原因我找到了：因为你断食没选对日子。每天上午你都有一场 2 小时的例会，配合断食策略，直接把身体逼急了，为了给大脑供能，皮质醇飙升，这种人为制造的生存危机直接砸穿了你的 HRV。
+            赶紧吃口碳水，别让身体以为你在遭灾。
+            """,
+            science: """
+            “空腹叠加高脑力负荷会激活 HPA 轴，引发皮质醇飙升。这种急性应激不仅阻断燃脂，更会持续压低 HRV。” —— Journal of Clinical Endocrinology
+            """
+        )
+    )
+
     static let samples: [HealthStatus] = [
         sampleChallenge,
         sampleRecovery,
         sampleTravelFatigue,
         sampleFocus,
-        sampleEvening
+        sampleEvening,
+        sampleFastingBackfire,
     ]
 
     static var sample: HealthStatus {
