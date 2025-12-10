@@ -102,13 +102,7 @@ struct AgendaNotificationView: View {
                 // App icon placeholder
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "#10B981"), Color(hex: "#059669")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(Color.green)
                         .frame(width: 40, height: 40)
 
                     Image(systemName: "heart.fill")
@@ -135,12 +129,12 @@ struct AgendaNotificationView: View {
                     Text("进行中")
                         .font(.system(size: 11, weight: .medium))
                 }
-                .foregroundColor(Color(hex: "#F59E0B"))
+                .foregroundColor(.orange)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(hex: "#FEF3C7"))
+                        .fill(Color.orange.opacity(0.2))
                 )
             }
 
@@ -163,7 +157,7 @@ struct AgendaNotificationView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#F3F4F6"))
+                    .fill(Color.gray.opacity(0.1))
             )
 
             // Action hint
@@ -216,12 +210,12 @@ struct InquiryNotificationView: View {
                     Text("问询")
                         .font(.system(size: 11, weight: .medium))
                 }
-                .foregroundColor(Color(hex: "#3B82F6"))
+                .foregroundColor(.blue)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(hex: "#DBEAFE"))
+                        .fill(Color.blue.opacity(0.2))
                 )
             }
 
@@ -237,7 +231,7 @@ struct InquiryNotificationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "#F3F4F6"))
+                        .fill(Color.gray.opacity(0.1))
                 )
 
             // Action hint
@@ -268,7 +262,7 @@ struct DefaultNotificationView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "#10B981"))
+                        .fill(Color.green)
                         .frame(width: 40, height: 40)
 
                     Image(systemName: "heart.fill")
@@ -299,38 +293,10 @@ struct DefaultNotificationView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#F3F4F6"))
+                    .fill(Color.gray.opacity(0.1))
             )
         }
         .padding(16)
         .background(Color.white)
-    }
-}
-
-// MARK: - Color Extension
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
