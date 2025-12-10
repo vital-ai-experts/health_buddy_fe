@@ -18,12 +18,20 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .clear
+        // 设置白色背景，不要用透明
+        view.backgroundColor = .white
+        // 预设内容大小
+        preferredContentSize = CGSize(width: UIScreen.main.bounds.width, height: 280)
     }
 
     func didReceive(_ notification: UNNotification) {
         let content = notification.request.content
         let categoryIdentifier = content.categoryIdentifier
+
+        // 调试日志
+        print("[NotificationContent] Received notification with category: \(categoryIdentifier)")
+        print("[NotificationContent] Title: \(content.title)")
+        print("[NotificationContent] Body: \(content.body)")
 
         // Create appropriate view based on category
         let contentView: AnyView
@@ -43,6 +51,7 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
                 )
             )
         default:
+            // 对于其他类别，也显示默认视图
             contentView = AnyView(
                 DefaultNotificationView(
                     title: content.title,
@@ -58,20 +67,23 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
 
         // Add new hosting controller
         let hosting = UIHostingController(rootView: contentView)
-        hosting.view.backgroundColor = .clear
+        hosting.view.backgroundColor = .white
+        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+
         addChild(hosting)
         view.addSubview(hosting.view)
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+
         NSLayoutConstraint.activate([
             hosting.view.topAnchor.constraint(equalTo: view.topAnchor),
             hosting.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hosting.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             hosting.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+
         hosting.didMove(toParent: self)
         hostingController = hosting
 
-        // Update preferred content size for taller notification
+        // 更新内容大小
         preferredContentSize = CGSize(width: view.bounds.width, height: 280)
     }
 }
