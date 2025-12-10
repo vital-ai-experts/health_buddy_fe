@@ -117,6 +117,8 @@ targets:
         product: FeatureAgendaImpl
       - target: AgendaWidget
         embed: true
+      - target: NotificationContent
+        embed: true
   AgendaWidget:
     platform: iOS
     deploymentTarget: '17.0'
@@ -138,12 +140,28 @@ targets:
         product: LibraryNotification
       - package: LibraryThemeKit
         product: ThemeKit
+  NotificationContent:
+    platform: iOS
+    deploymentTarget: '17.0'
+    type: app-extension
+    configFiles:
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.hehigh.thrivebody.NotificationContent
+      CODE_SIGN_ENTITLEMENTS: NotificationContent/NotificationContent.entitlements
+      INFOPLIST_FILE: NotificationContent/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+    sources:
+      - path: NotificationContent
+    dependencies: []
 schemes:
   ThriveBody:
     build:
       targets:
         ThriveBody: all
         AgendaWidget: all
+        NotificationContent: all
     run:
       config: Debug
       executable: ThriveBody
