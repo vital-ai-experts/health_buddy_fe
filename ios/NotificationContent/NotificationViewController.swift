@@ -32,7 +32,7 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
             contentView = AnyView(
                 AgendaNotificationView(
                     title: content.title,
-                    body: content.body
+                    bodyText: content.body
                 )
             )
         case "INQUIRY_BANNER":
@@ -46,7 +46,7 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
             contentView = AnyView(
                 DefaultNotificationView(
                     title: content.title,
-                    body: content.body
+                    bodyText: content.body
                 )
             )
         }
@@ -81,7 +81,7 @@ class NotificationViewController: UIViewController, UNNotificationContentExtensi
 /// RPG-style notification view for Agenda tasks
 struct AgendaNotificationView: View {
     let title: String
-    let body: String
+    let bodyText: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -141,7 +141,7 @@ struct AgendaNotificationView: View {
                     .foregroundColor(.primary)
                     .lineLimit(2)
 
-                Text(body)
+                Text(bodyText)
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                     .lineLimit(3)
@@ -249,7 +249,7 @@ struct InquiryNotificationView: View {
 /// Fallback view for other notification types
 struct DefaultNotificationView: View {
     let title: String
-    let body: String
+    let bodyText: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -278,7 +278,7 @@ struct DefaultNotificationView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.primary)
 
-                Text(body)
+                Text(bodyText)
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                     .lineLimit(3)
