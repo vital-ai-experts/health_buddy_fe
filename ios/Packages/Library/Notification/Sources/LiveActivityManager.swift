@@ -1,11 +1,18 @@
 import ActivityKit
 import Foundation
 import LibraryBase
+import UserNotifications
 
 /// 混合卡片类型（包含 Agenda 任务卡和 Inquiry 问询卡）
 enum MixedCardType {
     case agenda(AgendaActivityAttributes.ContentState)
     case inquiry(question: String, options: [InquiryActivityAttributes.ContentState.InquiryOption])
+}
+
+/// Live Activity Banner 通知标识符
+private enum LiveActivityNotificationIdentifier {
+    static let agendaBanner = "com.thrivebody.liveactivity.agenda.banner"
+    static let inquiryBanner = "com.thrivebody.liveactivity.inquiry.banner"
 }
 
 /// Manager for handling Live Activities
@@ -86,6 +93,9 @@ public final class LiveActivityManager: ObservableObject {
 
                 // Start observing push token updates
                 startObservingPushToken(for: activity)
+
+                // 安排 1 分钟后的 Banner 通知
+                scheduleAgendaBannerNotification(state: contentState)
             } catch {
                 Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
                 Log.i("   - Error type: \(type(of: error))", category: "Notification")
@@ -125,6 +135,9 @@ public final class LiveActivityManager: ObservableObject {
 
                 // Start observing push token updates
                 startObservingPushToken(for: activity)
+
+                // 安排 1 分钟后的 Banner 通知
+                scheduleAgendaBannerNotification(state: contentState)
             } catch {
                 Log.e("❌ Failed to start Live Activity: \(error)", category: "Notification")
                 throw error
@@ -197,6 +210,9 @@ public final class LiveActivityManager: ObservableObject {
         // Stop observing push tokens
         stopObservingPushToken()
 
+        // 取消已安排的 Banner 通知
+        cancelAgendaBannerNotification()
+
         // Clean up all activities to ensure nothing is left running
         await cleanupAllActivities()
         Log.i("✅ Live Activity stopped", category: "Notification")
@@ -246,6 +262,10 @@ public final class LiveActivityManager: ObservableObject {
         if let activity = currentAgendaActivity, activity.activityState == .active {
             await activity.update(.init(state: preparedState, staleDate: nil))
             Log.i("✅ [LiveActivity] 切换到 Agenda 卡片: \(preparedState.task.title)", category: "Notification")
+
+            // 取消旧的通知并安排新的
+            cancelAgendaBannerNotification()
+            scheduleAgendaBannerNotification(state: preparedState)
         } else {
             Log.i("ℹ️ [LiveActivity] 启动 Agenda 卡片: \(preparedState.task.title)", category: "Notification")
             do {
@@ -651,6 +671,9 @@ public final class LiveActivityManager: ObservableObject {
 
             // Start observing push token updates
             startObservingInquiryPushToken(for: activity)
+
+            // 安排 1 分钟后的 Banner 通知
+            scheduleInquiryBannerNotification(question: question, options: options)
         } catch {
             Log.e("❌ Failed to start Inquiry Live Activity: \(error)", category: "Notification")
             Log.i("   - Error type: \(type(of: error))", category: "Notification")
@@ -704,6 +727,9 @@ public final class LiveActivityManager: ObservableObject {
     public func stopInquiryActivity() async {
         // Stop observing push tokens
         stopObservingInquiryPushToken()
+
+        // 取消已安排的 Banner 通知
+        cancelInquiryBannerNotification()
 
         // Clean up all inquiry activities
         await cleanupAllInquiryActivities()
@@ -788,6 +814,127 @@ public final class LiveActivityManager: ObservableObject {
         inquiryPushTokenTask?.cancel()
         inquiryPushTokenTask = nil
         Log.i("🔕 Stopped inquiry push token observation", category: "Notification")
+    }
+
+    // MARK: - Banner Notification (Live Activity 启动 1 分钟后发送)
+
+    /// 延迟发送 Banner 通知的时间（秒）
+    private static let bannerNotificationDelaySeconds: TimeInterval = 60
+
+    /// 为 Agenda Activity 安排 Banner 通知（1 分钟后）
+    /// - Parameter state: Agenda 卡片的内容状态
+    private func scheduleAgendaBannerNotification(state: AgendaActivityAttributes.ContentState) {
+        let content = UNMutableNotificationContent()
+        content.title = state.task.title
+        content.body = state.task.description
+        content.sound = .default
+        content.categoryIdentifier = "AGENDA_BANNER"
+
+        // 添加 deeplink 用于点击跳转
+        var components = URLComponents()
+        components.scheme = "thrivebody"
+        components.host = "main"
+        components.queryItems = [
+            URLQueryItem(name: "tab", value: "chat"),
+            URLQueryItem(name: "source", value: "banner")
+        ]
+        if let url = components.url {
+            content.userInfo = ["deeplink": url.absoluteString]
+        }
+
+        // 1 分钟后触发
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: Self.bannerNotificationDelaySeconds,
+            repeats: false
+        )
+
+        let request = UNNotificationRequest(
+            identifier: LiveActivityNotificationIdentifier.agendaBanner,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                Log.e("❌ 安排 Agenda Banner 通知失败: \(error.localizedDescription)", category: "Notification")
+            } else {
+                Log.i("📅 已安排 Agenda Banner 通知（\(Int(Self.bannerNotificationDelaySeconds)) 秒后）", category: "Notification")
+                Log.i("   - 标题: \(state.task.title)", category: "Notification")
+            }
+        }
+    }
+
+    /// 为 Inquiry Activity 安排 Banner 通知（1 分钟后）
+    /// - Parameters:
+    ///   - question: 问询的问题
+    ///   - options: 可选项列表
+    private func scheduleInquiryBannerNotification(question: String, options: [InquiryActivityAttributes.ContentState.InquiryOption]) {
+        let content = UNMutableNotificationContent()
+        content.title = "ThriveBody 想问你一个问题"
+        content.body = question
+        content.sound = .default
+        content.categoryIdentifier = "INQUIRY_BANNER"
+
+        // 添加 deeplink 用于点击跳转
+        var components = URLComponents()
+        components.scheme = "thrivebody"
+        components.host = "main"
+        components.queryItems = [
+            URLQueryItem(name: "tab", value: "chat"),
+            URLQueryItem(name: "inquiry", value: "1"),
+            URLQueryItem(name: "source", value: "banner")
+        ]
+        if let url = components.url {
+            content.userInfo = ["deeplink": url.absoluteString]
+        }
+
+        // 1 分钟后触发
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: Self.bannerNotificationDelaySeconds,
+            repeats: false
+        )
+
+        let request = UNNotificationRequest(
+            identifier: LiveActivityNotificationIdentifier.inquiryBanner,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                Log.e("❌ 安排 Inquiry Banner 通知失败: \(error.localizedDescription)", category: "Notification")
+            } else {
+                Log.i("📅 已安排 Inquiry Banner 通知（\(Int(Self.bannerNotificationDelaySeconds)) 秒后）", category: "Notification")
+                Log.i("   - 问题: \(question)", category: "Notification")
+            }
+        }
+    }
+
+    /// 取消已安排的 Agenda Banner 通知
+    private func cancelAgendaBannerNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [LiveActivityNotificationIdentifier.agendaBanner]
+        )
+        Log.i("🚫 已取消 Agenda Banner 通知", category: "Notification")
+    }
+
+    /// 取消已安排的 Inquiry Banner 通知
+    private func cancelInquiryBannerNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [LiveActivityNotificationIdentifier.inquiryBanner]
+        )
+        Log.i("🚫 已取消 Inquiry Banner 通知", category: "Notification")
+    }
+
+    /// 取消所有 Live Activity 相关的 Banner 通知
+    public func cancelAllBannerNotifications() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [
+                LiveActivityNotificationIdentifier.agendaBanner,
+                LiveActivityNotificationIdentifier.inquiryBanner
+            ]
+        )
+        Log.i("🚫 已取消所有 Live Activity Banner 通知", category: "Notification")
     }
 }
 
